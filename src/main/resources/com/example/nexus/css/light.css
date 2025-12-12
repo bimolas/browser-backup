@@ -1,0 +1,63 @@
+/* Light theme for Modern Browser */
+
+.root {
+    -fx-background-color: white;
+}
+
+.toolbar {
+    -fx-background-color: #f5f5f5;
+    -fx-border-color: #e0e0e0;
+}
+
+.mfx-tab-pane {
+    -fx-background-color: #f0f0f0;
+}
+
+.mfx-tab-pane .tab-header-area {
+    -fx-background-color: #f0f0f0;
+}
+
+.mfx-tab-pane .tab {
+    -fx-background-color: #e0e0e0;
+    -fx-border-color: #d0d0d0;
+}
+
+.mfx-tab-pane .tab:selected {
+    -fx-background-color: white;
+}
+
+.mfx-text-field {
+    -fx-background-color: white;
+    -fx-border-color: #e0e0e0;
+    -fx-text-fill: #333;
+}
+
+.mfx-text-field:focused {
+    -fx-border-color: #2196f3;
+}
+
+.list-view {
+    -fx-background-color: white;
+    -fx-border-color: #e0e0e0;
+}
+
+.list-cell {
+    -fx-border-color: transparent transparent #e0e0e0 transparent;
+}
+
+.list-cell:hover {
+    -fx-background-color: #f5f5f5;
+}
+
+.list-cell:selected {
+    -fx-background-color: #e3f2fd;
+}
+
+.mfx-scroll-pane {
+    -fx-background-color: white;
+    -fx-border-color: #e0e0e0;
+}
+
+.separator {
+    -fx-background-color: #e0e0e0;
+}

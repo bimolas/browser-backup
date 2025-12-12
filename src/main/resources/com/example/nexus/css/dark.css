@@ -1,0 +1,76 @@
+/* Dark theme for Modern Browser */
+
+.root {
+    -fx-background-color: #121212;
+}
+
+.toolbar {
+    -fx-background-color: #1e1e1e;
+    -fx-border-color: #333;
+}
+
+.mfx-tab-pane {
+    -fx-background-color: #1e1e1e;
+}
+
+.mfx-tab-pane .tab-header-area {
+    -fx-background-color: #1e1e1e;
+}
+
+.mfx-tab-pane .tab {
+    -fx-background-color: #2a2a2a;
+    -fx-border-color: #333;
+}
+
+.mfx-tab-pane .tab:selected {
+    -fx-background-color: #121212;
+}
+
+.mfx-tab-pane .tab .tab-label {
+    -fx-text-fill: #e0e0e0;
+}
+
+.mfx-tab-pane .tab:selected .tab-label {
+    -fx-text-fill: white;
+}
+
+.mfx-text-field {
+    -fx-background-color: #2a2a2a;
+    -fx-border-color: #333;
+    -fx-text-fill: #e0e0e0;
+}
+
+.mfx-text-field:focused {
+    -fx-border-color: #2196f3;
+}
+
+.mfx-text-field .prompt-text {
+    -fx-text-fill: #888;
+}
+
+.list-view {
+    -fx-background-color: #1e1e1e;
+    -fx-border-color: #333;
+}
+
+.list-cell {
+    -fx-border-color: transparent transparent #333 transparent;
+    -fx-text-fill: #e0e0e0;
+}
+
+.list-cell:hover {
+    -fx-background-color: #2a2a2a;
+}
+
+.list-cell:selected {
+    -fx-background-color: #1a237e;
+}
+
+.mfx-scroll-pane {
+    -fx-background-color: #1e1e1e;
+    -fx-border-color: #333;
+}
+
+.separator {
+    -fx-background-color: #333;
+}
