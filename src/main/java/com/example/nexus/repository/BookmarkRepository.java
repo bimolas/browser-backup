@@ -97,8 +97,8 @@ public class BookmarkRepository extends BaseRepository<Bookmark> {
 
     @Override
     public void save(Bookmark bookmark) {
-        String sql = "INSERT INTO bookmarks (user_id, title, url, favicon_url, folder_id, position) " +
-                "VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO bookmarks (user_id, title, url, favicon_url, folder_id, position, is_favorite) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement stmt = getConnection().prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
             stmt.setInt(1, 1); // Default user ID
@@ -113,6 +113,7 @@ public class BookmarkRepository extends BaseRepository<Bookmark> {
             }
 
             stmt.setInt(6, bookmark.getPosition());
+            stmt.setInt(7, bookmark.isFavorite() ? 1 : 0);
 
             int affectedRows = stmt.executeUpdate();
 
@@ -120,18 +121,23 @@ public class BookmarkRepository extends BaseRepository<Bookmark> {
                 try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         bookmark.setId(generatedKeys.getInt(1));
+                        logger.info("Bookmark saved with ID: {} - {}", bookmark.getId(), bookmark.getTitle());
                     }
                 }
             }
         } catch (SQLException e) {
-            logger.error("Error saving bookmark", e);
+            logger.error("Error saving bookmark: " + bookmark.getTitle(), e);
+            throw new RuntimeException("Failed to save bookmark", e);
         }
     }
 
     @Override
     public void update(Bookmark bookmark) {
-        String sql = "UPDATE bookmarks SET title = ?, url = ?, favicon_url = ?, folder_id = ?, " +
-                "position = ? WHERE id = ?";
+        String sql = """
+            UPDATE bookmarks SET title = ?, url = ?, favicon_url = ?, folder_id = ?, 
+            position = ?, is_favorite = ?, description = ?, tags = ?, updated_at = ?
+            WHERE id = ?
+            """;
 
         try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
             stmt.setString(1, bookmark.getTitle());
@@ -145,7 +151,11 @@ public class BookmarkRepository extends BaseRepository<Bookmark> {
             }
 
             stmt.setInt(5, bookmark.getPosition());
-            stmt.setInt(6, bookmark.getId());
+            stmt.setInt(6, bookmark.isFavorite() ? 1 : 0);
+            stmt.setString(7, bookmark.getDescription());
+            stmt.setString(8, bookmark.getTags());
+            stmt.setTimestamp(9, java.sql.Timestamp.valueOf(bookmark.getUpdatedAt()));
+            stmt.setInt(10, bookmark.getId());
 
             stmt.executeUpdate();
         } catch (SQLException e) {
@@ -165,6 +175,115 @@ public class BookmarkRepository extends BaseRepository<Bookmark> {
         }
     }
 
+    public Bookmark findByUrl(String url) {
+        String sql = "SELECT * FROM bookmarks WHERE url = ?";
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+            stmt.setString(1, url);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToBookmark(rs);
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error finding bookmark by URL: " + url, e);
+        }
+
+        return null;
+    }
+
+    public List<Bookmark> findFavorites() {
+        List<Bookmark> bookmarks = new ArrayList<>();
+        String sql = "SELECT * FROM bookmarks WHERE is_favorite = 1 ORDER BY position";
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                bookmarks.add(mapResultSetToBookmark(rs));
+            }
+        } catch (SQLException e) {
+            logger.error("Error finding favorite bookmarks", e);
+        }
+
+        return bookmarks;
+    }
+
+    public List<Bookmark> findRootBookmarks() {
+        List<Bookmark> bookmarks = new ArrayList<>();
+        String sql = "SELECT * FROM bookmarks WHERE folder_id IS NULL ORDER BY position";
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                bookmarks.add(mapResultSetToBookmark(rs));
+            }
+        } catch (SQLException e) {
+            logger.error("Error finding root bookmarks", e);
+        }
+
+        return bookmarks;
+    }
+
+    public boolean existsByUrl(String url) {
+        String sql = "SELECT COUNT(*) FROM bookmarks WHERE url = ?";
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+            stmt.setString(1, url);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error checking bookmark existence by URL: " + url, e);
+        }
+
+        return false;
+    }
+
+    public int count() {
+        String sql = "SELECT COUNT(*) FROM bookmarks";
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            logger.error("Error counting bookmarks", e);
+        }
+
+        return 0;
+    }
+
+    public void updatePosition(int id, int newPosition) {
+        String sql = "UPDATE bookmarks SET position = ?, updated_at = ? WHERE id = ?";
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+            stmt.setInt(1, newPosition);
+            stmt.setTimestamp(2, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
+            stmt.setInt(3, id);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            logger.error("Error updating bookmark position", e);
+        }
+    }
+
+    public void updateFavoriteStatus(int id, boolean isFavorite) {
+        String sql = "UPDATE bookmarks SET is_favorite = ?, updated_at = ? WHERE id = ?";
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+            stmt.setInt(1, isFavorite ? 1 : 0);
+            stmt.setTimestamp(2, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
+            stmt.setInt(3, id);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            logger.error("Error updating bookmark favorite status", e);
+        }
+    }
+
     private Bookmark mapResultSetToBookmark(ResultSet rs) throws SQLException {
         Bookmark bookmark = new Bookmark();
         bookmark.setId(rs.getInt("id"));
@@ -179,6 +298,36 @@ public class BookmarkRepository extends BaseRepository<Bookmark> {
         }
 
         bookmark.setPosition(rs.getInt("position"));
+        
+        // Handle new fields with graceful fallback for older schema
+        try {
+            bookmark.setFavorite(rs.getInt("is_favorite") == 1);
+        } catch (SQLException ignored) {
+            bookmark.setFavorite(false);
+        }
+        
+        try {
+            bookmark.setDescription(rs.getString("description"));
+        } catch (SQLException ignored) {}
+        
+        try {
+            bookmark.setTags(rs.getString("tags"));
+        } catch (SQLException ignored) {}
+        
+        try {
+            java.sql.Timestamp createdAt = rs.getTimestamp("created_at");
+            if (createdAt != null) {
+                bookmark.setCreatedAt(createdAt.toLocalDateTime());
+            }
+        } catch (SQLException ignored) {}
+        
+        try {
+            java.sql.Timestamp updatedAt = rs.getTimestamp("updated_at");
+            if (updatedAt != null) {
+                bookmark.setUpdatedAt(updatedAt.toLocalDateTime());
+            }
+        } catch (SQLException ignored) {}
+        
         return bookmark;
     }
 }

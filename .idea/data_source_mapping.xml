@@ -2,5 +2,6 @@
 <project version="4">
   <component name="DataSourcePerFileMappings">
     <file url="file://$PROJECT_DIR$/.idea/queries/Query.sql" value="550dfcb1-e96a-4b3d-95cf-cdc16a02fb52" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_1.sql" value="872d46ee-3887-44f1-b5d1-39d39d16e6cf" />
   </component>
 </project>

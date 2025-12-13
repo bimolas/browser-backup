@@ -12,6 +12,8 @@ import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.logging.Level;
+
 public class BrowserApplication extends Application {
     private static final Logger logger = LoggerFactory.getLogger(BrowserApplication.class);
     private DIContainer container;
@@ -21,6 +23,9 @@ public class BrowserApplication extends Application {
     @Override
     public void init() {
         logger.info("Initializing Nexus Browser");
+
+        // Suppress JavaFX WebView media player warnings (known limitation - doesn't support most codecs)
+        suppressMediaPlayerWarnings();
 
         // Initialize dependency injection container
         container = new DIContainer();
@@ -33,6 +38,21 @@ public class BrowserApplication extends Application {
         // Initialize theme manager
         themeManager = new ThemeManager();
         container.register(ThemeManager.class, themeManager);
+    }
+
+    /**
+     * Suppress the annoying "Could not create player!" warnings from JavaFX WebView.
+     * This is a known limitation - JavaFX WebView doesn't support H.264, VP8, VP9, etc.
+     * Videos won't play in WebView regardless, so we just hide the spam warnings.
+     */
+    private void suppressMediaPlayerWarnings() {
+        // Suppress WebView media player warnings
+        java.util.logging.Logger.getLogger("com.sun.javafx.webkit.prism.WCMediaPlayerImpl").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.sun.media.jfxmedia").setLevel(Level.OFF);
+
+        // Also suppress at root level for these packages
+        java.util.logging.Logger webkitLogger = java.util.logging.Logger.getLogger("com.sun.javafx.webkit");
+        webkitLogger.setLevel(Level.SEVERE); // Only show severe errors
     }
 
     @Override

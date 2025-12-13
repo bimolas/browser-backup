@@ -144,11 +144,13 @@ public class HistoryRepository extends BaseRepository<HistoryEntry> {
                 try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         entry.setId(generatedKeys.getInt(1));
+                        logger.info("History entry saved with ID: {} - {}", entry.getId(), entry.getUrl());
                     }
                 }
             }
         } catch (SQLException e) {
-            logger.error("Error saving history entry", e);
+            logger.error("Error saving history entry: " + entry.getUrl(), e);
+            throw new RuntimeException("Failed to save history entry", e);
         }
     }
 
@@ -183,6 +185,58 @@ public class HistoryRepository extends BaseRepository<HistoryEntry> {
         }
     }
 
+    public List<HistoryEntry> findMostVisited(int limit) {
+        List<HistoryEntry> history = new ArrayList<>();
+        String sql = "SELECT * FROM history ORDER BY visit_count DESC LIMIT ?";
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+            stmt.setInt(1, limit);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    history.add(mapResultSetToHistoryEntry(rs));
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error finding most visited history entries", e);
+        }
+
+        return history;
+    }
+
+    public boolean existsByUrl(String url) {
+        String sql = "SELECT COUNT(*) FROM history WHERE url = ?";
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+            stmt.setString(1, url);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error checking history existence by URL: " + url, e);
+        }
+
+        return false;
+    }
+
+    public int count() {
+        String sql = "SELECT COUNT(*) FROM history";
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            logger.error("Error counting history entries", e);
+        }
+
+        return 0;
+    }
+
     private HistoryEntry mapResultSetToHistoryEntry(ResultSet rs) throws SQLException {
         HistoryEntry entry = new HistoryEntry();
         entry.setId(rs.getInt("id"));
@@ -195,6 +249,16 @@ public class HistoryRepository extends BaseRepository<HistoryEntry> {
         Timestamp timestamp = rs.getTimestamp("last_visit");
         if (timestamp != null) {
             entry.setLastVisit(timestamp.toLocalDateTime());
+        }
+        
+        // Handle first_visit if it exists
+        try {
+            Timestamp firstVisit = rs.getTimestamp("first_visit");
+            if (firstVisit != null) {
+                entry.setFirstVisit(firstVisit.toLocalDateTime());
+            }
+        } catch (SQLException ignored) {
+            entry.setFirstVisit(entry.getLastVisit());
         }
 
         return entry;

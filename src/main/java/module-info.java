@@ -4,6 +4,7 @@ module com.example.nexus {
     requires javafx.swing;
     requires javafx.web;           // For WebView
     requires javafx.graphics;
+    requires javafx.media;         // For media playback support
 
     // MaterialFX
     requires MaterialFX;
@@ -26,6 +27,12 @@ module com.example.nexus {
     exports com.example.nexus.core to javafx.graphics;
     opens com.example.nexus.core to javafx.graphics;
     opens com.example.nexus.controller to javafx.fxml;
+    opens com.example.nexus.view.dialogs to javafx.fxml;
 
     exports com.example.nexus;
+    exports com.example.nexus.exception;
+    exports com.example.nexus.model;
+    exports com.example.nexus.service;
+    exports com.example.nexus.repository;
+    exports com.example.nexus.view.dialogs;
 }

@@ -33,26 +33,38 @@ public class DatabaseManager {
     }
 
     private void initializeSchema() {
-        try (InputStream is = getClass().getResourceAsStream("/db/init.sql")) {
+        try (InputStream is = getClass().getResourceAsStream("/com/example/nexus/db/init.sql")) {
             if (is == null) {
-                logger.error("Database initialization script not found");
-                return;
-            }
-
-            String sql = new String(is.readAllBytes());
-
-            try (Statement stmt = connection.createStatement()) {
-                // Execute each SQL statement
-                for (String statement : sql.split(";")) {
-                    if (!statement.trim().isEmpty()) {
-                        stmt.execute(statement);
+                logger.error("Database initialization script not found at /com/example/nexus/db/init.sql");
+                // Try alternate path
+                try (InputStream altIs = getClass().getClassLoader().getResourceAsStream("com/example/nexus/db/init.sql")) {
+                    if (altIs == null) {
+                        logger.error("Database initialization script not found at alternate path either");
+                        return;
                     }
+                    executeInitScript(altIs);
+                    return;
                 }
-
-                logger.info("Database schema initialized");
             }
+
+            executeInitScript(is);
         } catch (Exception e) {
             logger.error("Failed to initialize database schema", e);
+        }
+    }
+
+    private void executeInitScript(InputStream is) throws Exception {
+        String sql = new String(is.readAllBytes());
+
+        try (Statement stmt = connection.createStatement()) {
+            // Execute each SQL statement
+            for (String statement : sql.split(";")) {
+                if (!statement.trim().isEmpty()) {
+                    stmt.execute(statement);
+                }
+            }
+
+            logger.info("Database schema initialized");
         }
     }
 

@@ -61,6 +61,14 @@
             <classifier>linux</classifier>
         </dependency>
 
+        <!-- JavaFX Media for video/audio support -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-media</artifactId>
+            <version>${javafx.version}</version>
+            <classifier>linux</classifier>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/org.kordamp.ikonli/ikonli-javafx -->
         <dependency>
             <groupId>org.kordamp.ikonli</groupId>

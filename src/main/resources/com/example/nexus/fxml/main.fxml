@@ -10,15 +10,16 @@
 
     <top>
         <VBox styleClass="top-container">
-            <!-- Tab bar with new tab button -->
-            <HBox styleClass="tab-bar-container" alignment="CENTER_LEFT">
-                <TabPane fx:id="tabPane" tabClosingPolicy="ALL_TABS"
-                         styleClass="browser-tab-pane" HBox.hgrow="ALWAYS"
+            <!-- Tab bar with new tab button positioned right next to last tab -->
+            <HBox styleClass="tab-bar-container" alignment="CENTER_LEFT" spacing="0">
+                <TabPane fx:id="tabPane" tabClosingPolicy="UNAVAILABLE"
+                         styleClass="browser-tab-pane"
                          tabMinWidth="100" tabMaxWidth="200">
                 </TabPane>
                 <Button fx:id="newTabButton" onAction="#handleNewTab" styleClass="new-tab-button">
                     <tooltip><Tooltip text="New Tab (Ctrl+T)"/></tooltip>
                 </Button>
+                <Region HBox.hgrow="ALWAYS"/>
             </HBox>
 
             <!-- Navigation toolbar -->

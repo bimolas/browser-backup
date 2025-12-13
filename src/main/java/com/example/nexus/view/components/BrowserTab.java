@@ -9,13 +9,20 @@ import javafx.concurrent.Worker;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.image.Image;
+import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.transform.Scale;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import javafx.scene.SnapshotParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.net.URI;
 
 /**
  * A JavaFX browser tab component using JavaFX WebView.
@@ -29,11 +36,17 @@ public class BrowserTab extends BorderPane {
     private final WebEngine webEngine;
     private final ProgressBar loadingBar;
     private final StackPane contentPane;
+    private final ScrollPane scrollPane;
+    private final javafx.scene.Group zoomGroup;
 
     private final StringProperty titleProperty = new SimpleStringProperty("New Tab");
     private final StringProperty urlProperty = new SimpleStringProperty("");
+    private final StringProperty faviconUrlProperty = new SimpleStringProperty("");
     private Tab tabModel;
     private boolean disposed = false;
+
+    // Viewport zoom level (magnifier style)
+    private double viewportZoom = 1.0;
 
     public BrowserTab(DIContainer container, String url) {
         this.container = container;
@@ -49,8 +62,20 @@ public class BrowserTab extends BorderPane {
         loadingBar.setVisible(false);
         loadingBar.setStyle("-fx-accent: #4285f4;");
 
+        // Create zoom group to hold WebView - this enables viewport zooming
+        this.zoomGroup = new javafx.scene.Group(webView);
+
+        // Create scroll pane for panning when zoomed in
+        this.scrollPane = new ScrollPane(zoomGroup);
+        scrollPane.setPannable(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setStyle("-fx-background-color: #ffffff; -fx-background: #ffffff;");
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(true);
+
         // Create content pane
-        this.contentPane = new StackPane(webView);
+        this.contentPane = new StackPane(scrollPane);
         contentPane.setStyle("-fx-background-color: #ffffff;");
 
         // Style the root
@@ -60,11 +85,20 @@ public class BrowserTab extends BorderPane {
         setTop(loadingBar);
         setCenter(contentPane);
 
+        // Bind WebView size to scroll pane viewport
+        scrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> {
+            if (viewportZoom == 1.0) {
+                webView.setPrefWidth(newBounds.getWidth());
+                webView.setPrefHeight(newBounds.getHeight());
+            }
+        });
+
         // Setup WebEngine handlers
         setupWebEngineHandlers();
 
         // Enable JavaScript
         webEngine.setJavaScriptEnabled(true);
+
 
         // Load initial URL
         if (url != null && !url.isEmpty()) {
@@ -86,6 +120,8 @@ public class BrowserTab extends BorderPane {
         webEngine.locationProperty().addListener((obs, oldUrl, newUrl) -> {
             Platform.runLater(() -> {
                 urlProperty.set(newUrl != null ? newUrl : "");
+                // Update favicon URL when location changes
+                updateFaviconUrl(newUrl);
             });
         });
 
@@ -95,6 +131,10 @@ public class BrowserTab extends BorderPane {
                 if (newState == Worker.State.RUNNING) {
                     loadingBar.setVisible(true);
                     loadingBar.setProgress(-1); // Indeterminate
+                } else if (newState == Worker.State.SUCCEEDED) {
+                    loadingBar.setVisible(false);
+                    // Try to extract favicon from the page after load
+                    extractFaviconFromPage();
                 } else {
                     loadingBar.setVisible(false);
                 }
@@ -116,6 +156,68 @@ public class BrowserTab extends BorderPane {
                 logger.error("WebEngine error: {}", newEx.getMessage());
             }
         });
+    }
+
+    /**
+     * Update the favicon URL based on the current page URL
+     */
+    private void updateFaviconUrl(String pageUrl) {
+        if (pageUrl == null || pageUrl.isEmpty()) {
+            faviconUrlProperty.set("");
+            return;
+        }
+
+        try {
+            URI uri = new URI(pageUrl);
+            String host = uri.getHost();
+            if (host != null) {
+                // Use Google's favicon service as a reliable source
+                String faviconUrl = "https://www.google.com/s2/favicons?domain=" + host + "&sz=32";
+                faviconUrlProperty.set(faviconUrl);
+            }
+        } catch (Exception e) {
+            logger.debug("Could not parse URL for favicon: {}", pageUrl);
+            faviconUrlProperty.set("");
+        }
+    }
+
+    /**
+     * Try to extract favicon URL from the page's HTML
+     */
+    private void extractFaviconFromPage() {
+        try {
+            // Try to find favicon link in the page
+            String script = """
+                (function() {
+                    var link = document.querySelector("link[rel*='icon']");
+                    if (link) return link.href;
+                    var shortcut = document.querySelector("link[rel='shortcut icon']");
+                    if (shortcut) return shortcut.href;
+                    return null;
+                })()
+                """;
+            Object result = webEngine.executeScript(script);
+            if (result != null && !result.toString().equals("null")) {
+                faviconUrlProperty.set(result.toString());
+            }
+        } catch (Exception e) {
+            // Ignore - we'll use the Google favicon service fallback
+            logger.debug("Could not extract favicon from page", e);
+        }
+    }
+
+    /**
+     * Get a snapshot/preview image of the current page
+     */
+    public WritableImage getPreviewSnapshot() {
+        if (disposed || webView == null) return null;
+        try {
+            SnapshotParameters params = new SnapshotParameters();
+            return webView.snapshot(params, null);
+        } catch (Exception e) {
+            logger.debug("Could not create page snapshot", e);
+            return null;
+        }
     }
 
     private void showErrorView(String message) {
@@ -280,11 +382,109 @@ public class BrowserTab extends BorderPane {
         });
     }
 
+    /**
+     * Set zoom level using CSS zoom (makes elements bigger)
+     */
     public void setZoomLevel(double zoomLevel) {
         if (disposed) return;
         Platform.runLater(() -> {
             webView.setZoom(zoomLevel);
         });
+    }
+
+    /**
+     * Set viewport zoom level (magnifier-style zoom) - zooms into the view
+     * This allows you to see details by zooming into a specific area
+     * @param zoomLevel The zoom level (1.0 = 100%, 2.0 = 200%, etc.)
+     */
+    public void setViewportZoom(double zoomLevel) {
+        if (disposed) return;
+        this.viewportZoom = zoomLevel;
+
+        Platform.runLater(() -> {
+            // Apply scale transform to the WebView
+            Scale scale = new Scale(zoomLevel, zoomLevel, 0, 0);
+            webView.getTransforms().clear();
+            webView.getTransforms().add(scale);
+
+            // Update scroll pane to handle the new size
+            if (zoomLevel > 1.0) {
+                scrollPane.setFitToWidth(false);
+                scrollPane.setFitToHeight(false);
+                scrollPane.setPannable(true);
+                // Make scrollbars always visible when zoomed
+                scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+                scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            } else {
+                scrollPane.setFitToWidth(true);
+                scrollPane.setFitToHeight(true);
+                scrollPane.setPannable(false);
+                scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+                scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+            }
+        });
+    }
+
+    /**
+     * Get current viewport zoom level
+     */
+    public double getViewportZoom() {
+        return viewportZoom;
+    }
+
+    /**
+     * Smooth scroll the viewport based on mouse position
+     * This provides fluid navigation when zoomed in
+     * @param relativeX Relative X position (0.0 to 1.0)
+     * @param relativeY Relative Y position (0.0 to 1.0)
+     */
+    public void scrollViewportSmooth(double relativeX, double relativeY) {
+        if (disposed || viewportZoom <= 1.0) return;
+
+        Platform.runLater(() -> {
+            // Calculate distance from center (0.5, 0.5)
+            double hDiff = relativeX - 0.5;
+            double vDiff = relativeY - 0.5;
+
+            // Speed increases based on how far from center and zoom level
+            double speedMultiplier = 0.02 * (viewportZoom - 1.0);
+
+            // Calculate new scroll positions
+            double currentH = scrollPane.getHvalue();
+            double currentV = scrollPane.getVvalue();
+
+            // Smooth continuous scrolling - always scroll based on mouse position
+            // The further from center, the faster it scrolls
+            double newH = currentH + (hDiff * speedMultiplier);
+            double newV = currentV + (vDiff * speedMultiplier);
+
+            // Clamp values to valid range (0-1) - this prevents stopping at edges
+            newH = Math.max(0, Math.min(1, newH));
+            newV = Math.max(0, Math.min(1, newV));
+
+            // Apply the scroll
+            scrollPane.setHvalue(newH);
+            scrollPane.setVvalue(newV);
+        });
+    }
+
+    /**
+     * Scroll viewport to specific position (0-1 range)
+     */
+    public void scrollViewportTo(double relativeX, double relativeY) {
+        if (disposed || viewportZoom <= 1.0) return;
+
+        Platform.runLater(() -> {
+            scrollPane.setHvalue(Math.max(0, Math.min(1, relativeX)));
+            scrollPane.setVvalue(Math.max(0, Math.min(1, relativeY)));
+        });
+    }
+
+    /**
+     * Get the scroll pane for external zoom control
+     */
+    public ScrollPane getScrollPane() {
+        return scrollPane;
     }
 
     public void showDevTools() {
@@ -323,6 +523,14 @@ public class BrowserTab extends BorderPane {
         return urlProperty;
     }
 
+    public String getFaviconUrl() {
+        return faviconUrlProperty.get();
+    }
+
+    public StringProperty faviconUrlProperty() {
+        return faviconUrlProperty;
+    }
+
     public Tab getTabModel() {
         return tabModel;
     }
@@ -341,6 +549,21 @@ public class BrowserTab extends BorderPane {
 
     public WebEngine getWebEngine() {
         return webEngine;
+    }
+
+    /**
+     * Execute JavaScript in the current page
+     * @param script The JavaScript code to execute
+     * @return The result of the script execution, or null if failed
+     */
+    public Object executeScript(String script) {
+        if (disposed || script == null || script.isEmpty()) return null;
+        try {
+            return webEngine.executeScript(script);
+        } catch (Exception e) {
+            logger.debug("Error executing script: {}", e.getMessage());
+            return null;
+        }
     }
 
     public void dispose() {
