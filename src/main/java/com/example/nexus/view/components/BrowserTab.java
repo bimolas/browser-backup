@@ -96,9 +96,18 @@ public class BrowserTab extends BorderPane {
         // Setup WebEngine handlers
         setupWebEngineHandlers();
 
-        // Enable JavaScript
+        // Configure WebEngine
         webEngine.setJavaScriptEnabled(true);
 
+        // Handle popup windows
+        webEngine.setCreatePopupHandler(config -> {
+            WebView popupView = new WebView();
+            popupView.getEngine().setJavaScriptEnabled(true);
+            return popupView.getEngine();
+        });
+
+        // Handle JavaScript alerts
+        webEngine.setOnAlert(event -> logger.info("JavaScript Alert: {}", event.getData()));
 
         // Load initial URL
         if (url != null && !url.isEmpty()) {
@@ -122,21 +131,46 @@ public class BrowserTab extends BorderPane {
                 urlProperty.set(newUrl != null ? newUrl : "");
                 // Update favicon URL when location changes
                 updateFaviconUrl(newUrl);
+                logger.debug("Location changed to: {}", newUrl);
             });
         });
 
         // Loading state
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             Platform.runLater(() -> {
-                if (newState == Worker.State.RUNNING) {
-                    loadingBar.setVisible(true);
-                    loadingBar.setProgress(-1); // Indeterminate
-                } else if (newState == Worker.State.SUCCEEDED) {
-                    loadingBar.setVisible(false);
-                    // Try to extract favicon from the page after load
-                    extractFaviconFromPage();
-                } else {
-                    loadingBar.setVisible(false);
+                logger.debug("WebEngine state changed: {} -> {}", oldState, newState);
+
+                switch (newState) {
+                    case READY:
+                        loadingBar.setVisible(false);
+                        break;
+                    case SCHEDULED:
+                        loadingBar.setVisible(true);
+                        loadingBar.setProgress(0);
+                        break;
+                    case RUNNING:
+                        loadingBar.setVisible(true);
+                        loadingBar.setProgress(-1); // Indeterminate
+                        break;
+                    case SUCCEEDED:
+                        loadingBar.setVisible(false);
+                        loadingBar.setProgress(1.0);
+                        // Try to extract favicon from the page after load
+                        extractFaviconFromPage();
+                        logger.info("Page loaded successfully: {}", webEngine.getLocation());
+                        break;
+                    case CANCELLED:
+                        loadingBar.setVisible(false);
+                        logger.info("Page load cancelled");
+                        break;
+                    case FAILED:
+                        loadingBar.setVisible(false);
+                        Throwable ex = webEngine.getLoadWorker().getException();
+                        if (ex != null) {
+                            logger.error("Page load failed: {}", ex.getMessage());
+                            showErrorView("Failed to load page: " + ex.getMessage());
+                        }
+                        break;
                 }
             });
         });
@@ -144,8 +178,11 @@ public class BrowserTab extends BorderPane {
         // Loading progress
         webEngine.getLoadWorker().progressProperty().addListener((obs, oldProgress, newProgress) -> {
             Platform.runLater(() -> {
-                if (newProgress.doubleValue() >= 0 && newProgress.doubleValue() < 1.0) {
-                    loadingBar.setProgress(newProgress.doubleValue());
+                double progress = newProgress.doubleValue();
+                if (progress >= 0 && progress < 1.0) {
+                    loadingBar.setProgress(progress);
+                } else if (progress >= 1.0) {
+                    loadingBar.setProgress(1.0);
                 }
             });
         });
@@ -153,8 +190,16 @@ public class BrowserTab extends BorderPane {
         // Error handling
         webEngine.getLoadWorker().exceptionProperty().addListener((obs, oldEx, newEx) -> {
             if (newEx != null) {
-                logger.error("WebEngine error: {}", newEx.getMessage());
+                logger.error("WebEngine exception: {}", newEx.getMessage(), newEx);
+                Platform.runLater(() -> {
+                    loadingBar.setVisible(false);
+                });
             }
+        });
+
+        // Handle document load errors via onError
+        webEngine.setOnError(event -> {
+            logger.error("WebEngine error event: {}", event.getMessage());
         });
     }
 

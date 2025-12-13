@@ -9,6 +9,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.stage.DirectoryChooser;
@@ -30,46 +31,137 @@ public class SettingsPanel extends BorderPane {
     private final VBox sidebar;
     private String currentCategory = "appearance";
     private Consumer<String> themeChangeCallback;
+    private java.util.List<String> customColors = new java.util.ArrayList<>();
 
-    // Color palette
+    // Color palette - matching browser style
     private static final String PRIMARY_COLOR = "#6366f1";
     private static final String PRIMARY_HOVER = "#4f46e5";
     private static final String SUCCESS_COLOR = "#22c55e";
     private static final String DANGER_COLOR = "#ef4444";
     private static final String WARNING_COLOR = "#f59e0b";
-    private static final String TEXT_PRIMARY = "#1e293b";
-    private static final String TEXT_SECONDARY = "#64748b";
-    private static final String TEXT_MUTED = "#94a3b8";
+    private static final String TEXT_PRIMARY = "#212529";
+    private static final String TEXT_SECONDARY = "#495057";
+    private static final String TEXT_MUTED = "#6c757d";
     private static final String BG_PRIMARY = "#ffffff";
-    private static final String BG_SECONDARY = "#f8fafc";
-    private static final String BG_TERTIARY = "#f1f5f9";
-    private static final String BORDER_COLOR = "#e2e8f0";
+    private static final String BG_SECONDARY = "#f8f9fa";
+    private static final String BG_TERTIARY = "#e9ecef";
+    private static final String BORDER_COLOR = "#dee2e6";
+    private static final String NAV_BG = "#f8f9fa";
 
     public SettingsPanel(SettingsService settingsService) {
         this.settingsService = settingsService;
 
-        setStyle("-fx-background-color: " + BG_SECONDARY + ";");
-        setPrefSize(950, 680);
-        setMinSize(850, 580);
+        // Root panel - fill entire space
+        setStyle("-fx-background-color: " + BG_PRIMARY + ";");
+        // Allow resizing - no minimum constraints that block fullscreen
+        setMinSize(0, 0);
+        setPrefSize(850, 600);
 
         // Create sidebar
         sidebar = createSidebar();
         setLeft(sidebar);
 
-        // Create content area with scroll
-        contentArea = new VBox(24);
-        contentArea.setPadding(new Insets(32, 48, 32, 48));
+        // Create content area
+        contentArea = new VBox(12);
+        contentArea.setPadding(new Insets(16));
         contentArea.setStyle("-fx-background-color: " + BG_PRIMARY + ";");
+        contentArea.setFillWidth(true);
 
+        // Create scroll pane without custom styling that causes cutout
         ScrollPane scrollPane = new ScrollPane(contentArea);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: " + BG_PRIMARY + ";");
+        scrollPane.setFitToHeight(true);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scrollPane.getStyleClass().add("settings-scroll");
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setStyle(
+            "-fx-background-color: " + BG_PRIMARY + ";" +
+            "-fx-background: " + BG_PRIMARY + ";" +
+            "-fx-border-width: 0;" +
+            "-fx-padding: 0;"
+        );
+
+        // Apply minimal scrollbar styling
+        scrollPane.skinProperty().addListener((obs, oldSkin, newSkin) -> {
+            if (newSkin != null) {
+                Platform.runLater(() -> styleScrollBar(scrollPane));
+            }
+        });
+
         setCenter(scrollPane);
 
         // Load initial category
         showCategory("appearance");
+    }
+
+    /**
+     * Style the scrollbar programmatically for a clean modern look
+     */
+    private void styleScrollBar(ScrollPane scrollPane) {
+        scrollPane.lookupAll(".scroll-bar").forEach(node -> {
+            if (node instanceof ScrollBar) {
+                ScrollBar scrollBar = (ScrollBar) node;
+                if (scrollBar.getOrientation() == javafx.geometry.Orientation.VERTICAL) {
+                    // Style the scrollbar
+                    scrollBar.setStyle(
+                        "-fx-background-color: transparent;" +
+                        "-fx-pref-width: 8;" +
+                        "-fx-padding: 2;"
+                    );
+
+                    // Style track
+                    scrollBar.lookup(".track").setStyle(
+                        "-fx-background-color: transparent;" +
+                        "-fx-border-color: transparent;"
+                    );
+
+                    // Style track-background
+                    Node trackBg = scrollBar.lookup(".track-background");
+                    if (trackBg != null) {
+                        trackBg.setStyle("-fx-background-color: transparent;");
+                    }
+
+                    // Style thumb
+                    Node thumb = scrollBar.lookup(".thumb");
+                    if (thumb != null) {
+                        thumb.setStyle(
+                            "-fx-background-color: #c0c0c0;" +
+                            "-fx-background-radius: 4;" +
+                            "-fx-background-insets: 0;"
+                        );
+
+                        // Add hover effect
+                        thumb.setOnMouseEntered(e -> thumb.setStyle(
+                            "-fx-background-color: #a0a0a0;" +
+                            "-fx-background-radius: 4;" +
+                            "-fx-background-insets: 0;"
+                        ));
+                        thumb.setOnMouseExited(e -> thumb.setStyle(
+                            "-fx-background-color: #c0c0c0;" +
+                            "-fx-background-radius: 4;" +
+                            "-fx-background-insets: 0;"
+                        ));
+                    }
+
+                    // Hide increment/decrement buttons
+                    Node incBtn = scrollBar.lookup(".increment-button");
+                    Node decBtn = scrollBar.lookup(".decrement-button");
+                    if (incBtn != null) {
+                        incBtn.setStyle("-fx-pref-height: 0; -fx-min-height: 0; -fx-max-height: 0; visibility: hidden;");
+                    }
+                    if (decBtn != null) {
+                        decBtn.setStyle("-fx-pref-height: 0; -fx-min-height: 0; -fx-max-height: 0; visibility: hidden;");
+                    }
+
+                    // Hide arrows
+                    scrollBar.lookupAll(".increment-arrow").forEach(arrow ->
+                        arrow.setStyle("-fx-shape: ''; -fx-padding: 0; visibility: hidden;")
+                    );
+                    scrollBar.lookupAll(".decrement-arrow").forEach(arrow ->
+                        arrow.setStyle("-fx-shape: ''; -fx-padding: 0; visibility: hidden;")
+                    );
+                }
+            }
+        });
     }
 
     /**
@@ -81,21 +173,27 @@ public class SettingsPanel extends BorderPane {
 
     private VBox createSidebar() {
         VBox sidebar = new VBox(2);
-        sidebar.setPadding(new Insets(24, 16, 24, 16));
-        sidebar.setPrefWidth(240);
-        sidebar.setStyle("-fx-background-color: " + BG_TERTIARY + ";");
+        sidebar.setPadding(new Insets(16, 12, 16, 12));
+        sidebar.setPrefWidth(220);
+        sidebar.setMinWidth(200);
+        // Match browser's navigation bar style
+        sidebar.setStyle(
+            "-fx-background-color: " + NAV_BG + ";" +
+            "-fx-border-color: " + BORDER_COLOR + ";" +
+            "-fx-border-width: 0 1 0 0;"
+        );
 
-        // Header with icon
-        HBox header = new HBox(12);
+        // Header with icon - matching browser toolbar style
+        HBox header = new HBox(10);
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setPadding(new Insets(0, 0, 24, 8));
+        header.setPadding(new Insets(8, 8, 20, 8));
 
         FontIcon settingsIcon = new FontIcon("mdi2c-cog");
-        settingsIcon.setIconSize(28);
-        settingsIcon.setIconColor(Color.web(PRIMARY_COLOR));
+        settingsIcon.setIconSize(24);
+        settingsIcon.setIconColor(Color.web(TEXT_SECONDARY));
 
         Label title = new Label("Settings");
-        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: 600; -fx-text-fill: " + TEXT_PRIMARY + ";");
 
         header.getChildren().addAll(settingsIcon, title);
         sidebar.getChildren().add(header);
@@ -119,7 +217,7 @@ public class SettingsPanel extends BorderPane {
         // Version info
         Label version = new Label("Nexus Browser v1.0.0");
         version.setStyle("-fx-font-size: 11px; -fx-text-fill: " + TEXT_MUTED + ";");
-        version.setPadding(new Insets(16, 0, 0, 8));
+        version.setPadding(new Insets(12, 0, 0, 8));
         sidebar.getChildren().add(version);
 
         return sidebar;
@@ -127,33 +225,33 @@ public class SettingsPanel extends BorderPane {
 
     private VBox createNavItem(String label, String iconCode, String categoryId, String description) {
         VBox item = new VBox(2);
-        item.setPadding(new Insets(12, 16, 12, 16));
+        item.setPadding(new Insets(10, 12, 10, 12));
         item.setStyle(getNavItemStyle(false));
         item.setCursor(javafx.scene.Cursor.HAND);
         item.setUserData(categoryId);
 
-        HBox top = new HBox(12);
+        HBox top = new HBox(10);
         top.setAlignment(Pos.CENTER_LEFT);
 
         FontIcon icon = new FontIcon(iconCode);
-        icon.setIconSize(20);
+        icon.setIconSize(18);
         icon.setIconColor(Color.web(TEXT_SECONDARY));
         icon.setUserData("icon");
 
         Label titleLabel = new Label(label);
-        titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 500; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        titleLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: 500; -fx-text-fill: " + TEXT_PRIMARY + ";");
 
         top.getChildren().addAll(icon, titleLabel);
 
         Label descLabel = new Label(description);
         descLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " + TEXT_MUTED + ";");
-        descLabel.setPadding(new Insets(0, 0, 0, 32));
+        descLabel.setPadding(new Insets(0, 0, 0, 28));
 
         item.getChildren().addAll(top, descLabel);
 
         item.setOnMouseEntered(e -> {
             if (!categoryId.equals(currentCategory)) {
-                item.setStyle(getNavItemStyle(false).replace(BG_TERTIARY, "#e8ecf0"));
+                item.setStyle(getNavItemStyle(false).replace("transparent", BG_TERTIARY));
             }
         });
 
@@ -172,12 +270,11 @@ public class SettingsPanel extends BorderPane {
 
     private String getNavItemStyle(boolean selected) {
         if (selected) {
-            return "-fx-background-color: " + BG_PRIMARY + ";" +
-                   "-fx-background-radius: 12;" +
-                   "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);";
+            return "-fx-background-color: " + BG_TERTIARY + ";" +
+                   "-fx-background-radius: 8;";
         } else {
             return "-fx-background-color: transparent;" +
-                   "-fx-background-radius: 12;";
+                   "-fx-background-radius: 8;";
         }
     }
 
@@ -221,6 +318,12 @@ public class SettingsPanel extends BorderPane {
             case "advanced" -> showAdvancedSettings();
         }
 
+        // Add spacer to fill remaining space and eliminate bottom cutout
+        Region bottomSpacer = new Region();
+        bottomSpacer.setMinHeight(16);
+        VBox.setVgrow(bottomSpacer, Priority.ALWAYS);
+        contentArea.getChildren().add(bottomSpacer);
+
         updateSidebarSelection();
     }
 
@@ -232,14 +335,15 @@ public class SettingsPanel extends BorderPane {
         // Theme Selection Card
         VBox themeCard = createSettingsCard("Theme", "mdi2w-weather-sunny");
 
-        HBox themeOptions = new HBox(16);
-        themeOptions.setAlignment(Pos.CENTER_LEFT);
-        themeOptions.setPadding(new Insets(8, 0, 0, 0));
+        FlowPane themeOptions = new FlowPane();
+        themeOptions.setHgap(12);
+        themeOptions.setVgap(12);
+        themeOptions.setPadding(new Insets(12, 0, 0, 0));
 
         String currentTheme = settingsService.getTheme();
 
         themeOptions.getChildren().addAll(
-            createThemeOption("Light", "mdi2w-weather-sunny", "#f8fafc", currentTheme.equals("light"), () -> applyTheme("light")),
+            createThemeOption("Light", "mdi2w-weather-sunny", "#f8f9fa", currentTheme.equals("light"), () -> applyTheme("light")),
             createThemeOption("Dark", "mdi2w-weather-night", "#1e293b", currentTheme.equals("dark"), () -> applyTheme("dark")),
             createThemeOption("System", "mdi2l-laptop", "#64748b", currentTheme.equals("system"), () -> applyTheme("system"))
         );
@@ -247,11 +351,12 @@ public class SettingsPanel extends BorderPane {
         themeCard.getChildren().add(themeOptions);
         contentArea.getChildren().add(themeCard);
 
-        // Accent Color Card
+        // Accent Color Card with modern color picker
         VBox colorCard = createSettingsCard("Accent Color", "mdi2p-palette");
 
-        HBox colorOptions = new HBox(12);
-        colorOptions.setAlignment(Pos.CENTER_LEFT);
+        FlowPane colorOptions = new FlowPane();
+        colorOptions.setHgap(10);
+        colorOptions.setVgap(10);
         colorOptions.setPadding(new Insets(12, 0, 0, 0));
 
         String currentAccent = settingsService.getAccentColor();
@@ -261,50 +366,56 @@ public class SettingsPanel extends BorderPane {
             colorOptions.getChildren().add(createColorOption(color, color.equals(currentAccent)));
         }
 
-        // Custom color picker
-        ColorPicker customPicker = new ColorPicker(Color.web(currentAccent));
-        customPicker.setStyle("-fx-background-color: transparent;");
-        customPicker.setPrefSize(36, 36);
-        customPicker.setOnAction(e -> {
-            Color c = customPicker.getValue();
-            String hex = String.format("#%02x%02x%02x",
-                (int)(c.getRed()*255), (int)(c.getGreen()*255), (int)(c.getBlue()*255));
-            settingsService.setAccentColor(hex);
-            showCategory("appearance"); // Refresh
-        });
-        colorOptions.getChildren().add(customPicker);
+        // Add custom colors that were saved
+        for (String customColor : customColors) {
+            boolean isInPreset = false;
+            for (String c : colors) {
+                if (c.equalsIgnoreCase(customColor)) {
+                    isInPreset = true;
+                    break;
+                }
+            }
+            if (!isInPreset) {
+                colorOptions.getChildren().add(createColorOption(customColor, customColor.equals(currentAccent)));
+            }
+        }
+
+        // Modern custom color picker button
+        StackPane customColorBtn = createCustomColorPicker();
+        colorOptions.getChildren().add(customColorBtn);
 
         colorCard.getChildren().add(colorOptions);
         contentArea.getChildren().add(colorCard);
 
-        // Font Size Card
+        // Font Size Card with custom modern slider
         VBox fontCard = createSettingsCard("Font Size", "mdi2f-format-size");
 
-        HBox fontSliderBox = new HBox(16);
+        HBox fontSliderBox = new HBox(12);
         fontSliderBox.setAlignment(Pos.CENTER_LEFT);
         fontSliderBox.setPadding(new Insets(12, 0, 0, 0));
+        fontSliderBox.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(fontSliderBox, Priority.ALWAYS);
 
         Label smallLabel = new Label("A");
         smallLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + TEXT_SECONDARY + ";");
 
-        Slider fontSlider = new Slider(12, 20, settingsService.getFontSize());
-        fontSlider.setPrefWidth(300);
-        fontSlider.setMajorTickUnit(2);
-        fontSlider.setBlockIncrement(1);
-        fontSlider.setStyle("-fx-control-inner-background: " + BG_TERTIARY + ";");
+        // Create custom styled slider
+        StackPane sliderContainer = createModernSlider(12, 20, settingsService.getFontSize(), (value) -> {
+            settingsService.setFontSize(value.intValue());
+        });
+        HBox.setHgrow(sliderContainer, Priority.ALWAYS);
 
         Label largeLabel = new Label("A");
         largeLabel.setStyle("-fx-font-size: 20px; -fx-text-fill: " + TEXT_SECONDARY + ";");
 
-        Label sizeValue = new Label((int)fontSlider.getValue() + "px");
-        sizeValue.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: " + PRIMARY_COLOR + "; -fx-min-width: 50;");
+        Label sizeValue = new Label((int)settingsService.getFontSize() + "px");
+        sizeValue.setStyle("-fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: " + PRIMARY_COLOR + "; -fx-min-width: 45;");
 
-        fontSlider.valueProperty().addListener((obs, old, val) -> {
-            sizeValue.setText(val.intValue() + "px");
-            settingsService.setFontSize(val.intValue());
-        });
+        // Update label when slider changes
+        Slider actualSlider = (Slider) sliderContainer.getChildren().get(3);
+        actualSlider.valueProperty().addListener((obs, old, val) -> sizeValue.setText(val.intValue() + "px"));
 
-        fontSliderBox.getChildren().addAll(smallLabel, fontSlider, largeLabel, sizeValue);
+        fontSliderBox.getChildren().addAll(smallLabel, sliderContainer, largeLabel, sizeValue);
         fontCard.getChildren().add(fontSliderBox);
         contentArea.getChildren().add(fontCard);
 
@@ -385,20 +496,36 @@ public class SettingsPanel extends BorderPane {
     private StackPane createColorOption(String color, boolean selected) {
         StackPane option = new StackPane();
         option.setCursor(javafx.scene.Cursor.HAND);
+        option.setPrefSize(36, 36);
+        option.setMinSize(36, 36);
+        option.setMaxSize(36, 36);
 
-        Circle circle = new Circle(18);
+        Circle circle = new Circle(16);
         circle.setFill(Color.web(color));
         circle.setStroke(selected ? Color.web(TEXT_PRIMARY) : Color.TRANSPARENT);
-        circle.setStrokeWidth(3);
+        circle.setStrokeWidth(2);
+
+        // Add subtle shadow effect
+        circle.setEffect(new javafx.scene.effect.DropShadow(4, 0, 1, Color.rgb(0, 0, 0, 0.15)));
 
         if (selected) {
             FontIcon check = new FontIcon("mdi2c-check");
-            check.setIconSize(16);
+            check.setIconSize(14);
             check.setIconColor(Color.WHITE);
             option.getChildren().addAll(circle, check);
         } else {
             option.getChildren().add(circle);
         }
+
+        // Hover effect
+        option.setOnMouseEntered(e -> {
+            circle.setScaleX(1.1);
+            circle.setScaleY(1.1);
+        });
+        option.setOnMouseExited(e -> {
+            circle.setScaleX(1.0);
+            circle.setScaleY(1.0);
+        });
 
         option.setOnMouseClicked(e -> {
             settingsService.setAccentColor(color);
@@ -406,6 +533,164 @@ public class SettingsPanel extends BorderPane {
         });
 
         return option;
+    }
+
+    private StackPane createCustomColorPicker() {
+        StackPane addColorBtn = new StackPane();
+        addColorBtn.setPrefSize(36, 36);
+        addColorBtn.setMinSize(36, 36);
+        addColorBtn.setMaxSize(36, 36);
+        addColorBtn.setCursor(javafx.scene.Cursor.HAND);
+
+        // Dashed border circle for "add color" button
+        Circle bgCircle = new Circle(16);
+        bgCircle.setFill(Color.web(BG_TERTIARY));
+        bgCircle.setStroke(Color.web(TEXT_MUTED));
+        bgCircle.setStrokeWidth(1.5);
+        bgCircle.getStrokeDashArray().addAll(4.0, 4.0);
+
+        FontIcon addIcon = new FontIcon("mdi2p-plus");
+        addIcon.setIconSize(16);
+        addIcon.setIconColor(Color.web(TEXT_MUTED));
+
+        addColorBtn.getChildren().addAll(bgCircle, addIcon);
+
+        // Create popup for color picker
+        addColorBtn.setOnMouseEntered(e -> {
+            bgCircle.setFill(Color.web(BG_SECONDARY));
+            addIcon.setIconColor(Color.web(TEXT_SECONDARY));
+        });
+
+        addColorBtn.setOnMouseExited(e -> {
+            bgCircle.setFill(Color.web(BG_TERTIARY));
+            addIcon.setIconColor(Color.web(TEXT_MUTED));
+        });
+
+        addColorBtn.setOnMouseClicked(e -> showCustomColorDialog());
+
+        // Create tooltip
+        Tooltip tooltip = new Tooltip("Add custom color");
+        tooltip.setStyle("-fx-font-size: 11px;");
+        Tooltip.install(addColorBtn, tooltip);
+
+        return addColorBtn;
+    }
+
+    private void showCustomColorDialog() {
+        // Create a styled dialog for color selection
+        Stage colorStage = new Stage();
+        colorStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        colorStage.initStyle(javafx.stage.StageStyle.UNDECORATED);
+        colorStage.setTitle("Choose Custom Color");
+
+        VBox dialogContent = new VBox(16);
+        dialogContent.setPadding(new Insets(20));
+        dialogContent.setStyle(
+            "-fx-background-color: " + BG_PRIMARY + ";" +
+            "-fx-background-radius: 12;" +
+            "-fx-border-color: " + BORDER_COLOR + ";" +
+            "-fx-border-radius: 12;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 16, 0, 0, 4);"
+        );
+
+        // Header
+        HBox header = new HBox(10);
+        header.setAlignment(Pos.CENTER_LEFT);
+        FontIcon colorIcon = new FontIcon("mdi2p-palette");
+        colorIcon.setIconSize(20);
+        colorIcon.setIconColor(Color.web(PRIMARY_COLOR));
+        Label titleLabel = new Label("Custom Color");
+        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: 600; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        header.getChildren().addAll(colorIcon, titleLabel);
+
+        // Color picker with styled wrapper
+        ColorPicker colorPicker = new ColorPicker(Color.web(PRIMARY_COLOR));
+        colorPicker.setPrefWidth(200);
+        colorPicker.setStyle(
+            "-fx-background-color: " + BG_SECONDARY + ";" +
+            "-fx-background-radius: 8;" +
+            "-fx-border-color: " + BORDER_COLOR + ";" +
+            "-fx-border-radius: 8;"
+        );
+
+        // Preview section
+        HBox previewSection = new HBox(12);
+        previewSection.setAlignment(Pos.CENTER_LEFT);
+        Label previewLabel = new Label("Preview:");
+        previewLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: " + TEXT_SECONDARY + ";");
+        Circle previewCircle = new Circle(20);
+        previewCircle.setFill(Color.web(PRIMARY_COLOR));
+        previewCircle.setStroke(Color.web(BORDER_COLOR));
+        previewCircle.setStrokeWidth(1);
+
+        Label hexLabel = new Label(PRIMARY_COLOR);
+        hexLabel.setStyle("-fx-font-size: 12px; -fx-font-family: 'Monospace'; -fx-text-fill: " + TEXT_MUTED + ";");
+
+        previewSection.getChildren().addAll(previewLabel, previewCircle, hexLabel);
+
+        // Update preview on color change
+        colorPicker.valueProperty().addListener((obs, old, newColor) -> {
+            previewCircle.setFill(newColor);
+            String hex = String.format("#%02x%02x%02x",
+                (int)(newColor.getRed()*255), (int)(newColor.getGreen()*255), (int)(newColor.getBlue()*255));
+            hexLabel.setText(hex);
+        });
+
+        // Buttons
+        HBox buttonBox = new HBox(10);
+        buttonBox.setAlignment(Pos.CENTER_RIGHT);
+
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.setStyle(
+            "-fx-background-color: " + BG_SECONDARY + ";" +
+            "-fx-text-fill: " + TEXT_PRIMARY + ";" +
+            "-fx-background-radius: 6;" +
+            "-fx-padding: 8 16;" +
+            "-fx-cursor: hand;"
+        );
+        cancelBtn.setOnAction(e -> colorStage.close());
+
+        Button applyBtn = new Button("Apply");
+        applyBtn.setStyle(
+            "-fx-background-color: " + PRIMARY_COLOR + ";" +
+            "-fx-text-fill: white;" +
+            "-fx-background-radius: 6;" +
+            "-fx-padding: 8 16;" +
+            "-fx-font-weight: 500;" +
+            "-fx-cursor: hand;"
+        );
+        applyBtn.setOnAction(e -> {
+            Color selectedColor = colorPicker.getValue();
+            String hex = String.format("#%02x%02x%02x",
+                (int)(selectedColor.getRed()*255), (int)(selectedColor.getGreen()*255), (int)(selectedColor.getBlue()*255));
+
+            // Add to custom colors list
+            if (!customColors.contains(hex)) {
+                customColors.add(hex);
+            }
+
+            settingsService.setAccentColor(hex);
+            colorStage.close();
+            showCategory("appearance");
+        });
+
+        buttonBox.getChildren().addAll(cancelBtn, applyBtn);
+
+        dialogContent.getChildren().addAll(header, colorPicker, previewSection, buttonBox);
+
+        javafx.scene.Scene scene = new javafx.scene.Scene(dialogContent);
+        scene.setFill(Color.TRANSPARENT);
+        colorStage.setScene(scene);
+        colorStage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
+
+        // Center on parent
+        if (getScene() != null && getScene().getWindow() != null) {
+            colorStage.initOwner(getScene().getWindow());
+            colorStage.setX(getScene().getWindow().getX() + (getScene().getWindow().getWidth() - 280) / 2);
+            colorStage.setY(getScene().getWindow().getY() + (getScene().getWindow().getHeight() - 200) / 2);
+        }
+
+        colorStage.show();
     }
 
     private void applyTheme(String theme) {
@@ -774,21 +1059,25 @@ public class SettingsPanel extends BorderPane {
     // ==================== HELPER METHODS ====================
 
     private void addPageHeader(String title, String subtitle, String iconCode) {
-        VBox header = new VBox(8);
-        header.setPadding(new Insets(0, 0, 24, 0));
+        VBox header = new VBox(4);
+        header.setPadding(new Insets(0, 0, 16, 0));
+        header.setMaxWidth(Double.MAX_VALUE);
 
-        HBox titleBox = new HBox(16);
+        HBox titleBox = new HBox(10);
         titleBox.setAlignment(Pos.CENTER_LEFT);
 
         FontIcon icon = new FontIcon(iconCode);
-        icon.setIconSize(32);
-        icon.setIconColor(Color.web(PRIMARY_COLOR));
+        icon.setIconSize(24);
+        icon.setIconColor(Color.web(TEXT_SECONDARY));
 
-        VBox textBox = new VBox(4);
+        VBox textBox = new VBox(2);
+        textBox.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(textBox, Priority.ALWAYS);
+
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: 600; -fx-text-fill: " + TEXT_PRIMARY + ";");
         Label subtitleLabel = new Label(subtitle);
-        subtitleLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: " + TEXT_SECONDARY + ";");
+        subtitleLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + TEXT_MUTED + ";");
         textBox.getChildren().addAll(titleLabel, subtitleLabel);
 
         titleBox.getChildren().addAll(icon, textBox);
@@ -798,25 +1087,28 @@ public class SettingsPanel extends BorderPane {
     }
 
     private VBox createSettingsCard(String title, String iconCode) {
-        VBox card = new VBox(8);
+        VBox card = new VBox(6);
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setFillWidth(true);
         card.setStyle(
             "-fx-background-color: " + BG_PRIMARY + ";" +
-            "-fx-background-radius: 16;" +
+            "-fx-background-radius: 8;" +
             "-fx-border-color: " + BORDER_COLOR + ";" +
-            "-fx-border-radius: 16;" +
+            "-fx-border-radius: 8;" +
             "-fx-border-width: 1;" +
-            "-fx-padding: 20;"
+            "-fx-padding: 14;"
         );
 
-        HBox header = new HBox(10);
+        HBox header = new HBox(8);
         header.setAlignment(Pos.CENTER_LEFT);
+        header.setMaxWidth(Double.MAX_VALUE);
 
         FontIcon icon = new FontIcon(iconCode);
-        icon.setIconSize(20);
+        icon.setIconSize(16);
         icon.setIconColor(Color.web(TEXT_SECONDARY));
 
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: 600; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: " + TEXT_PRIMARY + ";");
 
         header.getChildren().addAll(icon, titleLabel);
         card.getChildren().add(header);
@@ -825,22 +1117,24 @@ public class SettingsPanel extends BorderPane {
     }
 
     private HBox createToggleRow(String title, String description, String iconCode, boolean value, Consumer<Boolean> onChange) {
-        HBox row = new HBox(16);
+        HBox row = new HBox(12);
         row.setAlignment(Pos.CENTER_LEFT);
-        row.setPadding(new Insets(12, 0, 12, 0));
-        row.setStyle("-fx-border-color: transparent transparent " + BORDER_COLOR + " transparent; -fx-border-width: 0 0 1 0;");
+        row.setPadding(new Insets(10, 0, 10, 0));
+        row.setMaxWidth(Double.MAX_VALUE);
+        row.setStyle("-fx-border-color: transparent transparent " + BG_TERTIARY + " transparent; -fx-border-width: 0 0 1 0;");
 
         FontIcon icon = new FontIcon(iconCode);
-        icon.setIconSize(22);
+        icon.setIconSize(20);
         icon.setIconColor(Color.web(TEXT_SECONDARY));
 
         VBox textBox = new VBox(2);
+        textBox.setMaxWidth(Double.MAX_VALUE);
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 500; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        titleLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: 500; -fx-text-fill: " + TEXT_PRIMARY + ";");
         Label descLabel = new Label(description);
-        descLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + TEXT_MUTED + ";");
+        descLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " + TEXT_MUTED + ";");
         descLabel.setWrapText(true);
-        descLabel.setMaxWidth(400);
+        descLabel.setMaxWidth(Double.MAX_VALUE);
         textBox.getChildren().addAll(titleLabel, descLabel);
         HBox.setHgrow(textBox, Priority.ALWAYS);
 
@@ -853,24 +1147,24 @@ public class SettingsPanel extends BorderPane {
 
     private StackPane createToggleSwitch(boolean initialValue, Consumer<Boolean> onChange) {
         StackPane toggle = new StackPane();
-        toggle.setPrefSize(50, 28);
-        toggle.setMinSize(50, 28);
-        toggle.setMaxSize(50, 28);
+        toggle.setPrefSize(44, 24);
+        toggle.setMinSize(44, 24);
+        toggle.setMaxSize(44, 24);
         toggle.setCursor(javafx.scene.Cursor.HAND);
 
         // Track
         Region track = new Region();
-        track.setPrefSize(50, 28);
+        track.setPrefSize(44, 24);
         track.setStyle(
-            "-fx-background-color: " + (initialValue ? PRIMARY_COLOR : "#cbd5e1") + ";" +
-            "-fx-background-radius: 14;"
+            "-fx-background-color: " + (initialValue ? PRIMARY_COLOR : "#adb5bd") + ";" +
+            "-fx-background-radius: 12;"
         );
 
         // Thumb
-        Circle thumb = new Circle(11);
+        Circle thumb = new Circle(9);
         thumb.setFill(Color.WHITE);
-        thumb.setEffect(new javafx.scene.effect.DropShadow(4, 0, 1, Color.rgb(0,0,0,0.2)));
-        thumb.setTranslateX(initialValue ? 11 : -11);
+        thumb.setEffect(new javafx.scene.effect.DropShadow(3, 0, 1, Color.rgb(0,0,0,0.2)));
+        thumb.setTranslateX(initialValue ? 10 : -10);
 
         toggle.getChildren().addAll(track, thumb);
 
@@ -881,18 +1175,101 @@ public class SettingsPanel extends BorderPane {
 
             // Animate
             TranslateTransition tt = new TranslateTransition(Duration.millis(150), thumb);
-            tt.setToX(state[0] ? 11 : -11);
+            tt.setToX(state[0] ? 10 : -10);
             tt.play();
 
             track.setStyle(
-                "-fx-background-color: " + (state[0] ? PRIMARY_COLOR : "#cbd5e1") + ";" +
-                "-fx-background-radius: 14;"
+                "-fx-background-color: " + (state[0] ? PRIMARY_COLOR : "#adb5bd") + ";" +
+                "-fx-background-radius: 12;"
             );
 
             onChange.accept(state[0]);
         });
 
         return toggle;
+    }
+
+    /**
+     * Creates a modern styled slider matching the browser's zoom slider design
+     */
+    private StackPane createModernSlider(double min, double max, double initialValue, Consumer<Double> onChange) {
+        StackPane container = new StackPane();
+        container.setMinHeight(32);
+        container.setPrefHeight(32);
+        container.setMaxWidth(Double.MAX_VALUE);
+
+        // Create the actual slider (hidden but functional)
+        Slider slider = new Slider(min, max, initialValue);
+        slider.setMaxWidth(Double.MAX_VALUE);
+        slider.setBlockIncrement(1);
+
+        // Custom track
+        Region track = new Region();
+        track.setMaxWidth(Double.MAX_VALUE);
+        track.setPrefHeight(6);
+        track.setMaxHeight(6);
+        track.setStyle(
+            "-fx-background-color: " + BG_TERTIARY + ";" +
+            "-fx-background-radius: 3;"
+        );
+        StackPane.setAlignment(track, Pos.CENTER);
+
+        // Progress fill (the colored part)
+        Region progressFill = new Region();
+        progressFill.setPrefHeight(6);
+        progressFill.setMaxHeight(6);
+        progressFill.setStyle(
+            "-fx-background-color: " + PRIMARY_COLOR + ";" +
+            "-fx-background-radius: 3;"
+        );
+        StackPane.setAlignment(progressFill, Pos.CENTER_LEFT);
+
+        // Thumb
+        Circle thumb = new Circle(8);
+        thumb.setFill(Color.WHITE);
+        thumb.setStroke(Color.web(PRIMARY_COLOR));
+        thumb.setStrokeWidth(2);
+        thumb.setEffect(new javafx.scene.effect.DropShadow(4, 0, 1, Color.rgb(0, 0, 0, 0.2)));
+        thumb.setCursor(javafx.scene.Cursor.HAND);
+
+        // Update progress and thumb position
+        Runnable updateVisuals = () -> {
+            double percentage = (slider.getValue() - min) / (max - min);
+            double trackWidth = container.getWidth() - 20; // Account for thumb size
+            double progressWidth = trackWidth * percentage;
+            progressFill.setPrefWidth(Math.max(0, progressWidth + 10));
+            thumb.setTranslateX(-trackWidth / 2 + progressWidth);
+        };
+
+        // Listen for size changes
+        container.widthProperty().addListener((obs, old, newVal) -> updateVisuals.run());
+
+        // Listen for value changes
+        slider.valueProperty().addListener((obs, old, newVal) -> {
+            updateVisuals.run();
+            onChange.accept(newVal.doubleValue());
+        });
+
+        // Make the slider invisible but keep it interactive
+        slider.setOpacity(0);
+        slider.setMaxWidth(Double.MAX_VALUE);
+
+        // Hover effects on thumb
+        thumb.setOnMouseEntered(e -> {
+            thumb.setRadius(10);
+            thumb.setEffect(new javafx.scene.effect.DropShadow(6, 0, 2, Color.rgb(99, 102, 241, 0.4)));
+        });
+        thumb.setOnMouseExited(e -> {
+            thumb.setRadius(8);
+            thumb.setEffect(new javafx.scene.effect.DropShadow(4, 0, 1, Color.rgb(0, 0, 0, 0.2)));
+        });
+
+        container.getChildren().addAll(track, progressFill, thumb, slider);
+
+        // Initial update after layout
+        Platform.runLater(updateVisuals);
+
+        return container;
     }
 
     private Button createSecondaryButton(String text, String iconCode) {

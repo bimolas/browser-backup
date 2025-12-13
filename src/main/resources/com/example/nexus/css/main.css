@@ -417,28 +417,58 @@
     -fx-font-size: 12px;
 }
 
-/* Scrollbar */
+/* Modern thin scrollbar - global style */
 .scroll-bar {
     -fx-background-color: transparent;
+    -fx-pref-width: 10;
+    -fx-pref-height: 10;
+}
+
+.scroll-bar:vertical {
+    -fx-pref-width: 10;
+}
+
+.scroll-bar:horizontal {
+    -fx-pref-height: 10;
+}
+
+.scroll-bar .track {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
 }
 
 .scroll-bar .thumb {
-    -fx-background-color: #ced4da;
-    -fx-background-radius: 4;
+    -fx-background-color: #c0c0c0;
+    -fx-background-radius: 5;
+    -fx-background-insets: 2;
 }
 
 .scroll-bar .thumb:hover {
-    -fx-background-color: #adb5bd;
+    -fx-background-color: #a0a0a0;
 }
 
-.scroll-bar .increment-button, .scroll-bar .decrement-button {
+.scroll-bar .thumb:pressed {
+    -fx-background-color: #808080;
+}
+
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
     -fx-background-color: transparent;
     -fx-padding: 0;
+    -fx-pref-width: 0;
+    -fx-pref-height: 0;
+    -fx-min-width: 0;
+    -fx-min-height: 0;
 }
 
-.scroll-bar .increment-arrow, .scroll-bar .decrement-arrow {
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow {
     -fx-shape: "";
     -fx-padding: 0;
+    -fx-pref-width: 0;
+    -fx-pref-height: 0;
 }
 
 .address-bar:focused {
@@ -503,31 +533,20 @@
 /* Scroll pane */
 .scroll-pane {
     -fx-background-color: white;
-    -fx-border-color: #e0e0e0;
-    -fx-border-width: 1px;
-    -fx-border-radius: 4px;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
 }
 
 .scroll-pane .viewport {
     -fx-background-color: white;
 }
 
-.scroll-bar {
+.scroll-bar .increment-button, .scroll-bar .decrement-button {
     -fx-background-color: transparent;
 }
 
-.scroll-bar .thumb {
-    -fx-background-color: #c0c0c0;
-    -fx-background-radius: 4px;
-}
-
-.scroll-bar .thumb:hover {
-    -fx-background-color: #a0a0a0;
-}
-
-.scroll-bar .thumb:pressed {
-    -fx-background-color: #808080;
-}
 
 .scroll-bar .increment-button, .scroll-bar .decrement-button {
     -fx-background-color: transparent;
@@ -1007,4 +1026,181 @@
 .empty-state .hint {
     -fx-font-size: 14px;
     -fx-text-fill: #adb5bd;
+}
+
+/* ==================== Settings Panel Custom Scrollbar ==================== */
+.settings-panel-scroll {
+    -fx-background-color: #ffffff;
+    -fx-background: #ffffff;
+    -fx-background-insets: 0;
+    -fx-border-width: 0;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+.settings-panel-scroll .viewport {
+    -fx-background-color: #ffffff;
+}
+
+.settings-panel-scroll .scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 2 1 2 1;
+    -fx-pref-width: 8;
+}
+
+.settings-panel-scroll .scroll-bar:vertical .track {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 0;
+}
+
+.settings-panel-scroll .scroll-bar:vertical .track-background {
+    -fx-background-color: transparent;
+}
+
+.settings-panel-scroll .scroll-bar:vertical .thumb {
+    -fx-background-color: #d0d0d0;
+    -fx-background-radius: 4;
+    -fx-background-insets: 0;
+}
+
+.settings-panel-scroll .scroll-bar:vertical .thumb:hover {
+    -fx-background-color: #b0b0b0;
+}
+
+.settings-panel-scroll .scroll-bar:vertical .thumb:pressed {
+    -fx-background-color: #909090;
+}
+
+/* Hide increment and decrement buttons completely */
+.settings-panel-scroll .scroll-bar:vertical .increment-button,
+.settings-panel-scroll .scroll-bar:vertical .decrement-button {
+    -fx-background-color: transparent;
+    -fx-pref-width: 0;
+    -fx-pref-height: 0;
+    -fx-min-width: 0;
+    -fx-min-height: 0;
+    -fx-max-width: 0;
+    -fx-max-height: 0;
+    -fx-padding: 0;
+    visibility: hidden;
+}
+
+.settings-panel-scroll .scroll-bar:vertical .increment-arrow,
+.settings-panel-scroll .scroll-bar:vertical .decrement-arrow {
+    -fx-shape: "";
+    -fx-background-color: transparent;
+    -fx-pref-width: 0;
+    -fx-pref-height: 0;
+    -fx-padding: 0;
+    visibility: hidden;
+}
+
+/* Settings Color Picker Styling */
+.color-picker {
+    -fx-background-color: #f8f9fa;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 1;
+}
+
+.color-picker:hover {
+    -fx-background-color: #e9ecef;
+    -fx-border-color: #ced4da;
+}
+
+.color-picker .color-picker-label {
+    -fx-text-fill: #495057;
+}
+
+.color-picker .arrow-button {
+    -fx-background-color: transparent;
+}
+
+.color-picker .arrow-button .arrow {
+    -fx-background-color: #6c757d;
+}
+
+.color-palette {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: #dee2e6;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 10, 0, 0, 3);
+    -fx-padding: 8;
+}
+
+.color-palette .color-square {
+    -fx-background-radius: 4;
+}
+
+.custom-color-dialog {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-border-color: #dee2e6;
+}
+
+/* Settings Slider Styling - Custom slider uses transparent native slider */
+.slider {
+    -fx-background-color: transparent;
+}
+
+.slider .track {
+    -fx-background-color: transparent;
+    -fx-pref-height: 6;
+}
+
+.slider .thumb {
+    -fx-background-color: transparent;
+    -fx-background-radius: 50%;
+    -fx-pref-width: 1;
+    -fx-pref-height: 1;
+}
+
+.slider:focused .thumb {
+    -fx-background-color: transparent;
+}
+
+.slider .axis {
+    -fx-tick-label-fill: transparent;
+}
+
+/* Radio Button Styling for Settings */
+.radio-button {
+    -fx-padding: 4 0;
+}
+
+.radio-button .radio {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #ced4da;
+    -fx-border-radius: 50%;
+    -fx-background-radius: 50%;
+    -fx-border-width: 2;
+    -fx-pref-width: 18;
+    -fx-pref-height: 18;
+}
+
+.radio-button:selected .radio {
+    -fx-border-color: #6366f1;
+    -fx-background-color: #ffffff;
+}
+
+.radio-button:selected .radio .dot {
+    -fx-background-color: #6366f1;
+    -fx-background-radius: 50%;
+    -fx-pref-width: 8;
+    -fx-pref-height: 8;
+}
+
+.radio-button:hover .radio {
+    -fx-border-color: #6366f1;
+}
+
+.radio-button .text {
+    -fx-fill: #212529;
 }

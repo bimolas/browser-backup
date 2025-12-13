@@ -1243,34 +1243,33 @@ public class MainController {
             com.example.nexus.view.dialogs.SettingsPanel settingsPanel =
                 new com.example.nexus.view.dialogs.SettingsPanel(settingsService);
 
-            // Create dialog
-            javafx.scene.control.Dialog<Void> dialog = new javafx.scene.control.Dialog<>();
-            dialog.setTitle("Settings");
-            dialog.setResizable(true);
+            // Create a new Stage for settings - don't set owner to allow maximize on Linux
+            javafx.stage.Stage settingsStage = new javafx.stage.Stage();
+            settingsStage.setTitle("Settings");
+            settingsStage.initModality(javafx.stage.Modality.NONE); // Allow independent window behavior
 
-            // Remove default dialog styling
-            dialog.getDialogPane().setContent(settingsPanel);
-            dialog.getDialogPane().setStyle("-fx-padding: 0; -fx-background-color: transparent;");
-            dialog.getDialogPane().getButtonTypes().add(javafx.scene.control.ButtonType.CLOSE);
+            // Create scene with size to show all content
+            javafx.scene.Scene settingsScene = new javafx.scene.Scene(settingsPanel, 1000, 750);
 
-            // Hide the close button (we have our own navigation)
-            dialog.getDialogPane().lookupButton(javafx.scene.control.ButtonType.CLOSE).setVisible(false);
+            // Apply CSS safely
+            var cssResource = getClass().getResource("/com/example/nexus/css/main.css");
+            if (cssResource != null) {
+                settingsScene.getStylesheets().add(cssResource.toExternalForm());
+            }
+
+            settingsStage.setScene(settingsScene);
+            settingsStage.setMinWidth(750);
+            settingsStage.setMinHeight(600);
+            settingsStage.setResizable(true);
 
             // Set theme change callback
             settingsPanel.setOnThemeChange(theme -> applyTheme(theme));
 
-            // Style the dialog
-            javafx.stage.Stage dialogStage = (javafx.stage.Stage) dialog.getDialogPane().getScene().getWindow();
-            dialogStage.setMinWidth(850);
-            dialogStage.setMinHeight(600);
+            // Show the stage (use show() instead of showAndWait() to avoid blocking issues)
+            settingsStage.show();
+            settingsStage.toFront();
 
-            // Add close button handler
-            dialog.setOnCloseRequest(e -> dialog.close());
-
-            // Show the dialog
-            dialog.showAndWait();
-
-            logger.info("Settings dialog closed");
+            logger.info("Settings dialog opened");
         } catch (Exception e) {
             logger.error("Error showing settings", e);
             showErrorAlert("Error", "Failed to open settings: " + e.getMessage());
