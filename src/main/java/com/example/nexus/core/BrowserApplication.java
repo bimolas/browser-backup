@@ -1,6 +1,7 @@
 package com.example.nexus.core;
 
 import com.example.nexus.controller.MainController;
+import com.example.nexus.service.SettingsService;
 import com.example.nexus.util.DatabaseManager;
 import com.example.nexus.util.ThemeManager;
 import com.example.nexus.view.MainView;
@@ -64,12 +65,21 @@ public class BrowserApplication extends Application {
             MainView mainView = new MainView(container);
             Scene scene = new Scene(mainView, 1280, 800);
 
-            // Apply theme and CSS
-            themeManager.applyTheme(scene, "light");
+            // Get the saved theme from settings and apply it BEFORE showing window
+            SettingsService settingsService = container.getOrCreate(SettingsService.class);
+            String savedTheme = settingsService.getTheme();
+            String themeToApply = "main"; // default light theme
 
-            // Add main CSS
-            String cssPath = getClass().getResource("/com/example/nexus/css/main.css").toExternalForm();
-            scene.getStylesheets().add(cssPath);
+            if ("dark".equals(savedTheme)) {
+                themeToApply = "dark";
+            } else if ("system".equals(savedTheme)) {
+                // Detect system theme
+                themeToApply = detectSystemTheme();
+            }
+
+            themeManager.applyTheme(scene, themeToApply);
+            logger.info("Applied theme: {} (saved: {})", themeToApply, savedTheme);
+
 
             // Configure stage
             primaryStage.setTitle("Nexus Browser");
@@ -117,6 +127,50 @@ public class BrowserApplication extends Application {
         if (dbManager != null) {
             dbManager.close();
         }
+    }
+
+    /**
+     * Detect system theme (light or dark) on Linux
+     */
+    private String detectSystemTheme() {
+        try {
+            // Check GTK_THEME environment variable
+            String gtkTheme = System.getenv("GTK_THEME");
+            if (gtkTheme != null && gtkTheme.toLowerCase().contains("dark")) {
+                return "dark";
+            }
+
+            // Try gsettings color-scheme
+            try {
+                ProcessBuilder pb = new ProcessBuilder("gsettings", "get", "org.gnome.desktop.interface", "color-scheme");
+                pb.redirectErrorStream(true);
+                Process process = pb.start();
+                String output = new String(process.getInputStream().readAllBytes()).trim();
+                process.waitFor();
+                if (output.contains("dark")) {
+                    return "dark";
+                }
+            } catch (Exception e) {
+                // gsettings not available, ignore
+            }
+
+            // Try gtk-theme
+            try {
+                ProcessBuilder pb = new ProcessBuilder("gsettings", "get", "org.gnome.desktop.interface", "gtk-theme");
+                pb.redirectErrorStream(true);
+                Process process = pb.start();
+                String output = new String(process.getInputStream().readAllBytes()).trim().toLowerCase();
+                process.waitFor();
+                if (output.contains("dark")) {
+                    return "dark";
+                }
+            } catch (Exception e) {
+                // gsettings not available, ignore
+            }
+        } catch (Exception e) {
+            logger.debug("Could not detect system theme: {}", e.getMessage());
+        }
+        return "main"; // default to light
     }
 
 

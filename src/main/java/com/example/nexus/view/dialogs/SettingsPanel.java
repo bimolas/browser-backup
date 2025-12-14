@@ -29,16 +29,20 @@ public class SettingsPanel extends BorderPane {
     private final SettingsService settingsService;
     private final VBox contentArea;
     private final VBox sidebar;
+    private ScrollPane mainScrollPane;  // Reference for theme updates
     private String currentCategory = "appearance";
     private Consumer<String> themeChangeCallback;
     private java.util.List<String> customColors = new java.util.ArrayList<>();
+    private boolean currentThemeIsDark = false;  // Track current theme state
 
-    // Color palette - matching browser style
+    // Light theme colors (defaults)
     private static final String PRIMARY_COLOR = "#6366f1";
     private static final String PRIMARY_HOVER = "#4f46e5";
     private static final String SUCCESS_COLOR = "#22c55e";
     private static final String DANGER_COLOR = "#ef4444";
     private static final String WARNING_COLOR = "#f59e0b";
+
+    // These will be used dynamically based on theme
     private static final String TEXT_PRIMARY = "#212529";
     private static final String TEXT_SECONDARY = "#495057";
     private static final String TEXT_MUTED = "#6c757d";
@@ -48,11 +52,43 @@ public class SettingsPanel extends BorderPane {
     private static final String BORDER_COLOR = "#dee2e6";
     private static final String NAV_BG = "#f8f9fa";
 
+    // Dark theme colors
+    private static final String DARK_TEXT_PRIMARY = "#e0e0e0";
+    private static final String DARK_TEXT_SECONDARY = "#a0a0a0";
+    private static final String DARK_TEXT_MUTED = "#808080";
+    private static final String DARK_BG_PRIMARY = "#1e1e1e";
+    private static final String DARK_BG_SECONDARY = "#252525";
+    private static final String DARK_BG_TERTIARY = "#2d2d2d";
+    private static final String DARK_BORDER_COLOR = "#333333";
+
+    // Dynamic color getters based on current theme
+    private boolean isDarkTheme() {
+        return currentThemeIsDark;
+    }
+
+    private String getTextPrimary() { return isDarkTheme() ? DARK_TEXT_PRIMARY : TEXT_PRIMARY; }
+    private String getTextSecondary() { return isDarkTheme() ? DARK_TEXT_SECONDARY : TEXT_SECONDARY; }
+    private String getTextMuted() { return isDarkTheme() ? DARK_TEXT_MUTED : TEXT_MUTED; }
+    private String getBgPrimary() { return isDarkTheme() ? DARK_BG_PRIMARY : BG_PRIMARY; }
+    private String getBgSecondary() { return isDarkTheme() ? DARK_BG_SECONDARY : BG_SECONDARY; }
+    private String getBgTertiary() { return isDarkTheme() ? DARK_BG_TERTIARY : BG_TERTIARY; }
+    private String getBorderColor() { return isDarkTheme() ? DARK_BORDER_COLOR : BORDER_COLOR; }
+    private String getNavBg() { return isDarkTheme() ? DARK_BG_SECONDARY : NAV_BG; }
+    private String getAccentColor() { return isDarkTheme() ? "#818cf8" : PRIMARY_COLOR; }
+
     public SettingsPanel(SettingsService settingsService) {
         this.settingsService = settingsService;
 
+        // Initialize theme state from saved settings
+        String savedTheme = settingsService.getTheme();
+        if ("system".equals(savedTheme)) {
+            currentThemeIsDark = "dark".equals(detectSystemTheme());
+        } else {
+            currentThemeIsDark = "dark".equals(savedTheme);
+        }
+
         // Root panel - fill entire space
-        setStyle("-fx-background-color: " + BG_PRIMARY + ";");
+        setStyle("-fx-background-color: " + getBgPrimary() + ";");
         // Allow resizing - no minimum constraints that block fullscreen
         setMinSize(0, 0);
         setPrefSize(850, 600);
@@ -64,30 +100,30 @@ public class SettingsPanel extends BorderPane {
         // Create content area
         contentArea = new VBox(12);
         contentArea.setPadding(new Insets(16));
-        contentArea.setStyle("-fx-background-color: " + BG_PRIMARY + ";");
+        contentArea.setStyle("-fx-background-color: " + getBgPrimary() + ";");
         contentArea.setFillWidth(true);
 
         // Create scroll pane without custom styling that causes cutout
-        ScrollPane scrollPane = new ScrollPane(contentArea);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setFitToHeight(true);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setStyle(
-            "-fx-background-color: " + BG_PRIMARY + ";" +
-            "-fx-background: " + BG_PRIMARY + ";" +
+        mainScrollPane = new ScrollPane(contentArea);
+        mainScrollPane.setFitToWidth(true);
+        mainScrollPane.setFitToHeight(true);
+        mainScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        mainScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        mainScrollPane.setStyle(
+            "-fx-background-color: " + getBgPrimary() + ";" +
+            "-fx-background: " + getBgPrimary() + ";" +
             "-fx-border-width: 0;" +
             "-fx-padding: 0;"
         );
 
         // Apply minimal scrollbar styling
-        scrollPane.skinProperty().addListener((obs, oldSkin, newSkin) -> {
+        mainScrollPane.skinProperty().addListener((obs, oldSkin, newSkin) -> {
             if (newSkin != null) {
-                Platform.runLater(() -> styleScrollBar(scrollPane));
+                Platform.runLater(() -> styleScrollBar(mainScrollPane));
             }
         });
 
-        setCenter(scrollPane);
+        setCenter(mainScrollPane);
 
         // Load initial category
         showCategory("appearance");
@@ -97,46 +133,54 @@ public class SettingsPanel extends BorderPane {
      * Style the scrollbar programmatically for a clean modern look
      */
     private void styleScrollBar(ScrollPane scrollPane) {
+        // Theme-aware scrollbar colors
+        String thumbColor = currentThemeIsDark ? "#505050" : "#c0c0c0";
+        String thumbHoverColor = currentThemeIsDark ? "#606060" : "#a0a0a0";
+        String bgColor = currentThemeIsDark ? "#1e1e1e" : "transparent";
+
         scrollPane.lookupAll(".scroll-bar").forEach(node -> {
             if (node instanceof ScrollBar) {
                 ScrollBar scrollBar = (ScrollBar) node;
                 if (scrollBar.getOrientation() == javafx.geometry.Orientation.VERTICAL) {
                     // Style the scrollbar
                     scrollBar.setStyle(
-                        "-fx-background-color: transparent;" +
+                        "-fx-background-color: " + bgColor + ";" +
                         "-fx-pref-width: 8;" +
                         "-fx-padding: 2;"
                     );
 
                     // Style track
-                    scrollBar.lookup(".track").setStyle(
-                        "-fx-background-color: transparent;" +
-                        "-fx-border-color: transparent;"
-                    );
+                    Node track = scrollBar.lookup(".track");
+                    if (track != null) {
+                        track.setStyle(
+                            "-fx-background-color: " + bgColor + ";" +
+                            "-fx-border-color: transparent;"
+                        );
+                    }
 
                     // Style track-background
                     Node trackBg = scrollBar.lookup(".track-background");
                     if (trackBg != null) {
-                        trackBg.setStyle("-fx-background-color: transparent;");
+                        trackBg.setStyle("-fx-background-color: " + bgColor + ";");
                     }
 
                     // Style thumb
                     Node thumb = scrollBar.lookup(".thumb");
                     if (thumb != null) {
                         thumb.setStyle(
-                            "-fx-background-color: #c0c0c0;" +
+                            "-fx-background-color: " + thumbColor + ";" +
                             "-fx-background-radius: 4;" +
                             "-fx-background-insets: 0;"
                         );
 
                         // Add hover effect
                         thumb.setOnMouseEntered(e -> thumb.setStyle(
-                            "-fx-background-color: #a0a0a0;" +
+                            "-fx-background-color: " + thumbHoverColor + ";" +
                             "-fx-background-radius: 4;" +
                             "-fx-background-insets: 0;"
                         ));
                         thumb.setOnMouseExited(e -> thumb.setStyle(
-                            "-fx-background-color: #c0c0c0;" +
+                            "-fx-background-color: " + thumbColor + ";" +
                             "-fx-background-radius: 4;" +
                             "-fx-background-insets: 0;"
                         ));
@@ -176,10 +220,10 @@ public class SettingsPanel extends BorderPane {
         sidebar.setPadding(new Insets(16, 12, 16, 12));
         sidebar.setPrefWidth(220);
         sidebar.setMinWidth(200);
-        // Match browser's navigation bar style
+        // Match browser's navigation bar style - use dynamic colors
         sidebar.setStyle(
-            "-fx-background-color: " + NAV_BG + ";" +
-            "-fx-border-color: " + BORDER_COLOR + ";" +
+            "-fx-background-color: " + getNavBg() + ";" +
+            "-fx-border-color: " + getBorderColor() + ";" +
             "-fx-border-width: 0 1 0 0;"
         );
 
@@ -190,10 +234,10 @@ public class SettingsPanel extends BorderPane {
 
         FontIcon settingsIcon = new FontIcon("mdi2c-cog");
         settingsIcon.setIconSize(24);
-        settingsIcon.setIconColor(Color.web(TEXT_SECONDARY));
+        settingsIcon.setIconColor(Color.web(getTextSecondary()));
 
         Label title = new Label("Settings");
-        title.setStyle("-fx-font-size: 18px; -fx-font-weight: 600; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: 600; -fx-text-fill: " + getTextPrimary() + ";");
 
         header.getChildren().addAll(settingsIcon, title);
         sidebar.getChildren().add(header);
@@ -216,7 +260,7 @@ public class SettingsPanel extends BorderPane {
 
         // Version info
         Label version = new Label("Nexus Browser v1.0.0");
-        version.setStyle("-fx-font-size: 11px; -fx-text-fill: " + TEXT_MUTED + ";");
+        version.setStyle("-fx-font-size: 11px; -fx-text-fill: " + getTextMuted() + ";");
         version.setPadding(new Insets(12, 0, 0, 8));
         sidebar.getChildren().add(version);
 
@@ -235,28 +279,32 @@ public class SettingsPanel extends BorderPane {
 
         FontIcon icon = new FontIcon(iconCode);
         icon.setIconSize(18);
-        icon.setIconColor(Color.web(TEXT_SECONDARY));
+        icon.setIconColor(Color.web(getTextSecondary()));
         icon.setUserData("icon");
 
         Label titleLabel = new Label(label);
-        titleLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: 500; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        titleLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: 500; -fx-text-fill: " + getTextPrimary() + ";");
 
         top.getChildren().addAll(icon, titleLabel);
 
         Label descLabel = new Label(description);
-        descLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " + TEXT_MUTED + ";");
+        descLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " + getTextMuted() + ";");
         descLabel.setPadding(new Insets(0, 0, 0, 28));
 
         item.getChildren().addAll(top, descLabel);
 
         item.setOnMouseEntered(e -> {
             if (!categoryId.equals(currentCategory)) {
-                item.setStyle(getNavItemStyle(false).replace("transparent", BG_TERTIARY));
+                item.setStyle(getNavItemHoverStyle());
+                // Update text color on hover
+                updateNavItemColors(item, false, true);
             }
         });
 
         item.setOnMouseExited(e -> {
             item.setStyle(getNavItemStyle(categoryId.equals(currentCategory)));
+            // Restore text colors
+            updateNavItemColors(item, categoryId.equals(currentCategory), false);
         });
 
         item.setOnMouseClicked(e -> {
@@ -270,7 +318,8 @@ public class SettingsPanel extends BorderPane {
 
     private String getNavItemStyle(boolean selected) {
         if (selected) {
-            return "-fx-background-color: " + BG_TERTIARY + ";" +
+            String bgSelected = currentThemeIsDark ? "#353535" : BG_TERTIARY;
+            return "-fx-background-color: " + bgSelected + ";" +
                    "-fx-background-radius: 8;";
         } else {
             return "-fx-background-color: transparent;" +
@@ -278,22 +327,56 @@ public class SettingsPanel extends BorderPane {
         }
     }
 
+    private String getNavItemHoverStyle() {
+        String bgHover = currentThemeIsDark ? "#353535" : BG_TERTIARY;
+        return "-fx-background-color: " + bgHover + ";" +
+               "-fx-background-radius: 8;";
+    }
+
     private void updateSidebarSelection() {
+        String textPrimary = currentThemeIsDark ? "#e0e0e0" : TEXT_PRIMARY;
+        String textMuted = currentThemeIsDark ? "#909090" : TEXT_MUTED;
+        String iconNormal = currentThemeIsDark ? "#a0a0a0" : TEXT_SECONDARY;
+
         for (Node node : sidebar.getChildren()) {
             if (node instanceof VBox item && item.getUserData() != null) {
                 boolean selected = item.getUserData().equals(currentCategory);
                 item.setStyle(getNavItemStyle(selected));
 
-                // Update icon color
-                for (Node child : item.getChildren()) {
-                    if (child instanceof HBox hbox) {
-                        for (Node hChild : hbox.getChildren()) {
-                            if (hChild instanceof FontIcon icon) {
-                                icon.setIconColor(selected ? Color.web(PRIMARY_COLOR) : Color.web(TEXT_SECONDARY));
-                            }
+                // Update colors
+                updateNavItemColors(item, selected, false);
+            }
+        }
+    }
+
+    /**
+     * Update nav item text and icon colors based on selection and hover state
+     */
+    private void updateNavItemColors(VBox item, boolean selected, boolean hovered) {
+        String textPrimary = currentThemeIsDark ? "#e0e0e0" : TEXT_PRIMARY;
+        String textMuted = currentThemeIsDark ? "#909090" : TEXT_MUTED;
+        String iconNormal = currentThemeIsDark ? "#a0a0a0" : TEXT_SECONDARY;
+        String iconSelected = PRIMARY_COLOR;
+        String textHighlight = currentThemeIsDark ? "#ffffff" : TEXT_PRIMARY;
+
+        for (Node child : item.getChildren()) {
+            if (child instanceof HBox hbox) {
+                for (Node hChild : hbox.getChildren()) {
+                    if (hChild instanceof FontIcon icon) {
+                        if (selected) {
+                            icon.setIconColor(Color.web(iconSelected));
+                        } else if (hovered) {
+                            icon.setIconColor(Color.web(currentThemeIsDark ? "#ffffff" : TEXT_PRIMARY));
+                        } else {
+                            icon.setIconColor(Color.web(iconNormal));
                         }
+                    } else if (hChild instanceof Label label) {
+                        String color = (selected || hovered) ? textHighlight : textPrimary;
+                        label.setStyle("-fx-font-size: 13px; -fx-font-weight: 500; -fx-text-fill: " + color + ";");
                     }
                 }
+            } else if (child instanceof Label descLabel) {
+                descLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " + textMuted + ";");
             }
         }
     }
@@ -439,10 +522,18 @@ public class SettingsPanel extends BorderPane {
         option.setAlignment(Pos.CENTER);
         option.setPadding(new Insets(16, 24, 16, 24));
         option.setCursor(javafx.scene.Cursor.HAND);
+
+        // Theme-aware colors
+        String bgNormal = currentThemeIsDark ? "#2d2d2d" : BG_SECONDARY;
+        String bgSelected = currentThemeIsDark ? "#3d3d3d" : "#eff6ff";
+        String bgHover = currentThemeIsDark ? "#404040" : "#f1f5f9";
+        String borderNormal = currentThemeIsDark ? "#404040" : BORDER_COLOR;
+        String textColor = currentThemeIsDark ? "#e0e0e0" : TEXT_PRIMARY;
+
         option.setStyle(
-            "-fx-background-color: " + (selected ? "#eff6ff" : BG_SECONDARY) + ";" +
+            "-fx-background-color: " + (selected ? bgSelected : bgNormal) + ";" +
             "-fx-background-radius: 12;" +
-            "-fx-border-color: " + (selected ? PRIMARY_COLOR : BORDER_COLOR) + ";" +
+            "-fx-border-color: " + (selected ? PRIMARY_COLOR : borderNormal) + ";" +
             "-fx-border-radius: 12;" +
             "-fx-border-width: " + (selected ? "2" : "1") + ";"
         );
@@ -451,17 +542,17 @@ public class SettingsPanel extends BorderPane {
         StackPane preview = new StackPane();
         Circle circle = new Circle(24);
         circle.setFill(Color.web(previewColor));
-        circle.setStroke(Color.web(BORDER_COLOR));
+        circle.setStroke(Color.web(borderNormal));
         circle.setStrokeWidth(1);
 
         FontIcon icon = new FontIcon(iconCode);
         icon.setIconSize(20);
-        icon.setIconColor(previewColor.equals("#1e293b") ? Color.WHITE : Color.web(TEXT_SECONDARY));
+        icon.setIconColor(previewColor.equals("#1e293b") ? Color.WHITE : Color.web(currentThemeIsDark ? "#a0a0a0" : TEXT_SECONDARY));
 
         preview.getChildren().addAll(circle, icon);
 
         Label label = new Label(name);
-        label.setStyle("-fx-font-size: 13px; -fx-font-weight: 500; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        label.setStyle("-fx-font-size: 13px; -fx-font-weight: 500; -fx-text-fill: " + textColor + ";");
 
         option.getChildren().addAll(preview, label);
 
@@ -476,15 +567,21 @@ public class SettingsPanel extends BorderPane {
 
         option.setOnMouseEntered(e -> {
             if (!selected) {
-                option.setStyle(option.getStyle().replace(BG_SECONDARY, "#f1f5f9"));
+                option.setStyle(
+                    "-fx-background-color: " + bgHover + ";" +
+                    "-fx-background-radius: 12;" +
+                    "-fx-border-color: " + borderNormal + ";" +
+                    "-fx-border-radius: 12;" +
+                    "-fx-border-width: 1;"
+                );
             }
         });
 
         option.setOnMouseExited(e -> {
             option.setStyle(
-                "-fx-background-color: " + (selected ? "#eff6ff" : BG_SECONDARY) + ";" +
+                "-fx-background-color: " + (selected ? bgSelected : bgNormal) + ";" +
                 "-fx-background-radius: 12;" +
-                "-fx-border-color: " + (selected ? PRIMARY_COLOR : BORDER_COLOR) + ";" +
+                "-fx-border-color: " + (selected ? PRIMARY_COLOR : borderNormal) + ";" +
                 "-fx-border-radius: 12;" +
                 "-fx-border-width: " + (selected ? "2" : "1") + ";"
             );
@@ -528,8 +625,7 @@ public class SettingsPanel extends BorderPane {
         });
 
         option.setOnMouseClicked(e -> {
-            settingsService.setAccentColor(color);
-            showCategory("appearance");
+            applyAccentColor(color);
         });
 
         return option;
@@ -694,10 +790,183 @@ public class SettingsPanel extends BorderPane {
     }
 
     private void applyTheme(String theme) {
+        // Save theme to settings (this persists to database)
         settingsService.setTheme(theme);
+
+        // Notify the main controller to apply theme to the entire application
         if (themeChangeCallback != null) {
             themeChangeCallback.accept(theme);
         }
+
+        // Also apply theme directly to this settings panel
+        applyThemeToSettingsPanel(theme);
+
+        // Refresh the appearance settings to show updated selection
+        showCategory("appearance");
+    }
+
+    /**
+     * Apply theme styling to the settings panel itself
+     */
+    private void applyThemeToSettingsPanel(String theme) {
+        String actualTheme = theme;
+        if ("system".equals(theme)) {
+            // Detect system theme
+            actualTheme = detectSystemTheme();
+        }
+
+        boolean isDark = "dark".equals(actualTheme);
+        currentThemeIsDark = isDark;  // Update tracked state
+
+        // Define colors based on theme - matching dark.css
+        String bgMain = isDark ? "#1e1e1e" : BG_PRIMARY;
+        String bgSidebar = isDark ? "#252525" : NAV_BG;
+        String borderColor = isDark ? "#404040" : BORDER_COLOR;
+        String textPrimary = isDark ? "#e0e0e0" : TEXT_PRIMARY;
+        String textSecondary = isDark ? "#b0b0b0" : TEXT_SECONDARY;
+        String textMuted = isDark ? "#909090" : TEXT_MUTED;
+
+        // Apply to main panel
+        setStyle("-fx-background-color: " + bgMain + ";");
+        contentArea.setStyle("-fx-background-color: " + bgMain + ";");
+
+        // Apply to scroll pane - update background colors
+        if (mainScrollPane != null) {
+            mainScrollPane.setStyle(
+                "-fx-background-color: " + bgMain + ";" +
+                "-fx-background: " + bgMain + ";" +
+                "-fx-border-width: 0;" +
+                "-fx-padding: 0;"
+            );
+            // Re-style scrollbar with new theme colors
+            Platform.runLater(() -> styleScrollBar(mainScrollPane));
+        }
+
+        // Apply to sidebar
+        sidebar.setStyle(
+            "-fx-background-color: " + bgSidebar + ";" +
+            "-fx-border-color: " + borderColor + ";" +
+            "-fx-border-width: 0 1 0 0;"
+        );
+
+        // Apply CSS stylesheet to scene if available
+        if (getScene() != null) {
+            getScene().getStylesheets().removeIf(s -> s.contains("dark.css") || s.contains("light.css") || s.contains("main.css"));
+
+            // Use main.css for light theme, dark.css for dark theme
+            String cssPath;
+            if ("light".equals(actualTheme)) {
+                cssPath = "/com/example/nexus/css/main.css";
+            } else {
+                cssPath = "/com/example/nexus/css/dark.css";
+            }
+
+            var cssResource = getClass().getResource(cssPath);
+            if (cssResource != null) {
+                getScene().getStylesheets().add(cssResource.toExternalForm());
+            }
+
+            // Also add/update root style class
+            getStyleClass().removeAll("light", "dark");
+            getStyleClass().add(actualTheme);
+        }
+
+        // Update sidebar labels and icons with proper colors
+        updateSidebarTheme(isDark, textPrimary, textSecondary, textMuted);
+
+        // Update sidebar selection to use new theme colors
+        updateSidebarSelection();
+    }
+
+    /**
+     * Simple system theme detection
+     */
+    private String detectSystemTheme() {
+        try {
+            // Check GTK_THEME environment variable
+            String gtkTheme = System.getenv("GTK_THEME");
+            if (gtkTheme != null && gtkTheme.toLowerCase().contains("dark")) {
+                return "dark";
+            }
+
+            // Try gsettings color-scheme
+            try {
+                ProcessBuilder pb = new ProcessBuilder("gsettings", "get",
+                    "org.gnome.desktop.interface", "color-scheme");
+                pb.redirectErrorStream(true);
+                Process process = pb.start();
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(process.getInputStream()))) {
+                    String line = reader.readLine();
+                    if (line != null && line.toLowerCase().contains("dark")) {
+                        return "dark";
+                    }
+                }
+                process.waitFor();
+            } catch (Exception e) {
+                // Ignore
+            }
+
+            // Try gsettings gtk-theme
+            try {
+                ProcessBuilder pb = new ProcessBuilder("gsettings", "get",
+                    "org.gnome.desktop.interface", "gtk-theme");
+                pb.redirectErrorStream(true);
+                Process process = pb.start();
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(process.getInputStream()))) {
+                    String line = reader.readLine();
+                    if (line != null && line.toLowerCase().contains("dark")) {
+                        return "dark";
+                    }
+                }
+                process.waitFor();
+            } catch (Exception e) {
+                // Ignore
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return "light";
+    }
+
+    /**
+     * Update sidebar elements for theme
+     */
+    private void updateSidebarTheme(boolean isDark, String textPrimary, String textSecondary, String textMuted) {
+        // Update header
+        for (Node node : sidebar.getChildren()) {
+            if (node instanceof HBox header && !(node instanceof VBox)) {
+                // Header "Settings" label and icon
+                for (Node hChild : header.getChildren()) {
+                    if (hChild instanceof Label label) {
+                        label.setStyle("-fx-font-size: 18px; -fx-font-weight: 600; -fx-text-fill: " + textPrimary + ";");
+                    } else if (hChild instanceof FontIcon icon) {
+                        icon.setIconColor(Color.web(textSecondary));
+                    }
+                }
+            } else if (node instanceof Label versionLabel && node.getUserData() == null) {
+                // Version label at bottom
+                versionLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " + textMuted + ";");
+            }
+        }
+
+        // Nav items will be updated by updateSidebarSelection()
+    }
+
+    /**
+     * Apply accent color to UI elements
+     */
+    private void applyAccentColor(String color) {
+        settingsService.setAccentColor(color);
+
+        // Notify callback if exists
+        if (themeChangeCallback != null) {
+            // Re-apply current theme which will also apply accent
+            themeChangeCallback.accept(settingsService.getTheme());
+        }
+
+        // Refresh appearance settings
         showCategory("appearance");
     }
 
@@ -775,16 +1044,18 @@ public class SettingsPanel extends BorderPane {
         radio.setStyle("-fx-mark-color: " + PRIMARY_COLOR + ";");
 
         Label label = new Label(text);
-        label.setStyle("-fx-font-size: 14px; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        label.setStyle("-fx-font-size: 14px; -fx-text-fill: " + getTextPrimary() + ";");
 
         option.getChildren().addAll(radio, label);
+
+        String hoverBg = currentThemeIsDark ? "#353535" : BG_SECONDARY;
 
         option.setOnMouseClicked(e -> {
             radio.setSelected(true);
             onSelect.run();
         });
 
-        option.setOnMouseEntered(e -> option.setStyle("-fx-background-color: " + BG_SECONDARY + "; -fx-background-radius: 8;"));
+        option.setOnMouseEntered(e -> option.setStyle("-fx-background-color: " + hoverBg + "; -fx-background-radius: 8;"));
         option.setOnMouseExited(e -> option.setStyle("-fx-background-radius: 8;"));
 
         return option;
@@ -831,10 +1102,16 @@ public class SettingsPanel extends BorderPane {
         option.setCursor(javafx.scene.Cursor.HAND);
 
         boolean selected = id.equals(currentEngine);
+
+        // Theme-aware colors
+        String bgNormal = currentThemeIsDark ? "#2d2d2d" : BG_SECONDARY;
+        String bgSelected = currentThemeIsDark ? "#3d3d3d" : "#eff6ff";
+        String borderNormal = currentThemeIsDark ? "#404040" : "transparent";
+
         option.setStyle(
-            "-fx-background-color: " + (selected ? "#eff6ff" : BG_SECONDARY) + ";" +
+            "-fx-background-color: " + (selected ? bgSelected : bgNormal) + ";" +
             "-fx-background-radius: 10;" +
-            "-fx-border-color: " + (selected ? PRIMARY_COLOR : "transparent") + ";" +
+            "-fx-border-color: " + (selected ? PRIMARY_COLOR : borderNormal) + ";" +
             "-fx-border-radius: 10;" +
             "-fx-border-width: 2;"
         );
@@ -850,9 +1127,9 @@ public class SettingsPanel extends BorderPane {
 
         VBox textBox = new VBox(2);
         Label nameLabel = new Label(name);
-        nameLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        nameLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: " + getTextPrimary() + ";");
         Label urlLabel = new Label(url);
-        urlLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + TEXT_MUTED + ";");
+        urlLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + getTextMuted() + ";");
         textBox.getChildren().addAll(nameLabel, urlLabel);
         HBox.setHgrow(textBox, Priority.ALWAYS);
 
@@ -1068,16 +1345,16 @@ public class SettingsPanel extends BorderPane {
 
         FontIcon icon = new FontIcon(iconCode);
         icon.setIconSize(24);
-        icon.setIconColor(Color.web(TEXT_SECONDARY));
+        icon.setIconColor(Color.web(getTextSecondary()));
 
         VBox textBox = new VBox(2);
         textBox.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(textBox, Priority.ALWAYS);
 
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: 600; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: 600; -fx-text-fill: " + getTextPrimary() + ";");
         Label subtitleLabel = new Label(subtitle);
-        subtitleLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + TEXT_MUTED + ";");
+        subtitleLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + getTextMuted() + ";");
         textBox.getChildren().addAll(titleLabel, subtitleLabel);
 
         titleBox.getChildren().addAll(icon, textBox);
@@ -1091,9 +1368,9 @@ public class SettingsPanel extends BorderPane {
         card.setMaxWidth(Double.MAX_VALUE);
         card.setFillWidth(true);
         card.setStyle(
-            "-fx-background-color: " + BG_PRIMARY + ";" +
+            "-fx-background-color: " + getBgPrimary() + ";" +
             "-fx-background-radius: 8;" +
-            "-fx-border-color: " + BORDER_COLOR + ";" +
+            "-fx-border-color: " + getBorderColor() + ";" +
             "-fx-border-radius: 8;" +
             "-fx-border-width: 1;" +
             "-fx-padding: 14;"
@@ -1105,10 +1382,10 @@ public class SettingsPanel extends BorderPane {
 
         FontIcon icon = new FontIcon(iconCode);
         icon.setIconSize(16);
-        icon.setIconColor(Color.web(TEXT_SECONDARY));
+        icon.setIconColor(Color.web(getTextSecondary()));
 
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: " + getTextPrimary() + ";");
 
         header.getChildren().addAll(icon, titleLabel);
         card.getChildren().add(header);
@@ -1121,18 +1398,18 @@ public class SettingsPanel extends BorderPane {
         row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new Insets(10, 0, 10, 0));
         row.setMaxWidth(Double.MAX_VALUE);
-        row.setStyle("-fx-border-color: transparent transparent " + BG_TERTIARY + " transparent; -fx-border-width: 0 0 1 0;");
+        row.setStyle("-fx-border-color: transparent transparent " + getBgTertiary() + " transparent; -fx-border-width: 0 0 1 0;");
 
         FontIcon icon = new FontIcon(iconCode);
         icon.setIconSize(20);
-        icon.setIconColor(Color.web(TEXT_SECONDARY));
+        icon.setIconColor(Color.web(getTextSecondary()));
 
         VBox textBox = new VBox(2);
         textBox.setMaxWidth(Double.MAX_VALUE);
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: 500; -fx-text-fill: " + TEXT_PRIMARY + ";");
+        titleLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: 500; -fx-text-fill: " + getTextPrimary() + ";");
         Label descLabel = new Label(description);
-        descLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " + TEXT_MUTED + ";");
+        descLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " + getTextMuted() + ";");
         descLabel.setWrapText(true);
         descLabel.setMaxWidth(Double.MAX_VALUE);
         textBox.getChildren().addAll(titleLabel, descLabel);
@@ -1156,7 +1433,7 @@ public class SettingsPanel extends BorderPane {
         Region track = new Region();
         track.setPrefSize(44, 24);
         track.setStyle(
-            "-fx-background-color: " + (initialValue ? PRIMARY_COLOR : "#adb5bd") + ";" +
+            "-fx-background-color: " + (initialValue ? getAccentColor() : (isDarkTheme() ? "#4a4a4a" : "#adb5bd")) + ";" +
             "-fx-background-radius: 12;"
         );
 
@@ -1179,7 +1456,7 @@ public class SettingsPanel extends BorderPane {
             tt.play();
 
             track.setStyle(
-                "-fx-background-color: " + (state[0] ? PRIMARY_COLOR : "#adb5bd") + ";" +
+                "-fx-background-color: " + (state[0] ? PRIMARY_COLOR : (isDarkTheme() ? "#4a4a4a" : "#adb5bd")) + ";" +
                 "-fx-background-radius: 12;"
             );
 
@@ -1276,18 +1553,23 @@ public class SettingsPanel extends BorderPane {
         Button btn = new Button(text);
         FontIcon icon = new FontIcon(iconCode);
         icon.setIconSize(16);
-        icon.setIconColor(Color.web(TEXT_SECONDARY));
+        icon.setIconColor(Color.web(getTextSecondary()));
         btn.setGraphic(icon);
+
+        String bgNormal = currentThemeIsDark ? "#3d3d3d" : BG_SECONDARY;
+        String bgHover = currentThemeIsDark ? "#4a4a4a" : BG_TERTIARY;
+        String textColor = getTextPrimary();
+
         btn.setStyle(
-            "-fx-background-color: " + BG_SECONDARY + ";" +
-            "-fx-text-fill: " + TEXT_PRIMARY + ";" +
+            "-fx-background-color: " + bgNormal + ";" +
+            "-fx-text-fill: " + textColor + ";" +
             "-fx-background-radius: 8;" +
             "-fx-padding: 10 20;" +
             "-fx-font-size: 13px;" +
             "-fx-cursor: hand;"
         );
-        btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle().replace(BG_SECONDARY, BG_TERTIARY)));
-        btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle().replace(BG_TERTIARY, BG_SECONDARY)));
+        btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle().replace(bgNormal, bgHover)));
+        btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle().replace(bgHover, bgNormal)));
         return btn;
     }
 
@@ -1312,12 +1594,16 @@ public class SettingsPanel extends BorderPane {
     }
 
     private String getTextFieldStyle() {
-        return "-fx-background-color: " + BG_SECONDARY + ";" +
+        String bgColor = currentThemeIsDark ? "#2d2d2d" : BG_SECONDARY;
+        String borderColor = currentThemeIsDark ? "#404040" : BORDER_COLOR;
+        String textColor = currentThemeIsDark ? "#e0e0e0" : TEXT_PRIMARY;
+        return "-fx-background-color: " + bgColor + ";" +
                "-fx-background-radius: 8;" +
-               "-fx-border-color: " + BORDER_COLOR + ";" +
+               "-fx-border-color: " + borderColor + ";" +
                "-fx-border-radius: 8;" +
                "-fx-padding: 10 14;" +
-               "-fx-font-size: 13px;";
+               "-fx-font-size: 13px;" +
+               "-fx-text-fill: " + textColor + ";";
     }
 
     private void showResetConfirmation() {

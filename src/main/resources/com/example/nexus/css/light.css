@@ -1,63 +1,827 @@
-/* Light theme for Modern Browser */
+/*
+ * Light Theme for Nexus Browser
+ * Clean modern light theme matching the original design
+ */
 
-.root {
-    -fx-background-color: white;
+/* ==================== ROOT & BASE ==================== */
+.root, .light {
+    -fx-background-color: #ffffff;
+    -fx-base: #ffffff;
+    -fx-accent: #6366f1;
+    -fx-default-button: #6366f1;
+    -fx-focus-color: #6366f1;
+    -fx-faint-focus-color: rgba(99, 102, 241, 0.1);
+    -fx-text-fill: #212529;
+    -fx-control-inner-background: #f8f9fa;
+    -fx-font-family: "System", "Segoe UI", "Arial", sans-serif;
 }
 
+/* ==================== GENERAL TEXT ==================== */
+.label {
+    -fx-text-fill: #212529;
+}
+
+.text {
+    -fx-fill: #212529;
+}
+
+/* ==================== BROWSER ROOT ==================== */
+.browser-root {
+    -fx-background-color: #ffffff;
+}
+
+/* ==================== TOP CONTAINER ==================== */
+.top-container {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 0 0 1 0;
+}
+
+/* ==================== TAB BAR CONTAINER ==================== */
+.tab-bar-container {
+    -fx-background-color: #e9ecef;
+    -fx-padding: 8 10 0 10;
+    -fx-spacing: 5;
+}
+
+.tab-bar-area {
+    -fx-background-color: #e9ecef;
+    -fx-padding: 4 8 0 8;
+    -fx-spacing: 0;
+    -fx-alignment: center-left;
+}
+
+/* ==================== BROWSER TAB PANE ==================== */
+.browser-tab-pane {
+    -fx-background-color: transparent;
+    -fx-tab-min-height: 32;
+    -fx-tab-max-height: 32;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.browser-tab-pane > .tab-header-area {
+    -fx-background-color: #e9ecef;
+    -fx-padding: 4 0 0 4;
+}
+
+.browser-tab-pane > .tab-header-area > .tab-header-background {
+    -fx-background-color: #e9ecef;
+}
+
+.browser-tab-pane > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: #dee2e6;
+    -fx-background-radius: 8 8 0 0;
+    -fx-padding: 4 2 4 6;
+    -fx-background-insets: 0 1 0 0;
+    -fx-pref-width: 160;
+    -fx-min-width: 100;
+    -fx-max-width: 200;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.browser-tab-pane > .tab-header-area > .headers-region > .tab:focused {
+    -fx-background-color: #dee2e6;
+    -fx-background-insets: 0 1 0 0;
+}
+
+.browser-tab-pane > .tab-header-area > .headers-region > .tab:selected {
+    -fx-background-color: #ffffff;
+}
+
+.browser-tab-pane > .tab-header-area > .headers-region > .tab:selected:focused {
+    -fx-background-color: #ffffff;
+}
+
+.browser-tab-pane > .tab-header-area > .headers-region > .tab:hover:!selected {
+    -fx-background-color: #ced4da;
+}
+
+.browser-tab-pane > .tab-header-area > .headers-region > .tab > .tab-container > .tab-label {
+    -fx-text-fill: #495057;
+    -fx-font-size: 11px;
+    -fx-text-overrun: ellipsis;
+}
+
+.browser-tab-pane > .tab-header-area > .headers-region > .tab:selected > .tab-container > .tab-label {
+    -fx-text-fill: #212529;
+}
+
+.browser-tab-pane > .tab-header-area > .headers-region > .tab:hover > .tab-container > .tab-label {
+    -fx-text-fill: #212529;
+}
+
+/* ==================== TAB CLOSE BUTTON - Clean rounded style ==================== */
+.tab-close-btn {
+    -fx-background-color: transparent;
+    -fx-background-radius: 50%;
+    -fx-padding: 2;
+    -fx-cursor: hand;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.tab-close-btn:hover {
+    -fx-background-color: rgba(108, 117, 125, 0.25);
+}
+
+.tab-close-btn .ikonli-font-icon {
+    -fx-icon-size: 10;
+    -fx-icon-color: #6c757d;
+}
+
+/* ==================== NEW TAB BUTTON - Clean rounded style ==================== */
+.new-tab-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8;
+    -fx-padding: 6 8;
+    -fx-cursor: hand;
+    -fx-min-width: 28;
+    -fx-min-height: 28;
+    -fx-max-width: 28;
+    -fx-max-height: 28;
+}
+
+.new-tab-button:hover {
+    -fx-background-color: #ced4da;
+}
+
+.new-tab-button:pressed {
+    -fx-background-color: #adb5bd;
+}
+
+.new-tab-button .ikonli-font-icon {
+    -fx-icon-size: 16;
+    -fx-icon-color: #495057;
+}
+
+/* ==================== TOOLBAR ==================== */
 .toolbar {
-    -fx-background-color: #f5f5f5;
-    -fx-border-color: #e0e0e0;
+    -fx-background-color: #f8f9fa;
+    -fx-spacing: 5;
 }
 
-.mfx-tab-pane {
-    -fx-background-color: #f0f0f0;
+/* ==================== NAVIGATION BUTTONS - Clean rounded style ==================== */
+.nav-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 50%;
+    -fx-padding: 8;
+    -fx-cursor: hand;
+    -fx-min-width: 36;
+    -fx-min-height: 36;
+    -fx-max-width: 36;
+    -fx-max-height: 36;
 }
 
-.mfx-tab-pane .tab-header-area {
-    -fx-background-color: #f0f0f0;
+.nav-button:hover {
+    -fx-background-color: #e9ecef;
 }
 
-.mfx-tab-pane .tab {
-    -fx-background-color: #e0e0e0;
-    -fx-border-color: #d0d0d0;
+.nav-button:pressed {
+    -fx-background-color: #dee2e6;
 }
 
-.mfx-tab-pane .tab:selected {
-    -fx-background-color: white;
+.nav-button:disabled {
+    -fx-opacity: 0.4;
 }
 
-.mfx-text-field {
-    -fx-background-color: white;
-    -fx-border-color: #e0e0e0;
-    -fx-text-fill: #333;
+.nav-button .ikonli-font-icon {
+    -fx-icon-size: 18;
+    -fx-icon-color: #495057;
 }
 
-.mfx-text-field:focused {
-    -fx-border-color: #2196f3;
+/* ==================== ADDRESS BAR CONTAINER ==================== */
+.address-bar-container {
+    -fx-background-color: #e9ecef;
+    -fx-background-radius: 24;
+    -fx-padding: 4 12;
+    -fx-spacing: 8;
+    -fx-alignment: center-left;
 }
 
+.address-bar-container:focused-within {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #80bdff;
+    -fx-border-radius: 24;
+    -fx-border-width: 2;
+}
+
+/* ==================== SECURITY ICON ==================== */
+.security-icon {
+    -fx-padding: 0 4 0 0;
+}
+
+.security-icon .ikonli-font-icon {
+    -fx-icon-size: 14;
+    -fx-icon-color: #28a745;
+}
+
+/* ==================== ADDRESS BAR ==================== */
+.address-bar {
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 4 0;
+    -fx-font-size: 13px;
+    -fx-text-fill: #202124;
+    -fx-prompt-text-fill: #5f6368;
+}
+
+.address-bar:focused {
+    -fx-background-color: transparent;
+}
+
+/* ==================== ADDRESS BAR BUTTON - Clean rounded style ==================== */
+.address-bar-button {
+    -fx-background-color: transparent;
+    -fx-padding: 4;
+    -fx-cursor: hand;
+}
+
+.address-bar-button:hover {
+    -fx-background-color: #dee2e6;
+    -fx-background-radius: 4;
+}
+
+.address-bar-button .ikonli-font-icon {
+    -fx-icon-size: 16;
+    -fx-icon-color: #6c757d;
+}
+
+/* ==================== BROWSER CONTAINER ==================== */
+.browser-container {
+    -fx-background-color: #ffffff;
+}
+
+/* ==================== STATUS BAR ==================== */
+.status-bar {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 1 0 0 0;
+}
+
+.status-label {
+    -fx-text-fill: #6c757d;
+    -fx-font-size: 11px;
+}
+
+/* ==================== CONTEXT MENU - Clean modern style ==================== */
+.context-menu {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 6;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 12, 0, 0, 3);
+}
+
+.context-menu .menu-item {
+    -fx-padding: 8 12;
+    -fx-background-radius: 6;
+    -fx-background-insets: 2;
+}
+
+.context-menu .menu-item:hover {
+    -fx-background-color: #f3f4f6;
+}
+
+.context-menu .menu-item:focused {
+    -fx-background-color: #f3f4f6;
+}
+
+.context-menu .menu-item .label {
+    -fx-text-fill: #374151;
+    -fx-font-size: 13px;
+}
+
+.context-menu .menu-item:hover .label {
+    -fx-text-fill: #111827;
+}
+
+.context-menu .menu-item .ikonli-font-icon {
+    -fx-icon-size: 16;
+}
+
+.context-menu .accelerator-text {
+    -fx-text-fill: #9ca3af;
+    -fx-font-size: 11px;
+}
+
+.context-menu .separator {
+    -fx-padding: 6 8;
+}
+
+.context-menu .separator .line {
+    -fx-border-color: #f0f0f0;
+    -fx-border-width: 1 0 0 0;
+}
+
+/* ==================== TEXT FIELDS ==================== */
+.text-field, .text-area {
+    -fx-background-color: #f1f3f4;
+    -fx-border-color: #dfe1e5;
+    -fx-text-fill: #202124;
+    -fx-prompt-text-fill: #5f6368;
+}
+
+.text-field:focused, .text-area:focused {
+    -fx-border-color: #6366f1;
+    -fx-border-width: 2;
+}
+
+.text-field:hover, .text-area:hover {
+    -fx-background-color: #ffffff;
+}
+
+/* ==================== BUTTONS ==================== */
+.button {
+    -fx-background-color: #f8f9fa;
+    -fx-text-fill: #212529;
+    -fx-border-color: transparent;
+}
+
+.button:hover {
+    -fx-background-color: #e9ecef;
+}
+
+.button:pressed {
+    -fx-background-color: #dee2e6;
+}
+
+.button:default {
+    -fx-background-color: #6366f1;
+    -fx-text-fill: #ffffff;
+    -fx-border-color: transparent;
+}
+
+.button:default:hover {
+    -fx-background-color: #4f46e5;
+}
+
+/* ==================== SCROLL PANES & BARS ==================== */
+.scroll-pane, .scroll-pane > .viewport {
+    -fx-background-color: #ffffff;
+    -fx-background: #ffffff;
+}
+
+.scroll-bar {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .track {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #dee2e6;
+    -fx-background-radius: 4;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #ced4da;
+}
+
+.scroll-bar .increment-button, .scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.scroll-bar .increment-arrow, .scroll-bar .decrement-arrow {
+    -fx-background-color: transparent;
+    -fx-shape: "";
+}
+
+/* ==================== LIST VIEWS ==================== */
 .list-view {
-    -fx-background-color: white;
-    -fx-border-color: #e0e0e0;
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
 }
 
 .list-cell {
-    -fx-border-color: transparent transparent #e0e0e0 transparent;
+    -fx-background-color: transparent;
+    -fx-text-fill: #212529;
 }
 
 .list-cell:hover {
-    -fx-background-color: #f5f5f5;
+    -fx-background-color: #f8f9fa;
 }
 
 .list-cell:selected {
-    -fx-background-color: #e3f2fd;
+    -fx-background-color: rgba(99, 102, 241, 0.1);
 }
 
-.mfx-scroll-pane {
-    -fx-background-color: white;
-    -fx-border-color: #e0e0e0;
+.list-cell:selected:hover {
+    -fx-background-color: rgba(99, 102, 241, 0.15);
 }
 
-.separator {
-    -fx-background-color: #e0e0e0;
+/* ==================== COMBO BOXES ==================== */
+.combo-box {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
 }
+
+.combo-box:hover {
+    -fx-border-color: #ced4da;
+}
+
+.combo-box:focused {
+    -fx-border-color: #6366f1;
+    -fx-border-width: 2;
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: #212529;
+    -fx-background-color: transparent;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+}
+
+.combo-box .arrow-button {
+    -fx-background-color: transparent;
+}
+
+.combo-box .arrow {
+    -fx-background-color: #495057;
+}
+
+/* ==================== CHECK BOXES ==================== */
+.check-box {
+    -fx-text-fill: #212529;
+}
+
+.check-box .box {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+}
+
+.check-box:hover .box {
+    -fx-border-color: #ced4da;
+}
+
+.check-box:selected .box {
+    -fx-background-color: #6366f1;
+    -fx-border-color: #6366f1;
+}
+
+.check-box:selected .mark {
+    -fx-background-color: #ffffff;
+}
+
+/* ==================== RADIO BUTTONS ==================== */
+.radio-button {
+    -fx-text-fill: #212529;
+}
+
+.radio-button .radio {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+}
+
+.radio-button:selected .radio {
+    -fx-border-color: #6366f1;
+}
+
+.radio-button:selected .radio .dot {
+    -fx-background-color: #6366f1;
+}
+
+/* ==================== PROGRESS BARS ==================== */
+.progress-bar {
+    -fx-background-color: #e9ecef;
+}
+
+.progress-bar .bar {
+    -fx-background-color: linear-gradient(to right, #6366f1, #818cf8);
+}
+
+.progress-bar .track {
+    -fx-background-color: #e9ecef;
+}
+
+/* ==================== SLIDERS ==================== */
+.slider .track {
+    -fx-background-color: #dee2e6;
+}
+
+.slider .thumb {
+    -fx-background-color: #6366f1;
+}
+
+.slider .thumb:hover {
+    -fx-background-color: #4f46e5;
+}
+
+/* ==================== SEPARATORS ==================== */
+.separator .line {
+    -fx-border-color: #e9ecef;
+}
+
+/* ==================== TOOLTIPS ==================== */
+.tooltip {
+    -fx-background-color: #212529;
+    -fx-text-fill: #ffffff;
+}
+
+/* ==================== DIALOGS & ALERTS ==================== */
+.dialog-pane {
+    -fx-background-color: #ffffff;
+    -fx-border-color: transparent;
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: #f8f9fa;
+}
+
+.dialog-pane .content {
+    -fx-text-fill: #212529;
+}
+
+.dialog-pane .label {
+    -fx-text-fill: #212529;
+}
+
+.dialog-pane .button-bar {
+    -fx-background-color: #f8f9fa;
+}
+
+/* ==================== HISTORY PANEL ==================== */
+.history-panel {
+    -fx-background-color: #ffffff;
+}
+
+.history-panel .label {
+    -fx-text-fill: #212529;
+}
+
+.history-panel .search-field {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
+    -fx-text-fill: #212529;
+    -fx-prompt-text-fill: #6c757d;
+}
+
+.history-item {
+    -fx-background-color: transparent;
+}
+
+.history-item:hover {
+    -fx-background-color: #f8f9fa;
+}
+
+.history-item .title {
+    -fx-text-fill: #212529;
+}
+
+.history-item .url, .history-item .time {
+    -fx-text-fill: #6c757d;
+}
+
+/* ==================== BOOKMARK PANEL ==================== */
+.bookmark-panel {
+    -fx-background-color: #ffffff;
+}
+
+.bookmark-panel .label {
+    -fx-text-fill: #212529;
+}
+
+.bookmark-panel .tree-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #212529;
+}
+
+.bookmark-panel .tree-cell:hover {
+    -fx-background-color: #f8f9fa;
+}
+
+.bookmark-panel .tree-cell:selected {
+    -fx-background-color: rgba(99, 102, 241, 0.1);
+}
+
+/* ==================== TAB PREVIEW ==================== */
+.tab-preview {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.tab-preview .title {
+    -fx-text-fill: #212529;
+}
+
+.tab-preview .url {
+    -fx-text-fill: #6c757d;
+}
+
+/* ==================== SETTINGS PANEL ==================== */
+.settings-panel {
+    -fx-background-color: #ffffff;
+}
+
+.settings-card {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
+}
+
+.settings-card:hover {
+    -fx-background-color: #ffffff;
+}
+
+.settings-card .label {
+    -fx-text-fill: #212529;
+}
+
+.settings-card .description {
+    -fx-text-fill: #6c757d;
+}
+
+.settings-nav {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
+}
+
+.settings-nav .nav-item {
+    -fx-background-color: transparent;
+}
+
+.settings-nav .nav-item:hover {
+    -fx-background-color: #e9ecef;
+}
+
+.settings-nav .nav-item .label {
+    -fx-text-fill: #212529;
+}
+
+.settings-nav .nav-item .description {
+    -fx-text-fill: #6c757d;
+}
+
+.theme-card {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
+}
+
+.theme-card:hover {
+    -fx-border-color: #ced4da;
+}
+
+.theme-card.selected {
+    -fx-border-color: #6366f1;
+}
+
+.theme-card .label {
+    -fx-text-fill: #212529;
+}
+
+/* ==================== TREE VIEW ==================== */
+.tree-view {
+    -fx-background-color: #ffffff;
+}
+
+.tree-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #212529;
+}
+
+.tree-cell:hover {
+    -fx-background-color: #f8f9fa;
+}
+
+.tree-cell:selected {
+    -fx-background-color: rgba(99, 102, 241, 0.1);
+}
+
+.tree-cell .arrow {
+    -fx-background-color: #495057;
+}
+
+/* ==================== TABLE VIEW ==================== */
+.table-view {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+}
+
+.table-view .column-header {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #495057;
+}
+
+.table-row-cell {
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #212529;
+}
+
+.table-row-cell:hover {
+    -fx-background-color: #f8f9fa;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: rgba(99, 102, 241, 0.1);
+}
+
+/* ==================== TITLED PANE ==================== */
+.titled-pane {
+    -fx-text-fill: #212529;
+}
+
+.titled-pane > .title {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
+}
+
+.titled-pane > .title:hover {
+    -fx-background-color: #e9ecef;
+}
+
+.titled-pane > .content {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+}
+
+/* ==================== HYPERLINKS ==================== */
+.hyperlink {
+    -fx-text-fill: #6366f1;
+}
+
+.hyperlink:hover {
+    -fx-text-fill: #4f46e5;
+}
+
+/* ==================== ICONS ==================== */
+.ikonli-font-icon {
+    -fx-icon-color: #495057;
+}
+
+/* ==================== SPLIT PANE ==================== */
+.split-pane {
+    -fx-background-color: #ffffff;
+}
+
+.split-pane > .split-pane-divider {
+    -fx-background-color: #dee2e6;
+}
+
+/* ==================== MENU BAR ==================== */
+.menu-bar {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
+}
+
+.menu-bar .menu {
+    -fx-background-color: transparent;
+}
+
+.menu-bar .menu:hover, .menu-bar .menu:showing {
+    -fx-background-color: #e9ecef;
+}
+
+.menu-bar .menu .label {
+    -fx-text-fill: #212529;
+}
+
+/* ==================== SPINNER ==================== */
+.spinner {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
+}
+
+.spinner .increment-arrow-button, .spinner .decrement-arrow-button {
+    -fx-background-color: #e9ecef;
+}
+
+.spinner .increment-arrow-button:hover, .spinner .decrement-arrow-button:hover {
+    -fx-background-color: #dee2e6;
+}
+
+/* ==================== VBOX, HBOX, PANES ==================== */
+.light VBox, .light HBox, .light .vbox, .light .hbox {
+    -fx-background-color: transparent;
+}
+
+.light Pane, .light AnchorPane, .light BorderPane, .light StackPane,
+.light .pane, .light .anchor-pane, .light .border-pane, .light .stack-pane {
+    -fx-background-color: #ffffff;
+}
+
+/* ==================== FIX TEXT ON LIGHT THEME ==================== */
+.light .text, .light Text {
+    -fx-fill: #212529;
+}
+
+.light .label, .light Label {
+    -fx-text-fill: #212529;
+}
+
+/* Force all backgrounds in light mode */
+.light * {
+    -fx-control-inner-background: #f8f9fa;
+}
+

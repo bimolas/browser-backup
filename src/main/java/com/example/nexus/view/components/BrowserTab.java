@@ -51,9 +51,20 @@ public class BrowserTab extends BorderPane {
     public BrowserTab(DIContainer container, String url) {
         this.container = container;
 
-        // Create WebView
+        // Create WebView with optimized settings
         this.webView = new WebView();
         this.webEngine = webView.getEngine();
+
+        // Enable caching and optimize WebView performance
+        webView.setCache(true);
+        webView.setContextMenuEnabled(true);
+
+        // Configure WebEngine for better compatibility and speed
+        webEngine.setJavaScriptEnabled(true);
+
+        // Set a modern user agent to improve site compatibility
+        String userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
+        webEngine.setUserAgent(userAgent);
 
         // Create loading bar
         this.loadingBar = new ProgressBar();
@@ -96,13 +107,11 @@ public class BrowserTab extends BorderPane {
         // Setup WebEngine handlers
         setupWebEngineHandlers();
 
-        // Configure WebEngine
-        webEngine.setJavaScriptEnabled(true);
-
         // Handle popup windows
         webEngine.setCreatePopupHandler(config -> {
             WebView popupView = new WebView();
             popupView.getEngine().setJavaScriptEnabled(true);
+            popupView.getEngine().setUserAgent(userAgent);
             return popupView.getEngine();
         });
 
@@ -290,19 +299,42 @@ public class BrowserTab extends BorderPane {
 
         // Add protocol if missing
         if (url != null && !url.isEmpty()) {
-            if (!url.startsWith("http://") && !url.startsWith("https://") &&
-                !url.startsWith("file://") && !url.startsWith("data:")) {
-                processedUrl = "https://" + url;
+            String trimmedUrl = url.trim();
+
+            // Check if it's a search query or URL
+            if (!trimmedUrl.contains(".") && !trimmedUrl.startsWith("http") && !trimmedUrl.startsWith("file")) {
+                // Treat as search query - use DuckDuckGo for privacy
+                processedUrl = "https://duckduckgo.com/?q=" + trimmedUrl.replace(" ", "+");
+            } else if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://") &&
+                !trimmedUrl.startsWith("file://") && !trimmedUrl.startsWith("data:")) {
+                processedUrl = "https://" + trimmedUrl;
+            } else {
+                processedUrl = trimmedUrl;
             }
         }
 
         final String finalUrl = processedUrl;
+
+        // Show loading immediately for better UX
+        Platform.runLater(() -> {
+            loadingBar.setVisible(true);
+            loadingBar.setProgress(-1);
+        });
+
+        // Load URL in background to keep UI responsive
         Platform.runLater(() -> {
             try {
+                // Cancel any current loading first
+                if (webEngine.getLoadWorker().isRunning()) {
+                    webEngine.getLoadWorker().cancel();
+                }
+
                 webEngine.load(finalUrl);
                 urlProperty.set(finalUrl);
+                logger.info("Loading URL: {}", finalUrl);
             } catch (Exception e) {
                 logger.error("Error loading URL: {}", finalUrl, e);
+                loadingBar.setVisible(false);
                 showErrorView("Failed to load: " + finalUrl);
             }
         });

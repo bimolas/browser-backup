@@ -30,6 +30,7 @@ public class MainController {
     private BookmarkService bookmarkService;
     private HistoryService historyService;
     private SettingsService settingsService;
+    private SettingsController settingsController;
     private KeyboardShortcutManager shortcutManager;
 
     // Map to store browser tabs associated with JavaFX tabs
@@ -66,6 +67,10 @@ public class MainController {
         settingsService = container.getOrCreate(SettingsService.class);
         shortcutManager = new KeyboardShortcutManager(this);
 
+        // Initialize settings controller for theme management
+        settingsController = new SettingsController(settingsService);
+        settingsController.setUIComponents(rootPane, addressBar, tabPane, browserContainer, statusBar);
+
         // Set up icons
         setupIcons();
 
@@ -88,8 +93,19 @@ public class MainController {
         // Hide the tab dropdown arrow button programmatically
         Platform.runLater(() -> hideTabDropdownButton());
 
-        // Apply saved theme on startup
-        Platform.runLater(() -> applyTheme(settingsService.getTheme()));
+        // Apply saved settings on startup (from database)
+        Platform.runLater(() -> {
+            String savedTheme = settingsService.getTheme();
+            settingsController.applyTheme(savedTheme != null ? savedTheme : "light");
+            settingsController.applyInterfaceSettings();
+        });
+
+        // Listen for settings changes
+        settingsService.addSettingsChangeListener(settings -> {
+            Platform.runLater(() -> {
+                settingsController.applyInterfaceSettings();
+            });
+        });
 
         // Load initial tab
         Platform.runLater(() -> {
@@ -362,19 +378,16 @@ public class MainController {
         previewPopup.setAutoHide(true);
 
         VBox previewContent = new VBox(5);
-        previewContent.setStyle("-fx-background-color: white; -fx-border-color: #dee2e6; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 10, 0, 0, 2);");
         previewContent.setPrefWidth(240);
 
         // Preview title
         Label previewTitle = new Label("New Tab");
-        previewTitle.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #212529;");
         previewTitle.setMaxWidth(220);
         previewTitle.setWrapText(false);
         previewTitle.setEllipsisString("...");
 
         // Preview URL
         Label previewUrl = new Label("");
-        previewUrl.setStyle("-fx-font-size: 10px; -fx-text-fill: #6c757d;");
         previewUrl.setMaxWidth(220);
         previewUrl.setWrapText(false);
         previewUrl.setEllipsisString("...");
@@ -385,10 +398,8 @@ public class MainController {
         previewImage.setFitHeight(140);
         previewImage.setPreserveRatio(true);
         previewImage.setSmooth(true);
-        previewImage.setStyle("-fx-background-color: #f8f9fa;");
 
         StackPane imageContainer = new StackPane(previewImage);
-        imageContainer.setStyle("-fx-background-color: #f8f9fa; -fx-background-radius: 4;");
         imageContainer.setPrefSize(224, 140);
 
         previewContent.getChildren().addAll(previewTitle, previewUrl, imageContainer);
@@ -402,6 +413,26 @@ public class MainController {
             isHovering[0] = true;
             hoverDelay.setOnFinished(event -> {
                 if (isHovering[0] && tab != tabPane.getSelectionModel().getSelectedItem()) {
+                    // Check theme EACH TIME popup is shown - handle system theme too
+                    String theme = settingsService.getTheme();
+                    boolean isDark = "dark".equals(theme) ||
+                        ("system".equals(theme) && isSystemDarkTheme());
+
+                    // Theme-aware colors
+                    String bgColor = isDark ? "#2d2d2d" : "white";
+                    String borderColor = isDark ? "#404040" : "#dee2e6";
+                    String titleColor = isDark ? "#e0e0e0" : "#212529";
+                    String urlColor = isDark ? "#909090" : "#6c757d";
+                    String imageBgColor = isDark ? "#1e1e1e" : "#f8f9fa";
+                    String shadowColor = isDark ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.2)";
+
+                    // Apply theme styles
+                    previewContent.setStyle("-fx-background-color: " + bgColor + "; -fx-border-color: " + borderColor + "; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8; -fx-effect: dropshadow(gaussian, " + shadowColor + ", 10, 0, 0, 2);");
+                    previewTitle.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: " + titleColor + ";");
+                    previewUrl.setStyle("-fx-font-size: 10px; -fx-text-fill: " + urlColor + ";");
+                    previewImage.setStyle("-fx-background-color: " + imageBgColor + ";");
+                    imageContainer.setStyle("-fx-background-color: " + imageBgColor + "; -fx-background-radius: 4;");
+
                     // Update preview content
                     previewTitle.setText(browserTab.getTitle());
                     previewUrl.setText(browserTab.getUrl());
@@ -454,6 +485,43 @@ public class MainController {
                 }
             }
         }
+    }
+
+    /**
+     * Check if system theme is dark
+     */
+    private boolean isSystemDarkTheme() {
+        // First check if dark.css is loaded in the current scene
+        if (tabPane != null && tabPane.getScene() != null) {
+            for (String stylesheet : tabPane.getScene().getStylesheets()) {
+                if (stylesheet.contains("dark.css")) {
+                    return true;
+                }
+            }
+        }
+
+        try {
+            String gtkTheme = System.getenv("GTK_THEME");
+            if (gtkTheme != null && gtkTheme.toLowerCase().contains("dark")) {
+                return true;
+            }
+            // Try gsettings
+            try {
+                ProcessBuilder pb = new ProcessBuilder("gsettings", "get", "org.gnome.desktop.interface", "color-scheme");
+                pb.redirectErrorStream(true);
+                Process process = pb.start();
+                String output = new String(process.getInputStream().readAllBytes()).trim();
+                process.waitFor();
+                if (output.contains("dark")) {
+                    return true;
+                }
+            } catch (Exception ex) {
+                // Ignore
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return false;
     }
 
     /**
@@ -572,16 +640,31 @@ public class MainController {
     private void showMainMenu() {
         ContextMenu menu = new ContextMenu();
 
-        // Apply clean styling to the menu
-        menu.setStyle(
-            "-fx-background-color: #ffffff;" +
-            "-fx-background-radius: 10;" +
-            "-fx-padding: 8;" +
-            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 16, 0, 0, 4);" +
-            "-fx-border-color: #e5e7eb;" +
-            "-fx-border-radius: 10;" +
-            "-fx-border-width: 1;"
-        );
+        // Check if dark theme is active
+        boolean isDark = "dark".equals(settingsService.getTheme());
+
+        // Apply styling - in dark mode let CSS handle most of it, just add shadow
+        if (isDark) {
+            menu.setStyle(
+                "-fx-background-color: #2d2d2d;" +
+                "-fx-background-radius: 10;" +
+                "-fx-padding: 8;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.4), 16, 0, 0, 4);" +
+                "-fx-border-color: #404040;" +
+                "-fx-border-radius: 10;" +
+                "-fx-border-width: 1;"
+            );
+        } else {
+            menu.setStyle(
+                "-fx-background-color: #ffffff;" +
+                "-fx-background-radius: 10;" +
+                "-fx-padding: 8;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 16, 0, 0, 4);" +
+                "-fx-border-color: #e5e7eb;" +
+                "-fx-border-radius: 10;" +
+                "-fx-border-width: 1;"
+            );
+        }
 
         // === Navigation Section ===
         MenuItem newTab = createMenuItem("New Tab", "mdi2p-plus", "#3b82f6", "Ctrl+T");
@@ -1243,18 +1326,26 @@ public class MainController {
             com.example.nexus.view.dialogs.SettingsPanel settingsPanel =
                 new com.example.nexus.view.dialogs.SettingsPanel(settingsService);
 
-            // Create a new Stage for settings - don't set owner to allow maximize on Linux
+            // Create a new Stage for settings
             javafx.stage.Stage settingsStage = new javafx.stage.Stage();
             settingsStage.setTitle("Settings");
-            settingsStage.initModality(javafx.stage.Modality.NONE); // Allow independent window behavior
+            settingsStage.initModality(javafx.stage.Modality.NONE);
 
             // Create scene with size to show all content
             javafx.scene.Scene settingsScene = new javafx.scene.Scene(settingsPanel, 1000, 750);
 
-            // Apply CSS safely
-            var cssResource = getClass().getResource("/com/example/nexus/css/main.css");
-            if (cssResource != null) {
-                settingsScene.getStylesheets().add(cssResource.toExternalForm());
+            // Apply main CSS
+            var mainCssResource = getClass().getResource("/com/example/nexus/css/main.css");
+            if (mainCssResource != null) {
+                settingsScene.getStylesheets().add(mainCssResource.toExternalForm());
+            }
+
+            // Apply current theme CSS using settings controller
+            String currentTheme = settingsService.getTheme();
+            String actualTheme = settingsController.resolveTheme(currentTheme);
+            var themeCssResource = getClass().getResource("/com/example/nexus/css/" + actualTheme + ".css");
+            if (themeCssResource != null) {
+                settingsScene.getStylesheets().add(themeCssResource.toExternalForm());
             }
 
             settingsStage.setScene(settingsScene);
@@ -1262,10 +1353,16 @@ public class MainController {
             settingsStage.setMinHeight(600);
             settingsStage.setResizable(true);
 
-            // Set theme change callback
-            settingsPanel.setOnThemeChange(theme -> applyTheme(theme));
+            // Register scene with settings controller for theme updates
+            settingsController.registerScene(settingsScene);
 
-            // Show the stage (use show() instead of showAndWait() to avoid blocking issues)
+            // Set theme change callback to use settings controller
+            settingsPanel.setOnThemeChange(theme -> settingsController.applyTheme(theme));
+
+            // Cleanup when settings window closes
+            settingsStage.setOnHidden(e -> settingsController.unregisterScene(settingsScene));
+
+            // Show the stage
             settingsStage.show();
             settingsStage.toFront();
 
@@ -1277,37 +1374,38 @@ public class MainController {
     }
 
     /**
-     * Apply theme to the browser
+     * Apply theme to the browser - delegates to settings controller
      */
     private void applyTheme(String theme) {
-        Platform.runLater(() -> {
-            try {
-                if (rootPane.getScene() != null) {
-                    // Remove existing theme classes
-                    rootPane.getStyleClass().removeAll("light", "dark");
+        settingsController.applyTheme(theme);
+    }
 
-                    String actualTheme = theme;
-                    if ("system".equals(theme)) {
-                        // Detect system theme (simplified - defaults to light)
-                        actualTheme = "light";
-                    }
+    /**
+     * Apply interface settings - delegates to settings controller
+     */
+    public void applyInterfaceSettings() {
+        settingsController.applyInterfaceSettings();
+    }
 
-                    // Add new theme class
-                    rootPane.getStyleClass().add(actualTheme);
+    /**
+     * Detect system theme preference - delegates to settings controller
+     */
+    private String detectSystemTheme() {
+        return settingsController.detectSystemTheme();
+    }
 
-                    // Apply theme-specific styles
-                    if ("dark".equals(actualTheme)) {
-                        rootPane.setStyle("-fx-background-color: #1e1e1e;");
-                    } else {
-                        rootPane.setStyle("-fx-background-color: #ffffff;");
-                    }
+    /**
+     * Apply accent color to UI elements - delegates to settings controller
+     */
+    private void applyAccentColor(String accentColor) {
+        settingsController.applyAccentColor(accentColor);
+    }
 
-                    logger.info("Applied theme: " + theme);
-                }
-            } catch (Exception e) {
-                logger.error("Error applying theme", e);
-            }
-        });
+    /**
+     * Apply font size to UI elements - delegates to settings controller
+     */
+    private void applyFontSize(int fontSize) {
+        settingsController.applyFontSize(fontSize);
     }
 
     @FXML

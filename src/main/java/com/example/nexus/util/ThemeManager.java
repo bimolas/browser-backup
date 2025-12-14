@@ -15,8 +15,9 @@ public class ThemeManager {
 
     public ThemeManager() {
         // Register available themes
-        themes.put("light", "/css/light.css");
-        themes.put("dark", "/css/dark.css");
+        themes.put("light", "/com/example/nexus/css/main.css");
+        themes.put("main", "/com/example/nexus/css/main.css");  // Alias for light
+        themes.put("dark", "/com/example/nexus/css/dark.css");
     }
 
     public void applyTheme(Scene scene, String themeName) {
@@ -27,10 +28,10 @@ public class ThemeManager {
         }
 
         try {
-            // Remove all existing stylesheets
-            scene.getStylesheets().clear();
+            // Remove any existing theme stylesheets (main, light or dark)
+            scene.getStylesheets().removeIf(s -> s.contains("main.css") || s.contains("light.css") || s.contains("dark.css"));
 
-            // Add the new theme
+            // Add the theme stylesheet
             scene.getStylesheets().add(getClass().getResource(themePath).toExternalForm());
 
             currentTheme = themeName;

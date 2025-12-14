@@ -4,6 +4,7 @@ import com.example.nexus.core.DIContainer;
 import com.example.nexus.exception.BrowserException;
 import com.example.nexus.model.HistoryEntry;
 import com.example.nexus.service.HistoryService;
+import com.example.nexus.service.SettingsService;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -44,9 +45,11 @@ public class HistoryPanel extends Stage {
 
     private final DIContainer container;
     private final HistoryService historyService;
+    private final SettingsService settingsService;
     private final ObservableList<HistoryEntry> historyList;
     private final FilteredList<HistoryEntry> filteredHistory;
     private final Map<String, Image> faviconCache;
+    private final boolean isDarkTheme;
 
     private Consumer<String> onOpenUrl;
     private TextField searchField;
@@ -65,14 +68,40 @@ public class HistoryPanel extends Stage {
     public HistoryPanel(DIContainer container) {
         this.container = container;
         this.historyService = container.getOrCreate(HistoryService.class);
+        this.settingsService = container.getOrCreate(SettingsService.class);
         this.historyList = FXCollections.observableArrayList();
         this.filteredHistory = new FilteredList<>(historyList, p -> true);
         this.faviconCache = new HashMap<>();
+
+        // Detect current theme
+        String theme = settingsService.getTheme();
+        this.isDarkTheme = "dark".equals(theme) || ("system".equals(theme) && isSystemDark());
 
         initializeStage();
         initializeUI();
         loadHistory();
     }
+
+    private boolean isSystemDark() {
+        try {
+            String gtkTheme = System.getenv("GTK_THEME");
+            if (gtkTheme != null && gtkTheme.toLowerCase().contains("dark")) {
+                return true;
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return false;
+    }
+
+    // Theme-aware color getters
+    private String getBgPrimary() { return isDarkTheme ? "#1e1e1e" : "#ffffff"; }
+    private String getBgSecondary() { return isDarkTheme ? "#252525" : "#f8f9fa"; }
+    private String getBgTertiary() { return isDarkTheme ? "#2d2d2d" : "#e9ecef"; }
+    private String getBorderColor() { return isDarkTheme ? "#404040" : "#e9ecef"; }
+    private String getTextPrimary() { return isDarkTheme ? "#e0e0e0" : "#212529"; }
+    private String getTextSecondary() { return isDarkTheme ? "#b0b0b0" : "#495057"; }
+    private String getTextMuted() { return isDarkTheme ? "#808080" : "#6c757d"; }
 
     private void initializeStage() {
         setTitle("History");
@@ -87,7 +116,7 @@ public class HistoryPanel extends Stage {
     private void initializeUI() {
         BorderPane root = new BorderPane();
         root.getStyleClass().add("history-panel");
-        root.setStyle("-fx-background-color: #ffffff;");
+        root.setStyle("-fx-background-color: " + getBgPrimary() + ";");
 
         // Header
         root.setTop(createHeader());
@@ -95,7 +124,7 @@ public class HistoryPanel extends Stage {
         // Content
         contentBox = new VBox(10);
         contentBox.setPadding(new Insets(15));
-        contentBox.setStyle("-fx-background-color: #f8f9fa;");
+        contentBox.setStyle("-fx-background-color: " + getBgSecondary() + ";");
 
         // History list
         historyListView = createHistoryListView();
@@ -108,7 +137,9 @@ public class HistoryPanel extends Stage {
         root.setBottom(createFooter());
 
         Scene scene = new Scene(root);
-        scene.getStylesheets().add(getClass().getResource("/com/example/nexus/css/main.css").toExternalForm());
+        // Load appropriate theme CSS
+        String cssPath = isDarkTheme ? "/com/example/nexus/css/dark.css" : "/com/example/nexus/css/main.css";
+        scene.getStylesheets().add(getClass().getResource(cssPath).toExternalForm());
 
         // Add keyboard shortcuts
         scene.setOnKeyPressed(event -> {
@@ -125,7 +156,7 @@ public class HistoryPanel extends Stage {
     private VBox createHeader() {
         VBox header = new VBox(15);
         header.setPadding(new Insets(20, 20, 15, 20));
-        header.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e9ecef; -fx-border-width: 0 0 1 0;");
+        header.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-border-color: " + getBorderColor() + "; -fx-border-width: 0 0 1 0;");
 
         // Title row
         HBox titleRow = new HBox(15);
@@ -133,17 +164,20 @@ public class HistoryPanel extends Stage {
 
         FontIcon historyIcon = new FontIcon("mdi2h-history");
         historyIcon.setIconSize(28);
-        historyIcon.setIconColor(Color.valueOf("#495057"));
+        historyIcon.setIconColor(Color.valueOf(getTextSecondary()));
 
         Label titleLabel = new Label("History");
         titleLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
-        titleLabel.setTextFill(Color.valueOf("#212529"));
+        titleLabel.setTextFill(Color.valueOf(getTextPrimary()));
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Button clearAllBtn = new Button("Clear All History");
-        clearAllBtn.setGraphic(new FontIcon("mdi2d-delete-sweep"));
+        FontIcon clearIcon = new FontIcon("mdi2d-delete-sweep");
+        clearIcon.setIconSize(16);
+        clearIcon.setIconColor(Color.WHITE);
+        clearAllBtn.setGraphic(clearIcon);
         clearAllBtn.getStyleClass().add("danger-button");
         clearAllBtn.setStyle("-fx-background-color: #dc3545; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 16;");
         clearAllBtn.setOnAction(e -> clearAllHistory());
@@ -154,38 +188,45 @@ public class HistoryPanel extends Stage {
         HBox searchRow = new HBox(15);
         searchRow.setAlignment(Pos.CENTER_LEFT);
 
-        // Search field with modern styling
+        // Search field with modern styling - theme aware
+        String searchBgNormal = isDarkTheme ? "#2d2d2d" : "#f8f9fa";
+        String searchBgFocused = isDarkTheme ? "#1e1e1e" : "#ffffff";
+        String searchBorderFocused = "#0d6efd";
+
         searchField = new TextField();
         searchField.setPromptText("Search history by title or URL...");
         searchField.setPrefWidth(400);
-        searchField.setStyle("-fx-background-color: #f8f9fa; -fx-background-radius: 24; -fx-padding: 10 16; -fx-border-color: transparent;");
+        searchField.setStyle("-fx-background-color: " + searchBgNormal + "; -fx-background-radius: 24; -fx-padding: 10 16; -fx-border-color: transparent; -fx-text-fill: " + getTextPrimary() + ";");
         searchField.focusedProperty().addListener((obs, oldVal, focused) -> {
             if (focused) {
-                searchField.setStyle("-fx-background-color: #ffffff; -fx-background-radius: 24; -fx-padding: 10 16; -fx-border-color: #0d6efd; -fx-border-width: 2; -fx-border-radius: 24;");
+                searchField.setStyle("-fx-background-color: " + searchBgFocused + "; -fx-background-radius: 24; -fx-padding: 10 16; -fx-border-color: " + searchBorderFocused + "; -fx-border-width: 2; -fx-border-radius: 24; -fx-text-fill: " + getTextPrimary() + ";");
             } else {
-                searchField.setStyle("-fx-background-color: #f8f9fa; -fx-background-radius: 24; -fx-padding: 10 16; -fx-border-color: transparent;");
+                searchField.setStyle("-fx-background-color: " + searchBgNormal + "; -fx-background-radius: 24; -fx-padding: 10 16; -fx-border-color: transparent; -fx-text-fill: " + getTextPrimary() + ";");
             }
         });
 
         FontIcon searchIcon = new FontIcon("mdi2m-magnify");
         searchIcon.setIconSize(18);
-        searchIcon.setIconColor(Color.valueOf("#6c757d"));
+        searchIcon.setIconColor(Color.valueOf(getTextMuted()));
 
         HBox searchBox = new HBox(10);
         searchBox.setAlignment(Pos.CENTER_LEFT);
-        searchBox.setStyle("-fx-background-color: #f8f9fa; -fx-background-radius: 24; -fx-padding: 2 10 2 15;");
+        searchBox.setStyle("-fx-background-color: " + searchBgNormal + "; -fx-background-radius: 24; -fx-padding: 2 10 2 15;");
         searchBox.getChildren().addAll(searchIcon, searchField);
         HBox.setHgrow(searchField, Priority.ALWAYS);
         HBox.setHgrow(searchBox, Priority.ALWAYS);
 
         searchField.textProperty().addListener((obs, oldVal, newVal) -> filterHistory());
 
-        // Filter combo with modern styling
+        // Filter combo with modern styling - theme aware
+        String comboBg = isDarkTheme ? "#2d2d2d" : "#f8f9fa";
+        String comboBorder = isDarkTheme ? "#404040" : "#dee2e6";
+
         filterCombo = new ComboBox<>();
         filterCombo.getItems().addAll(FILTER_ALL, FILTER_TODAY, FILTER_YESTERDAY, FILTER_WEEK, FILTER_MONTH);
         filterCombo.setValue(FILTER_ALL);
         filterCombo.setPrefWidth(150);
-        filterCombo.setStyle("-fx-background-color: #f8f9fa; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #dee2e6; -fx-border-width: 1; -fx-padding: 6 12; -fx-font-size: 13px;");
+        filterCombo.setStyle("-fx-background-color: " + comboBg + "; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: " + comboBorder + "; -fx-border-width: 1; -fx-padding: 6 12; -fx-font-size: 13px;");
         filterCombo.getStyleClass().add("filter-dropdown");
         filterCombo.setOnAction(e -> filterHistory());
 
@@ -280,17 +321,18 @@ public class HistoryPanel extends Stage {
         HBox footer = new HBox(15);
         footer.setPadding(new Insets(15, 20, 15, 20));
         footer.setAlignment(Pos.CENTER_LEFT);
-        footer.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e9ecef; -fx-border-width: 1 0 0 0;");
+        footer.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-border-color: " + getBorderColor() + "; -fx-border-width: 1 0 0 0;");
 
         statusLabel = new Label();
-        statusLabel.setTextFill(Color.valueOf("#6c757d"));
+        statusLabel.setTextFill(Color.valueOf(getTextMuted()));
         updateStatusLabel();
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Button closeBtn = new Button("Close");
-        closeBtn.setStyle("-fx-background-color: #6c757d; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 20;");
+        String closeBtnBg = isDarkTheme ? "#4a4a4a" : "#6c757d";
+        closeBtn.setStyle("-fx-background-color: " + closeBtnBg + "; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 20;");
         closeBtn.setOnAction(e -> close());
 
         footer.getChildren().addAll(statusLabel, spacer, closeBtn);
@@ -414,13 +456,13 @@ public class HistoryPanel extends Stage {
             container = new HBox(12);
             container.setAlignment(Pos.CENTER_LEFT);
             container.setPadding(new Insets(12, 15, 12, 15));
-            container.setStyle("-fx-background-color: #ffffff; -fx-background-radius: 8;");
+            container.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-background-radius: 8;");
 
             // Favicon
             faviconContainer = new StackPane();
             faviconContainer.setMinSize(40, 40);
             faviconContainer.setMaxSize(40, 40);
-            faviconContainer.setStyle("-fx-background-color: #f8f9fa; -fx-background-radius: 20;");
+            faviconContainer.setStyle("-fx-background-color: " + getBgSecondary() + "; -fx-background-radius: 20;");
 
             faviconView = new ImageView();
             faviconView.setFitWidth(24);
@@ -429,7 +471,7 @@ public class HistoryPanel extends Stage {
 
             defaultIcon = new FontIcon("mdi2w-web");
             defaultIcon.setIconSize(20);
-            defaultIcon.setIconColor(Color.valueOf("#6c757d"));
+            defaultIcon.setIconColor(Color.valueOf(getTextMuted()));
 
             faviconContainer.getChildren().add(defaultIcon);
 
@@ -439,12 +481,12 @@ public class HistoryPanel extends Stage {
 
             titleLabel = new Label();
             titleLabel.setFont(Font.font("System", FontWeight.MEDIUM, 14));
-            titleLabel.setTextFill(Color.valueOf("#212529"));
+            titleLabel.setTextFill(Color.valueOf(getTextPrimary()));
             titleLabel.setMaxWidth(400);
 
             urlLabel = new Label();
             urlLabel.setFont(Font.font("System", 12));
-            urlLabel.setTextFill(Color.valueOf("#6c757d"));
+            urlLabel.setTextFill(Color.valueOf(getTextMuted()));
             urlLabel.setMaxWidth(400);
 
             textContainer.getChildren().addAll(titleLabel, urlLabel);
@@ -456,17 +498,20 @@ public class HistoryPanel extends Stage {
 
             timeLabel = new Label();
             timeLabel.setFont(Font.font("System", 12));
-            timeLabel.setTextFill(Color.valueOf("#6c757d"));
+            timeLabel.setTextFill(Color.valueOf(getTextMuted()));
 
             visitCountLabel = new Label();
             visitCountLabel.setFont(Font.font("System", 11));
-            visitCountLabel.setTextFill(Color.valueOf("#adb5bd"));
+            visitCountLabel.setTextFill(Color.valueOf(isDarkTheme ? "#606060" : "#adb5bd"));
 
             rightContainer.getChildren().addAll(timeLabel, visitCountLabel);
 
-            // Delete button
+            // Delete button - theme aware icon
             deleteBtn = new Button();
-            deleteBtn.setGraphic(new FontIcon("mdi2d-delete-outline"));
+            FontIcon deleteIcon = new FontIcon("mdi2d-delete-outline");
+            deleteIcon.setIconSize(16);
+            deleteIcon.setIconColor(Color.valueOf(isDarkTheme ? "#b0b0b0" : "#6c757d"));
+            deleteBtn.setGraphic(deleteIcon);
             deleteBtn.setStyle("-fx-background-color: transparent; -fx-padding: 5;");
             deleteBtn.setVisible(false);
             deleteBtn.setOnAction(e -> {
@@ -479,13 +524,15 @@ public class HistoryPanel extends Stage {
 
             container.getChildren().addAll(faviconContainer, textContainer, rightContainer, deleteBtn);
 
-            // Hover effects
+            // Hover effects - theme aware
+            String bgNormal = getBgPrimary();
+            String bgHover = getBgSecondary();
             container.setOnMouseEntered(e -> {
-                container.setStyle("-fx-background-color: #f8f9fa; -fx-background-radius: 8;");
+                container.setStyle("-fx-background-color: " + bgHover + "; -fx-background-radius: 8;");
                 deleteBtn.setVisible(true);
             });
             container.setOnMouseExited(e -> {
-                container.setStyle("-fx-background-color: #ffffff; -fx-background-radius: 8;");
+                container.setStyle("-fx-background-color: " + bgNormal + "; -fx-background-radius: 8;");
                 deleteBtn.setVisible(false);
             });
         }

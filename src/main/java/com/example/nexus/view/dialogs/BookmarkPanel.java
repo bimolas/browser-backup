@@ -5,6 +5,7 @@ import com.example.nexus.exception.BrowserException;
 import com.example.nexus.model.Bookmark;
 import com.example.nexus.model.BookmarkFolder;
 import com.example.nexus.service.BookmarkService;
+import com.example.nexus.service.SettingsService;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -35,10 +36,12 @@ import java.util.function.Consumer;
 public class BookmarkPanel extends Stage {
     private final DIContainer container;
     private final BookmarkService bookmarkService;
+    private final SettingsService settingsService;
     private final ObservableList<Object> bookmarkList; // Can contain Bookmark or BookmarkFolder
     private final FilteredList<Object> filteredList;
     private final Map<String, Image> faviconCache;
     private final Stack<Integer> navigationStack; // For folder navigation
+    private final boolean isDarkTheme;
 
     private Consumer<String> onOpenUrl;
     private TextField searchField;
@@ -56,15 +59,41 @@ public class BookmarkPanel extends Stage {
     public BookmarkPanel(DIContainer container) {
         this.container = container;
         this.bookmarkService = container.getOrCreate(BookmarkService.class);
+        this.settingsService = container.getOrCreate(SettingsService.class);
         this.bookmarkList = FXCollections.observableArrayList();
         this.filteredList = new FilteredList<>(bookmarkList, p -> true);
         this.faviconCache = new HashMap<>();
         this.navigationStack = new Stack<>();
 
+        // Detect current theme
+        String theme = settingsService.getTheme();
+        this.isDarkTheme = "dark".equals(theme) || ("system".equals(theme) && isSystemDark());
+
         initializeStage();
         initializeUI();
         loadBookmarks();
     }
+
+    private boolean isSystemDark() {
+        try {
+            String gtkTheme = System.getenv("GTK_THEME");
+            if (gtkTheme != null && gtkTheme.toLowerCase().contains("dark")) {
+                return true;
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return false;
+    }
+
+    // Theme-aware color getters
+    private String getBgPrimary() { return isDarkTheme ? "#1e1e1e" : "#ffffff"; }
+    private String getBgSecondary() { return isDarkTheme ? "#252525" : "#f8f9fa"; }
+    private String getBgTertiary() { return isDarkTheme ? "#2d2d2d" : "#e9ecef"; }
+    private String getBorderColor() { return isDarkTheme ? "#404040" : "#e9ecef"; }
+    private String getTextPrimary() { return isDarkTheme ? "#e0e0e0" : "#212529"; }
+    private String getTextSecondary() { return isDarkTheme ? "#b0b0b0" : "#495057"; }
+    private String getTextMuted() { return isDarkTheme ? "#808080" : "#6c757d"; }
 
     private void initializeStage() {
         setTitle("Bookmarks");
@@ -79,7 +108,7 @@ public class BookmarkPanel extends Stage {
     private void initializeUI() {
         BorderPane root = new BorderPane();
         root.getStyleClass().add("bookmark-panel");
-        root.setStyle("-fx-background-color: #ffffff;");
+        root.setStyle("-fx-background-color: " + getBgPrimary() + ";");
 
         // Header
         root.setTop(createHeader());
@@ -103,7 +132,9 @@ public class BookmarkPanel extends Stage {
         root.setBottom(createFooter());
 
         Scene scene = new Scene(root);
-        scene.getStylesheets().add(getClass().getResource("/com/example/nexus/css/main.css").toExternalForm());
+        // Load appropriate theme CSS
+        String cssPath = isDarkTheme ? "/com/example/nexus/css/dark.css" : "/com/example/nexus/css/main.css";
+        scene.getStylesheets().add(getClass().getResource(cssPath).toExternalForm());
 
         // Keyboard shortcuts
         scene.setOnKeyPressed(event -> {
@@ -124,7 +155,7 @@ public class BookmarkPanel extends Stage {
     private VBox createHeader() {
         VBox header = new VBox(15);
         header.setPadding(new Insets(20, 20, 15, 20));
-        header.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e9ecef; -fx-border-width: 0 0 1 0;");
+        header.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-border-color: " + getBorderColor() + "; -fx-border-width: 0 0 1 0;");
 
         // Title row
         HBox titleRow = new HBox(15);
@@ -132,24 +163,31 @@ public class BookmarkPanel extends Stage {
 
         FontIcon bookmarkIcon = new FontIcon("mdi2b-bookmark-multiple");
         bookmarkIcon.setIconSize(28);
-        bookmarkIcon.setIconColor(Color.valueOf("#495057"));
+        bookmarkIcon.setIconColor(Color.valueOf(getTextSecondary()));
 
         Label titleLabel = new Label("Bookmarks");
         titleLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
-        titleLabel.setTextFill(Color.valueOf("#212529"));
+        titleLabel.setTextFill(Color.valueOf(getTextPrimary()));
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         // Action buttons
         Button addBookmarkBtn = new Button("Add Bookmark");
-        addBookmarkBtn.setGraphic(new FontIcon("mdi2p-plus"));
+        FontIcon addIcon = new FontIcon("mdi2p-plus");
+        addIcon.setIconSize(16);
+        addIcon.setIconColor(Color.WHITE);
+        addBookmarkBtn.setGraphic(addIcon);
         addBookmarkBtn.setStyle("-fx-background-color: #0d6efd; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 16;");
         addBookmarkBtn.setOnAction(e -> showAddBookmarkDialog());
 
+        String folderBtnBg = isDarkTheme ? "#4a4a4a" : "#6c757d";
         Button addFolderBtn = new Button("New Folder");
-        addFolderBtn.setGraphic(new FontIcon("mdi2f-folder-plus"));
-        addFolderBtn.setStyle("-fx-background-color: #6c757d; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 16;");
+        FontIcon folderIcon = new FontIcon("mdi2f-folder-plus");
+        folderIcon.setIconSize(16);
+        folderIcon.setIconColor(Color.WHITE);
+        addFolderBtn.setGraphic(folderIcon);
+        addFolderBtn.setStyle("-fx-background-color: " + folderBtnBg + "; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 16;");
         addFolderBtn.setOnAction(e -> showAddFolderDialog());
 
         titleRow.getChildren().addAll(bookmarkIcon, titleLabel, spacer, addBookmarkBtn, addFolderBtn);
@@ -161,10 +199,13 @@ public class BookmarkPanel extends Stage {
         // Breadcrumb
         breadcrumbLabel = new Label("All Bookmarks");
         breadcrumbLabel.setFont(Font.font("System", FontWeight.MEDIUM, 14));
-        breadcrumbLabel.setTextFill(Color.valueOf("#6c757d"));
+        breadcrumbLabel.setTextFill(Color.valueOf(getTextMuted()));
 
         Button backBtn = new Button();
-        backBtn.setGraphic(new FontIcon("mdi2a-arrow-left"));
+        FontIcon backIcon = new FontIcon("mdi2a-arrow-left");
+        backIcon.setIconSize(16);
+        backIcon.setIconColor(Color.valueOf(getTextSecondary()));
+        backBtn.setGraphic(backIcon);
         backBtn.setStyle("-fx-background-color: transparent; -fx-padding: 5;");
         backBtn.setOnAction(e -> navigateBack());
         backBtn.setVisible(false);
@@ -176,11 +217,13 @@ public class BookmarkPanel extends Stage {
         Region spacer2 = new Region();
         HBox.setHgrow(spacer2, Priority.ALWAYS);
 
-        // Search field
+        // Search field - theme aware
+        String searchBg = isDarkTheme ? "#2d2d2d" : "#ffffff";
+        String searchBorder = isDarkTheme ? "#404040" : "#ced4da";
         searchField = new TextField();
         searchField.setPromptText("Search bookmarks...");
         searchField.setPrefWidth(300);
-        searchField.setStyle("-fx-background-radius: 20; -fx-padding: 8 15; -fx-border-color: #ced4da; -fx-border-radius: 20;");
+        searchField.setStyle("-fx-background-radius: 20; -fx-padding: 8 15; -fx-border-color: " + searchBorder + "; -fx-border-radius: 20; -fx-background-color: " + searchBg + "; -fx-text-fill: " + getTextPrimary() + ";");
         searchField.textProperty().addListener((obs, oldVal, newVal) -> filterBookmarks());
 
         searchRow.getChildren().addAll(breadcrumbBox, spacer2, searchField);
@@ -192,11 +235,11 @@ public class BookmarkPanel extends Stage {
     private VBox createSidebar() {
         VBox sidebar = new VBox(10);
         sidebar.setPadding(new Insets(15));
-        sidebar.setStyle("-fx-background-color: #f8f9fa;");
+        sidebar.setStyle("-fx-background-color: " + getBgSecondary() + ";");
 
         Label sidebarTitle = new Label("Folders");
         sidebarTitle.setFont(Font.font("System", FontWeight.BOLD, 14));
-        sidebarTitle.setTextFill(Color.valueOf("#495057"));
+        sidebarTitle.setTextFill(Color.valueOf(getTextSecondary()));
 
         // Quick access items
         VBox quickAccess = new VBox(5);
@@ -221,14 +264,16 @@ public class BookmarkPanel extends Stage {
         Button btn = new Button(text);
         FontIcon icon = new FontIcon(iconCode);
         icon.setIconSize(16);
+        icon.setIconColor(Color.valueOf(getTextSecondary()));
         btn.setGraphic(icon);
         btn.setMaxWidth(Double.MAX_VALUE);
         btn.setAlignment(Pos.CENTER_LEFT);
-        btn.setStyle("-fx-background-color: transparent; -fx-padding: 10 15; -fx-font-size: 13px;");
+        btn.setStyle("-fx-background-color: transparent; -fx-padding: 10 15; -fx-font-size: 13px; -fx-text-fill: " + getTextPrimary() + ";");
         btn.setOnAction(e -> action.run());
 
-        btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: #e9ecef; -fx-padding: 10 15; -fx-font-size: 13px; -fx-background-radius: 6;"));
-        btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: transparent; -fx-padding: 10 15; -fx-font-size: 13px;"));
+        String hoverBg = isDarkTheme ? "#353535" : "#e9ecef";
+        btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: " + hoverBg + "; -fx-padding: 10 15; -fx-font-size: 13px; -fx-background-radius: 6; -fx-text-fill: " + getTextPrimary() + ";"));
+        btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: transparent; -fx-padding: 10 15; -fx-font-size: 13px; -fx-text-fill: " + getTextPrimary() + ";"));
 
         return btn;
     }
@@ -273,7 +318,7 @@ public class BookmarkPanel extends Stage {
     private VBox createMainContent() {
         VBox content = new VBox(10);
         content.setPadding(new Insets(15));
-        content.setStyle("-fx-background-color: #ffffff;");
+        content.setStyle("-fx-background-color: " + getBgPrimary() + ";");
 
         bookmarkListView = createBookmarkListView();
         VBox.setVgrow(bookmarkListView, Priority.ALWAYS);
@@ -391,17 +436,18 @@ public class BookmarkPanel extends Stage {
         HBox footer = new HBox(15);
         footer.setPadding(new Insets(15, 20, 15, 20));
         footer.setAlignment(Pos.CENTER_LEFT);
-        footer.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e9ecef; -fx-border-width: 1 0 0 0;");
+        footer.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-border-color: " + getBorderColor() + "; -fx-border-width: 1 0 0 0;");
 
         statusLabel = new Label();
-        statusLabel.setTextFill(Color.valueOf("#6c757d"));
+        statusLabel.setTextFill(Color.valueOf(getTextMuted()));
         updateStatusLabel();
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        String closeBtnBg = isDarkTheme ? "#4a4a4a" : "#6c757d";
         Button closeBtn = new Button("Close");
-        closeBtn.setStyle("-fx-background-color: #6c757d; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 20;");
+        closeBtn.setStyle("-fx-background-color: " + closeBtnBg + "; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 20;");
         closeBtn.setOnAction(e -> close());
 
         footer.getChildren().addAll(statusLabel, spacer, closeBtn);
@@ -778,13 +824,13 @@ public class BookmarkPanel extends Stage {
             container = new HBox(12);
             container.setAlignment(Pos.CENTER_LEFT);
             container.setPadding(new Insets(12, 15, 12, 15));
-            container.setStyle("-fx-background-color: #ffffff; -fx-background-radius: 8;");
+            container.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-background-radius: 8;");
 
             // Icon
             iconContainer = new StackPane();
             iconContainer.setMinSize(40, 40);
             iconContainer.setMaxSize(40, 40);
-            iconContainer.setStyle("-fx-background-color: #f8f9fa; -fx-background-radius: 8;");
+            iconContainer.setStyle("-fx-background-color: " + getBgSecondary() + "; -fx-background-radius: 8;");
 
             faviconView = new ImageView();
             faviconView.setFitWidth(24);
@@ -793,7 +839,7 @@ public class BookmarkPanel extends Stage {
 
             defaultIcon = new FontIcon("mdi2w-web");
             defaultIcon.setIconSize(20);
-            defaultIcon.setIconColor(Color.valueOf("#6c757d"));
+            defaultIcon.setIconColor(Color.valueOf(getTextMuted()));
 
             iconContainer.getChildren().add(defaultIcon);
 
@@ -803,12 +849,12 @@ public class BookmarkPanel extends Stage {
 
             titleLabel = new Label();
             titleLabel.setFont(Font.font("System", FontWeight.MEDIUM, 14));
-            titleLabel.setTextFill(Color.valueOf("#212529"));
+            titleLabel.setTextFill(Color.valueOf(getTextPrimary()));
             titleLabel.setMaxWidth(400);
 
             urlLabel = new Label();
             urlLabel.setFont(Font.font("System", 12));
-            urlLabel.setTextFill(Color.valueOf("#6c757d"));
+            urlLabel.setTextFill(Color.valueOf(getTextMuted()));
             urlLabel.setMaxWidth(400);
 
             textContainer.getChildren().addAll(titleLabel, urlLabel);
@@ -823,7 +869,10 @@ public class BookmarkPanel extends Stage {
             favoriteIcon.setVisible(false);
 
             menuBtn = new Button();
-            menuBtn.setGraphic(new FontIcon("mdi2d-dots-vertical"));
+            FontIcon menuIcon = new FontIcon("mdi2d-dots-vertical");
+            menuIcon.setIconSize(16);
+            menuIcon.setIconColor(Color.valueOf(getTextSecondary()));
+            menuBtn.setGraphic(menuIcon);
             menuBtn.setStyle("-fx-background-color: transparent; -fx-padding: 5;");
             menuBtn.setVisible(false);
 
@@ -831,13 +880,15 @@ public class BookmarkPanel extends Stage {
 
             container.getChildren().addAll(iconContainer, textContainer, rightContainer);
 
-            // Hover effects
+            // Hover effects - theme aware
+            String bgNormal = getBgPrimary();
+            String bgHover = getBgSecondary();
             container.setOnMouseEntered(e -> {
-                container.setStyle("-fx-background-color: #f8f9fa; -fx-background-radius: 8;");
+                container.setStyle("-fx-background-color: " + bgHover + "; -fx-background-radius: 8;");
                 menuBtn.setVisible(true);
             });
             container.setOnMouseExited(e -> {
-                container.setStyle("-fx-background-color: #ffffff; -fx-background-radius: 8;");
+                container.setStyle("-fx-background-color: " + bgNormal + "; -fx-background-radius: 8;");
                 menuBtn.setVisible(false);
             });
         }

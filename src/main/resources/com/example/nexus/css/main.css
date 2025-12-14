@@ -96,6 +96,7 @@
     -fx-max-width: 200;
     -fx-focus-color: transparent;
     -fx-faint-focus-color: transparent;
+    -fx-cursor: hand;
 }
 
 .browser-tab-pane > .tab-header-area > .headers-region > .tab:focused {
@@ -111,8 +112,13 @@
     -fx-background-color: #ffffff;
 }
 
+/* Stronger hover effect - darker shade */
+.browser-tab-pane > .tab-header-area > .headers-region > .tab:hover {
+    -fx-background-color: #bcc2c8;
+}
+
 .browser-tab-pane > .tab-header-area > .headers-region > .tab:hover:!selected {
-    -fx-background-color: #ced4da;
+    -fx-background-color: #bcc2c8;
 }
 
 /* Tab label styling */
