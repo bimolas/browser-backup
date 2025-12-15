@@ -413,10 +413,8 @@ public class MainController {
             isHovering[0] = true;
             hoverDelay.setOnFinished(event -> {
                 if (isHovering[0] && tab != tabPane.getSelectionModel().getSelectedItem()) {
-                    // Check theme EACH TIME popup is shown - handle system theme too
-                    String theme = settingsService.getTheme();
-                    boolean isDark = "dark".equals(theme) ||
-                        ("system".equals(theme) && isSystemDarkTheme());
+                    // Check theme by looking at loaded CSS - most reliable method
+                    boolean isDark = isDarkThemeActive();
 
                     // Theme-aware colors
                     String bgColor = isDark ? "#2d2d2d" : "white";
@@ -488,10 +486,10 @@ public class MainController {
     }
 
     /**
-     * Check if system theme is dark
+     * Check if dark theme is currently active by examining loaded stylesheets
      */
-    private boolean isSystemDarkTheme() {
-        // First check if dark.css is loaded in the current scene
+    private boolean isDarkThemeActive() {
+        // First check if dark.css is loaded in the current scene - most reliable
         if (tabPane != null && tabPane.getScene() != null) {
             for (String stylesheet : tabPane.getScene().getStylesheets()) {
                 if (stylesheet.contains("dark.css")) {
@@ -500,27 +498,37 @@ public class MainController {
             }
         }
 
-        try {
-            String gtkTheme = System.getenv("GTK_THEME");
-            if (gtkTheme != null && gtkTheme.toLowerCase().contains("dark")) {
-                return true;
-            }
-            // Try gsettings
+        // Fallback: check settings
+        String theme = settingsService.getTheme();
+        if ("dark".equals(theme)) {
+            return true;
+        }
+
+        // Check system theme if setting is "system"
+        if ("system".equals(theme)) {
             try {
-                ProcessBuilder pb = new ProcessBuilder("gsettings", "get", "org.gnome.desktop.interface", "color-scheme");
-                pb.redirectErrorStream(true);
-                Process process = pb.start();
-                String output = new String(process.getInputStream().readAllBytes()).trim();
-                process.waitFor();
-                if (output.contains("dark")) {
+                String gtkTheme = System.getenv("GTK_THEME");
+                if (gtkTheme != null && gtkTheme.toLowerCase().contains("dark")) {
                     return true;
                 }
-            } catch (Exception ex) {
+                // Try gsettings
+                try {
+                    ProcessBuilder pb = new ProcessBuilder("gsettings", "get", "org.gnome.desktop.interface", "color-scheme");
+                    pb.redirectErrorStream(true);
+                    Process process = pb.start();
+                    String output = new String(process.getInputStream().readAllBytes()).trim();
+                    process.waitFor();
+                    if (output.contains("dark")) {
+                        return true;
+                    }
+                } catch (Exception ex) {
+                    // Ignore
+                }
+            } catch (Exception e) {
                 // Ignore
             }
-        } catch (Exception e) {
-            // Ignore
         }
+
         return false;
     }
 
@@ -713,6 +721,26 @@ public class MainController {
             magnifierMode, mouseNav
         );
 
+        // === Dark Mode for Web Pages (like Dark Reader) ===
+        CheckMenuItem webDarkMode = new CheckMenuItem("Dark Mode for Pages");
+        FontIcon darkModeIcon = new FontIcon("mdi2w-weather-night");
+        darkModeIcon.setIconSize(16);
+        darkModeIcon.setIconColor(javafx.scene.paint.Color.web("#8b5cf6"));
+        webDarkMode.setGraphic(darkModeIcon);
+
+        // Check current tab's dark mode state
+        BrowserTab currentBrowserTab = getCurrentBrowserTab();
+        webDarkMode.setSelected(currentBrowserTab != null && currentBrowserTab.isWebPageDarkModeEnabled());
+
+        webDarkMode.setOnAction(e -> {
+            BrowserTab tab = getCurrentBrowserTab();
+            if (tab != null) {
+                tab.toggleWebPageDarkMode();
+                // Also set global preference
+                BrowserTab.setGlobalDarkModeEnabled(webDarkMode.isSelected());
+            }
+        });
+
         // === Tools Section ===
         MenuItem history = createMenuItem("History", "mdi2h-history", "#f59e0b", "Ctrl+H");
         history.setOnAction(e -> handleShowHistory());
@@ -739,6 +767,7 @@ public class MainController {
             newTab, newWindow,
             new SeparatorMenuItem(),
             zoomMenu,
+            webDarkMode,
             new SeparatorMenuItem(),
             history, downloads, bookmarks,
             new SeparatorMenuItem(),
@@ -987,11 +1016,38 @@ public class MainController {
      */
     private void setupScrollZoom(BrowserTab browserTab) {
         // Track mouse position for navigation when zoomed (viewport zoom only)
-        browserTab.setOnMouseMoved(event -> {
-            // If mouse tracking is enabled and viewport zoomed in, scroll to follow mouse
+        // Use multiple event handlers to track mouse even over scrollbars
+
+        javafx.event.EventHandler<javafx.scene.input.MouseEvent> mouseTracker = event -> {
             if (mouseTrackingEnabled && viewportZoomMode && viewportZoom > 1.0) {
-                double relX = event.getX() / browserTab.getWidth();
-                double relY = event.getY() / browserTab.getHeight();
+                // Get bounds of the browser tab
+                javafx.geometry.Bounds bounds = browserTab.localToScene(browserTab.getBoundsInLocal());
+
+                // Calculate relative position, allowing values outside 0-1 range
+                double relX = (event.getSceneX() - bounds.getMinX()) / bounds.getWidth();
+                double relY = (event.getSceneY() - bounds.getMinY()) / bounds.getHeight();
+
+                browserTab.scrollViewportSmooth(relX, relY);
+            }
+        };
+
+        // Track on the browser tab itself
+        browserTab.setOnMouseMoved(mouseTracker);
+        browserTab.setOnMouseDragged(mouseTracker);
+
+        // Also track on the scroll pane to catch scrollbar hover
+        if (browserTab.getScrollPane() != null) {
+            browserTab.getScrollPane().setOnMouseMoved(mouseTracker);
+            browserTab.getScrollPane().setOnMouseDragged(mouseTracker);
+        }
+
+        // Stop scrolling when mouse leaves the entire area
+        browserTab.setOnMouseExited(event -> {
+            if (mouseTrackingEnabled && viewportZoomMode && viewportZoom > 1.0) {
+                // Continue scrolling based on exit direction
+                javafx.geometry.Bounds bounds = browserTab.localToScene(browserTab.getBoundsInLocal());
+                double relX = (event.getSceneX() - bounds.getMinX()) / bounds.getWidth();
+                double relY = (event.getSceneY() - bounds.getMinY()) / bounds.getHeight();
                 browserTab.scrollViewportSmooth(relX, relY);
             }
         });
@@ -1504,6 +1560,23 @@ public class MainController {
         BrowserTab currentTab = getCurrentBrowserTab();
         if (currentTab != null) {
             currentTab.resetZoom();
+        }
+    }
+
+    /**
+     * Toggle dark mode for web pages (like Dark Reader)
+     * Shortcut: Ctrl+Shift+D
+     */
+    public void toggleWebPageDarkMode() {
+        BrowserTab currentTab = getCurrentBrowserTab();
+        if (currentTab != null) {
+            currentTab.toggleWebPageDarkMode();
+            // Update global setting
+            BrowserTab.setGlobalDarkModeEnabled(currentTab.isWebPageDarkModeEnabled());
+
+            // Show notification
+            String status = currentTab.isWebPageDarkModeEnabled() ? "enabled" : "disabled";
+            logger.info("Web page dark mode {}", status);
         }
     }
 

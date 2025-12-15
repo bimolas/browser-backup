@@ -70,6 +70,10 @@ public class KeyboardShortcutManager {
                 controller::handleShowDeveloperTools);
         addShortcut(new KeyCodeCombination(KeyCode.U, KeyCombination.CONTROL_DOWN),
                 this::viewSource);
+
+        // Dark mode for web pages (like Dark Reader) - Ctrl+Shift+D
+        addShortcut(new KeyCodeCombination(KeyCode.D, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN),
+                controller::toggleWebPageDarkMode);
     }
 
     public void addShortcut(KeyCombination combination, Runnable action) {

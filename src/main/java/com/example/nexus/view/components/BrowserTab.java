@@ -48,6 +48,10 @@ public class BrowserTab extends BorderPane {
     // Viewport zoom level (magnifier style)
     private double viewportZoom = 1.0;
 
+    // Dark mode for web pages (like Dark Reader)
+    private boolean webPageDarkMode = false;
+    private static boolean globalDarkModeEnabled = false;  // Global setting for all tabs
+
     public BrowserTab(DIContainer container, String url) {
         this.container = container;
 
@@ -166,6 +170,8 @@ public class BrowserTab extends BorderPane {
                         loadingBar.setProgress(1.0);
                         // Try to extract favicon from the page after load
                         extractFaviconFromPage();
+                        // Apply dark mode if enabled
+                        reapplyDarkModeIfEnabled();
                         logger.info("Page loaded successfully: {}", webEngine.getLocation());
                         break;
                     case CANCELLED:
@@ -478,6 +484,11 @@ public class BrowserTab extends BorderPane {
         if (disposed) return;
         this.viewportZoom = zoomLevel;
 
+        // Stop smooth scroll animation when zoom is reset
+        if (zoomLevel <= 1.0) {
+            stopSmoothScrollAnimation();
+        }
+
         Platform.runLater(() -> {
             // Apply scale transform to the WebView
             Scale scale = new Scale(zoomLevel, zoomLevel, 0, 0);
@@ -509,40 +520,150 @@ public class BrowserTab extends BorderPane {
         return viewportZoom;
     }
 
+    // Smooth scrolling state for edge-based navigation
+    private double scrollSpeedX = 0;
+    private double scrollSpeedY = 0;
+    private javafx.animation.AnimationTimer scrollAnimator;
+    private boolean scrollAnimatorRunning = false;
+    private double lastMouseX = 0.5;
+    private double lastMouseY = 0.5;
+
     /**
-     * Smooth scroll the viewport based on mouse position
-     * This provides fluid navigation when zoomed in
-     * @param relativeX Relative X position (0.0 to 1.0)
-     * @param relativeY Relative Y position (0.0 to 1.0)
+     * Smooth scroll the viewport based on mouse position relative to edges
+     * Mouse near edges causes scrolling in that direction
+     * Works even when mouse is over scrollbars or outside the view
+     * @param relativeX Relative X position (0.0 to 1.0, can be outside this range)
+     * @param relativeY Relative Y position (0.0 to 1.0, can be outside this range)
      */
     public void scrollViewportSmooth(double relativeX, double relativeY) {
         if (disposed || viewportZoom <= 1.0) return;
 
-        Platform.runLater(() -> {
-            // Calculate distance from center (0.5, 0.5)
-            double hDiff = relativeX - 0.5;
-            double vDiff = relativeY - 0.5;
+        // Store last known position (even if outside bounds)
+        lastMouseX = relativeX;
+        lastMouseY = relativeY;
 
-            // Speed increases based on how far from center and zoom level
-            double speedMultiplier = 0.02 * (viewportZoom - 1.0);
+        // Edge zone size (20% from each edge triggers scrolling)
+        double edgeZone = 0.20;
 
-            // Calculate new scroll positions
-            double currentH = scrollPane.getHvalue();
-            double currentV = scrollPane.getVvalue();
+        // Base speed that increases with zoom level
+        double baseSpeed = 0.025;
+        double zoomBonus = Math.min((viewportZoom - 1.0) * 0.3, 1.0);
+        double maxSpeed = baseSpeed * (1.0 + zoomBonus);
 
-            // Smooth continuous scrolling - always scroll based on mouse position
-            // The further from center, the faster it scrolls
-            double newH = currentH + (hDiff * speedMultiplier);
-            double newV = currentV + (vDiff * speedMultiplier);
+        // Calculate horizontal scroll speed based on edge proximity
+        if (relativeX < edgeZone) {
+            // Left edge - scroll left (negative)
+            double intensity = 1.0 - (relativeX / edgeZone);
+            scrollSpeedX = -maxSpeed * Math.pow(intensity, 1.3);
+        } else if (relativeX > (1.0 - edgeZone)) {
+            // Right edge - scroll right (positive)
+            double intensity = (relativeX - (1.0 - edgeZone)) / edgeZone;
+            scrollSpeedX = maxSpeed * Math.pow(intensity, 1.3);
+        } else if (relativeX <= 0) {
+            // Outside left - max scroll left
+            scrollSpeedX = -maxSpeed * 1.5;
+        } else if (relativeX >= 1.0) {
+            // Outside right - max scroll right
+            scrollSpeedX = maxSpeed * 1.5;
+        } else {
+            // In center - no horizontal scroll
+            scrollSpeedX = 0;
+        }
 
-            // Clamp values to valid range (0-1) - this prevents stopping at edges
-            newH = Math.max(0, Math.min(1, newH));
-            newV = Math.max(0, Math.min(1, newV));
+        // Calculate vertical scroll speed based on edge proximity
+        if (relativeY < edgeZone) {
+            // Top edge - scroll up (negative)
+            double intensity = 1.0 - (relativeY / edgeZone);
+            scrollSpeedY = -maxSpeed * Math.pow(intensity, 1.3);
+        } else if (relativeY > (1.0 - edgeZone)) {
+            // Bottom edge - scroll down (positive)
+            double intensity = (relativeY - (1.0 - edgeZone)) / edgeZone;
+            scrollSpeedY = maxSpeed * Math.pow(intensity, 1.3);
+        } else if (relativeY <= 0) {
+            // Outside top - max scroll up
+            scrollSpeedY = -maxSpeed * 1.5;
+        } else if (relativeY >= 1.0) {
+            // Outside bottom - max scroll down
+            scrollSpeedY = maxSpeed * 1.5;
+        } else {
+            // In center - no vertical scroll
+            scrollSpeedY = 0;
+        }
 
-            // Apply the scroll
-            scrollPane.setHvalue(newH);
-            scrollPane.setVvalue(newV);
-        });
+        // Start animation if there's any scroll speed and not already running
+        if ((scrollSpeedX != 0 || scrollSpeedY != 0) && !scrollAnimatorRunning) {
+            startSmoothScrollAnimation();
+        }
+    }
+
+    /**
+     * Update scroll with last known mouse position
+     * Called when mouse tracking is active to continue scrolling
+     */
+    public void updateScrollFromLastPosition() {
+        scrollViewportSmooth(lastMouseX, lastMouseY);
+    }
+
+    /**
+     * Start smooth scroll animation using AnimationTimer for 60fps updates
+     */
+    private void startSmoothScrollAnimation() {
+        if (scrollAnimator != null) {
+            scrollAnimator.stop();
+        }
+
+        scrollAnimatorRunning = true;
+        scrollAnimator = new javafx.animation.AnimationTimer() {
+            private long lastUpdate = 0;
+
+            @Override
+            public void handle(long now) {
+                if (disposed || viewportZoom <= 1.0) {
+                    stopSmoothScrollAnimation();
+                    return;
+                }
+
+                // Limit updates to ~60fps for consistent speed
+                if (lastUpdate > 0 && (now - lastUpdate) < 16_000_000) {
+                    return;
+                }
+                lastUpdate = now;
+
+                // Apply scroll speeds
+                double currentH = scrollPane.getHvalue();
+                double currentV = scrollPane.getVvalue();
+
+                double newH = currentH + scrollSpeedX;
+                double newV = currentV + scrollSpeedY;
+
+                // Clamp to valid range
+                newH = Math.max(0, Math.min(1, newH));
+                newV = Math.max(0, Math.min(1, newV));
+
+                // Apply scroll
+                scrollPane.setHvalue(newH);
+                scrollPane.setVvalue(newV);
+
+                // Stop if no movement needed
+                if (scrollSpeedX == 0 && scrollSpeedY == 0) {
+                    stopSmoothScrollAnimation();
+                }
+            }
+        };
+        scrollAnimator.start();
+    }
+
+    /**
+     * Stop smooth scroll animation
+     */
+    public void stopSmoothScrollAnimation() {
+        scrollAnimatorRunning = false;
+        scrollSpeedX = 0;
+        scrollSpeedY = 0;
+        if (scrollAnimator != null) {
+            scrollAnimator.stop();
+            scrollAnimator = null;
+        }
     }
 
     /**
@@ -645,6 +766,10 @@ public class BrowserTab extends BorderPane {
 
     public void dispose() {
         disposed = true;
+
+        // Stop smooth scroll animation
+        stopSmoothScrollAnimation();
+
         Platform.runLater(() -> {
             try {
                 webEngine.load(null);
@@ -653,6 +778,193 @@ public class BrowserTab extends BorderPane {
             }
         });
         logger.info("BrowserTab disposed");
+    }
+
+    // ==================== Dark Mode for Web Pages (Dark Reader-like) ====================
+
+    /**
+     * Dark mode CSS that inverts colors intelligently - similar to Dark Reader
+     */
+    private static final String DARK_MODE_CSS = """
+        html {
+            filter: invert(90%) hue-rotate(180deg) !important;
+            background-color: #1a1a1a !important;
+        }
+        img, video, canvas, picture, svg, [style*="background-image"],
+        iframe, embed, object {
+            filter: invert(100%) hue-rotate(180deg) !important;
+        }
+        /* Fix specific elements that shouldn't be inverted */
+        [data-darkreader-inline-bgcolor],
+        [data-darkreader-inline-color] {
+            filter: none !important;
+        }
+        /* Ensure text remains readable */
+        body {
+            background-color: #1a1a1a !important;
+        }
+        /* Fix code blocks and pre elements */
+        pre, code, .code, .highlight {
+            filter: invert(100%) hue-rotate(180deg) !important;
+        }
+        """;
+
+    /**
+     * Alternative dark mode using background/text color changes (less aggressive)
+     */
+    private static final String DARK_MODE_CSS_SOFT = """
+        :root {
+            color-scheme: dark !important;
+        }
+        html, body {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+        }
+        * {
+            background-color: inherit !important;
+            color: inherit !important;
+            border-color: #404040 !important;
+        }
+        a {
+            color: #6db3f2 !important;
+        }
+        a:visited {
+            color: #b794f4 !important;
+        }
+        img, video, canvas, picture, svg, iframe {
+            opacity: 0.9 !important;
+        }
+        input, textarea, select, button {
+            background-color: #2d2d2d !important;
+            color: #e0e0e0 !important;
+            border-color: #505050 !important;
+        }
+        """;
+
+    /**
+     * Enable dark mode on the current web page
+     * Uses CSS injection to create a Dark Reader-like experience
+     */
+    public void enableWebPageDarkMode() {
+        if (disposed) return;
+        webPageDarkMode = true;
+        injectDarkModeCSS();
+    }
+
+    /**
+     * Disable dark mode on the current web page
+     */
+    public void disableWebPageDarkMode() {
+        if (disposed) return;
+        webPageDarkMode = false;
+        removeDarkModeCSS();
+    }
+
+    /**
+     * Toggle dark mode on the current web page
+     */
+    public void toggleWebPageDarkMode() {
+        if (webPageDarkMode) {
+            disableWebPageDarkMode();
+        } else {
+            enableWebPageDarkMode();
+        }
+    }
+
+    /**
+     * Check if dark mode is enabled for this tab
+     */
+    public boolean isWebPageDarkModeEnabled() {
+        return webPageDarkMode;
+    }
+
+    /**
+     * Set global dark mode for all new tabs
+     */
+    public static void setGlobalDarkModeEnabled(boolean enabled) {
+        globalDarkModeEnabled = enabled;
+    }
+
+    /**
+     * Check if global dark mode is enabled
+     */
+    public static boolean isGlobalDarkModeEnabled() {
+        return globalDarkModeEnabled;
+    }
+
+    /**
+     * Inject dark mode CSS into the current page
+     */
+    private void injectDarkModeCSS() {
+        if (disposed) return;
+
+        Platform.runLater(() -> {
+            try {
+                String escapedCSS = DARK_MODE_CSS
+                    .replace("\\", "\\\\")
+                    .replace("'", "\\'")
+                    .replace("\n", " ")
+                    .replace("\r", "");
+
+                String script = """
+                    (function() {
+                        // Remove existing dark mode style if any
+                        var existing = document.getElementById('nexus-dark-mode');
+                        if (existing) existing.remove();
+                        
+                        // Create and inject dark mode style
+                        var style = document.createElement('style');
+                        style.id = 'nexus-dark-mode';
+                        style.type = 'text/css';
+                        style.innerHTML = '%s';
+                        document.head.appendChild(style);
+                        return true;
+                    })()
+                    """.formatted(escapedCSS);
+
+                webEngine.executeScript(script);
+                logger.info("Dark mode CSS injected");
+            } catch (Exception e) {
+                logger.debug("Error injecting dark mode CSS: {}", e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Remove dark mode CSS from the current page
+     */
+    private void removeDarkModeCSS() {
+        if (disposed) return;
+
+        Platform.runLater(() -> {
+            try {
+                String script = """
+                    (function() {
+                        var existing = document.getElementById('nexus-dark-mode');
+                        if (existing) existing.remove();
+                        return true;
+                    })()
+                    """;
+
+                webEngine.executeScript(script);
+                logger.info("Dark mode CSS removed");
+            } catch (Exception e) {
+                logger.debug("Error removing dark mode CSS: {}", e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Re-inject dark mode CSS if enabled (called after page navigation)
+     */
+    private void reapplyDarkModeIfEnabled() {
+        if (webPageDarkMode || globalDarkModeEnabled) {
+            webPageDarkMode = true;
+            // Small delay to ensure page is ready
+            javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(100));
+            delay.setOnFinished(e -> injectDarkModeCSS());
+            delay.play();
+        }
     }
 }
 
