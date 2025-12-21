@@ -9,10 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.List;
 
-/**
- * Controller for download-related operations.
- * Handles download management, progress tracking, and file operations.
- */
+
 public class DownloadController {
     private static final Logger logger = LoggerFactory.getLogger(DownloadController.class);
 
@@ -25,12 +22,34 @@ public class DownloadController {
     }
 
     /**
-     * Start a new download
+     * Start a new download (choose path via settings)
      */
     public void startDownload(String url, String filename) {
         try {
             String downloadPath = settingsService.getDownloadPath();
-            File targetFile = new File(downloadPath, filename);
+            if (downloadPath == null || downloadPath.trim().isEmpty()) {
+                String userHome = System.getProperty("user.home", "");
+                downloadPath = userHome + java.io.File.separator + "Downloads";
+                logger.debug("Download path empty in settings; falling back to {}", downloadPath);
+            }
+            File targetDir = new File(downloadPath);
+            if (!targetDir.exists()) {
+                boolean created = targetDir.mkdirs();
+                if (!created) {
+                    logger.warn("Could not create download directory: {}", targetDir.getAbsolutePath());
+                } else {
+                    logger.info("Created download directory: {}", targetDir.getAbsolutePath());
+                }
+            }
+
+            File targetFile = new File(targetDir, filename);
+
+            // Defensive: if file's parent doesn't exist, try to create it
+            File parent = targetFile.getParentFile();
+            if (parent != null && !parent.exists()) {
+                boolean ok = parent.mkdirs();
+                if (!ok) logger.warn("Failed to create parent directory for file: {}", parent.getAbsolutePath());
+            }
 
             downloadService.startDownload(url, filename, targetFile.getAbsolutePath());
             logger.info("Started download: {} -> {}", url, targetFile.getAbsolutePath());
@@ -40,8 +59,44 @@ public class DownloadController {
     }
 
     /**
-     * Cancel a download
+     * Start a download to a specific path (used by Save As flows)
      */
+    public void startDownload(String url, String filename, String absolutePath) {
+        try {
+            downloadService.startDownload(url, filename, absolutePath);
+            logger.info("Started download: {} -> {}", url, absolutePath);
+        } catch (Exception e) {
+            logger.error("Error starting download: {}", url, e);
+        }
+    }
+
+    public void pauseDownload(int downloadId) {
+        try {
+            downloadService.pauseDownload(downloadId);
+            logger.info("Paused download: {}", downloadId);
+        } catch (Exception e) {
+            logger.error("Error pausing download: {}", downloadId, e);
+        }
+    }
+
+    public void resumeDownload(int downloadId) {
+        try {
+            downloadService.resumeDownload(downloadId);
+            logger.info("Resumed download: {}", downloadId);
+        } catch (Exception e) {
+            logger.error("Error resuming download: {}", downloadId, e);
+        }
+    }
+
+    public void retryDownload(int downloadId) {
+        try {
+            downloadService.retryDownload(downloadId);
+            logger.info("Retrying download: {}", downloadId);
+        } catch (Exception e) {
+            logger.error("Error retrying download: {}", downloadId, e);
+        }
+    }
+
     public void cancelDownload(int downloadId) {
         try {
             downloadService.cancelDownload(downloadId);
@@ -51,16 +106,12 @@ public class DownloadController {
         }
     }
 
-    /**
-     * Get all downloads
-     */
+
     public List<Download> getAllDownloads() {
         return downloadService.getAllDownloads();
     }
 
-    /**
-     * Delete a download record
-     */
+
     public void deleteDownload(int downloadId) {
         try {
             downloadService.deleteDownload(downloadId);
@@ -70,9 +121,7 @@ public class DownloadController {
         }
     }
 
-    /**
-     * Clear all downloads
-     */
+
     public void clearAllDownloads() {
         try {
             downloadService.clearDownloads();
@@ -82,9 +131,7 @@ public class DownloadController {
         }
     }
 
-    /**
-     * Open download location in file manager
-     */
+
     public void openDownloadLocation(Download download) {
         if (download != null && download.getFilePath() != null) {
             try {
@@ -100,16 +147,77 @@ public class DownloadController {
     }
 
     /**
-     * Get download path setting
+     * Open the downloaded file directly (if it exists). Falls back to folder when file missing.
      */
+    public void openDownloadFile(Download download) {
+        if (download != null && download.getFilePath() != null) {
+            try {
+                File file = new File(download.getFilePath());
+                if (file.exists()) {
+                    ProcessBuilder pb = new ProcessBuilder("xdg-open", file.getAbsolutePath());
+                    pb.start();
+                } else {
+                    // fallback to folder
+                    openDownloadLocation(download);
+                }
+            } catch (Exception e) {
+                logger.error("Error opening download file", e);
+            }
+        }
+    }
+
+
     public String getDownloadPath() {
         return settingsService.getDownloadPath();
     }
 
-    /**
-     * Check if should ask for download location
-     */
+
     public boolean shouldAskDownloadLocation() {
         return settingsService.isAskDownloadLocation();
+    }
+
+    /**
+     * Request a download initiated from the UI/JS bridge. This respects the "ask where to save" setting.
+     */
+    public void requestDownloadFromUI(String url, String suggestedFileName) {
+        try {
+            if (shouldAskDownloadLocation()) {
+                // Show Save dialog on JavaFX thread and wait for result
+                final java.util.concurrent.atomic.AtomicReference<java.io.File> chosen = new java.util.concurrent.atomic.AtomicReference<>();
+                if (javafx.application.Platform.isFxApplicationThread()) {
+                    javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
+                    chooser.setInitialFileName(suggestedFileName);
+                    chooser.setTitle("Save As");
+                    java.io.File picked = chooser.showSaveDialog(null);
+                    chosen.set(picked);
+                } else {
+                    final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+                    javafx.application.Platform.runLater(() -> {
+                        try {
+                            javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
+                            chooser.setInitialFileName(suggestedFileName);
+                            chooser.setTitle("Save As");
+                            java.io.File picked = chooser.showSaveDialog(null);
+                            chosen.set(picked);
+                        } finally {
+                            latch.countDown();
+                        }
+                    });
+                    try { latch.await(); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+                }
+
+                java.io.File pick = chosen.get();
+                if (pick == null) {
+                    logger.info("User cancelled Save As for download: {}", url);
+                    return;
+                }
+                startDownload(url, pick.getName(), pick.getAbsolutePath());
+            } else {
+                // Use settings path
+                startDownload(url, suggestedFileName);
+            }
+        } catch (Exception e) {
+            logger.error("Error requesting download from UI: {}", url, e);
+        }
     }
 }

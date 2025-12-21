@@ -8,10 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.function.Consumer;
 
-/**
- * Controller for URL navigation operations.
- * Handles URL processing, navigation history, and search queries.
- */
+
 public class NavigationController {
     private static final Logger logger = LoggerFactory.getLogger(NavigationController.class);
 
@@ -24,23 +21,18 @@ public class NavigationController {
         this.historyService = historyService;
     }
 
-    /**
-     * Set callback for navigation events
-     */
+
     public void setOnNavigate(Consumer<String> callback) {
         this.onNavigate = callback;
     }
 
-    /**
-     * Navigate to a URL in the given browser tab
-     */
+
     public void navigateTo(BrowserTab browserTab, String input) {
         if (browserTab == null || input == null) return;
 
         String processedUrl = processInput(input);
         browserTab.loadUrl(processedUrl);
 
-        // Record in history
         recordNavigation(processedUrl, browserTab.getTitle());
 
         if (onNavigate != null) {
@@ -50,9 +42,6 @@ public class NavigationController {
         logger.debug("Navigating to: {}", processedUrl);
     }
 
-    /**
-     * Process user input into a valid URL
-     */
     public String processInput(String input) {
         if (input == null || input.trim().isEmpty()) {
             return settingsService.getHomePage();
@@ -73,18 +62,14 @@ public class NavigationController {
         return trimmed;
     }
 
-    /**
-     * Get search URL for a query
-     */
+
     public String getSearchUrl(String query) {
         String searchEngine = settingsService.getSearchEngine();
         String baseUrl = getSearchEngineBaseUrl(searchEngine);
         return baseUrl + query.replace(" ", "+");
     }
 
-    /**
-     * Get base URL for a search engine
-     */
+
     private String getSearchEngineBaseUrl(String searchEngine) {
         if (searchEngine == null) {
             return "https://www.google.com/search?q=";
@@ -99,9 +84,7 @@ public class NavigationController {
         };
     }
 
-    /**
-     * Record a navigation event in history
-     */
+
     private void recordNavigation(String url, String title) {
         if (settingsService.isSaveBrowsingHistory() && historyService != null) {
             try {
@@ -112,9 +95,7 @@ public class NavigationController {
         }
     }
 
-    /**
-     * Navigate to home page
-     */
+
     public void goHome(BrowserTab browserTab) {
         if (browserTab != null) {
             String homePage = settingsService.getHomePage();
@@ -122,45 +103,35 @@ public class NavigationController {
         }
     }
 
-    /**
-     * Go back in browser history
-     */
+
     public void goBack(BrowserTab browserTab) {
         if (browserTab != null) {
             browserTab.goBack();
         }
     }
 
-    /**
-     * Go forward in browser history
-     */
+
     public void goForward(BrowserTab browserTab) {
         if (browserTab != null) {
             browserTab.goForward();
         }
     }
 
-    /**
-     * Reload current page
-     */
+
     public void reload(BrowserTab browserTab) {
         if (browserTab != null) {
             browserTab.reload();
         }
     }
 
-    /**
-     * Stop loading current page
-     */
+
     public void stop(BrowserTab browserTab) {
         if (browserTab != null) {
             browserTab.stop();
         }
     }
 
-    /**
-     * Check if URL is valid
-     */
+
     public boolean isValidUrl(String url) {
         if (url == null || url.trim().isEmpty()) {
             return false;
@@ -174,9 +145,7 @@ public class NavigationController {
         }
     }
 
-    /**
-     * Extract domain from URL
-     */
+
     public String extractDomain(String url) {
         if (url == null || url.isEmpty()) {
             return "";
@@ -191,9 +160,6 @@ public class NavigationController {
         }
     }
 
-    /**
-     * Check if URL is secure (HTTPS)
-     */
     public boolean isSecure(String url) {
         return url != null && url.toLowerCase().startsWith("https://");
     }

@@ -1,6 +1,9 @@
 package com.example.nexus.core;
 
 
+import com.example.nexus.controller.DownloadController;
+import com.example.nexus.service.DownloadService;
+import com.example.nexus.service.SettingsService;
 import com.example.nexus.util.DatabaseManager;
 
 import java.util.HashMap;
@@ -46,5 +49,16 @@ public class DIContainer {
             }
         }
         return service;
+    }
+
+    // Register DownloadController with its dependencies
+    public void registerDefaultControllers() {
+        // Only register if not already present
+        if (get(DownloadController.class) == null) {
+            DownloadService downloadService = getOrCreate(DownloadService.class);
+            SettingsService settingsService = getOrCreate(SettingsService.class);
+            DownloadController downloadController = new DownloadController(downloadService, settingsService);
+            register(DownloadController.class, downloadController);
+        }
     }
 }

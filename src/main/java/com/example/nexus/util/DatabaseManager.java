@@ -3,83 +3,51 @@ package com.example.nexus.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.InputStream;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 
+/**
+ * Lightweight connection manager. This class only exposes connection utilities and
+ * delegates schema/migration/initialization logic to DatabaseInitializer.
+ *
+ * Goal: keep all SQL and database schema logic out of this class so it's a simple
+ * utility that other parts can use safely.
+ */
 public class DatabaseManager {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseManager.class);
-    private static final String DB_URL = "jdbc:sqlite:identifier.sqlite";
-    private Connection connection;
 
+    public DatabaseManager() {
+        // No heavy initialization here — keep constructor cheap. The DatabaseConnection
+        // singleton will lazily prepare the JDBC file if needed.
+        logger.debug("DatabaseManager created");
+    }
+
+    /**
+     * Ensure the database file/URL is reachable. This does not perform any SQL migration.
+     */
     public void initialize() {
         try {
-            // Load the SQLite JDBC driver
-            Class.forName("org.sqlite.JDBC");
-
-            // Create a connection to the database
-            connection = DriverManager.getConnection(DB_URL);
-
-            // Initialize the database schema
-            initializeSchema();
-
-            logger.info("Database initialized successfully");
-        } catch (ClassNotFoundException | SQLException e) {
-            logger.error("Failed to initialize database", e);
-            throw new RuntimeException("Database initialization failed", e);
-        }
-    }
-
-    private void initializeSchema() {
-        try (InputStream is = getClass().getResourceAsStream("/com/example/nexus/db/init.sql")) {
-            if (is == null) {
-                logger.error("Database initialization script not found at /com/example/nexus/db/init.sql");
-                // Try alternate path
-                try (InputStream altIs = getClass().getClassLoader().getResourceAsStream("com/example/nexus/db/init.sql")) {
-                    if (altIs == null) {
-                        logger.error("Database initialization script not found at alternate path either");
-                        return;
-                    }
-                    executeInitScript(altIs);
-                    return;
-                }
-            }
-
-            executeInitScript(is);
+            // Trigger creation/test of the underlying connection
+            boolean ok = DatabaseConnection.getInstance().testConnection();
+            if (ok) logger.info("Database connection available");
+            else logger.warn("Database connection test returned false");
         } catch (Exception e) {
-            logger.error("Failed to initialize database schema", e);
+            logger.error("Failed to initialize DatabaseManager (connection test)", e);
         }
     }
 
-    private void executeInitScript(InputStream is) throws Exception {
-        String sql = new String(is.readAllBytes());
-
-        try (Statement stmt = connection.createStatement()) {
-            // Execute each SQL statement
-            for (String statement : sql.split(";")) {
-                if (!statement.trim().isEmpty()) {
-                    stmt.execute(statement);
-                }
-            }
-
-            logger.info("Database schema initialized");
-        }
+    /** Returns a new connection. Caller is responsible for closing it. */
+    public Connection getConnection() throws SQLException {
+        return DatabaseConnection.getInstance().getConnection();
     }
 
-    public Connection getConnection() {
-        return connection;
-    }
-
+    /** Close any pooled resources (no-op for DriverManager-backed connection). */
     public void close() {
-        try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-                logger.info("Database connection closed");
-            }
-        } catch (SQLException e) {
-            logger.error("Failed to close database connection", e);
-        }
+        DatabaseConnection.getInstance().closePool();
+    }
+
+    /** Convenience: return JDBC URL used by the connection. */
+    public String getJdbcUrl() {
+        return DatabaseConnection.getInstance().getJdbcUrl();
     }
 }

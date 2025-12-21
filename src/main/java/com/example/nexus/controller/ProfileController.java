@@ -8,10 +8,6 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.function.Consumer;
 
-/**
- * Controller for user profile management.
- * Handles profile switching, creation, and customization.
- */
 public class ProfileController {
     private static final Logger logger = LoggerFactory.getLogger(ProfileController.class);
 
@@ -28,9 +24,7 @@ public class ProfileController {
         }
     }
 
-    /**
-     * Set callback for profile changes
-     */
+
     public void setOnProfileChanged(Consumer<Profile> callback) {
         this.onProfileChanged = callback;
     }
@@ -49,9 +43,7 @@ public class ProfileController {
         return profileService.getAllProfiles();
     }
 
-    /**
-     * Create a new profile
-     */
+
     public Profile createProfile(String name) {
         try {
             Profile profile = new Profile();
@@ -65,9 +57,7 @@ public class ProfileController {
         }
     }
 
-    /**
-     * Switch to a different profile
-     */
+
     public void switchProfile(Profile profile) {
         try {
             this.currentProfile = profile;
@@ -81,9 +71,6 @@ public class ProfileController {
         }
     }
 
-    /**
-     * Delete a profile
-     */
     public void deleteProfile(int profileId) {
         try {
             profileService.deleteProfile(profileId);
@@ -93,9 +80,6 @@ public class ProfileController {
         }
     }
 
-    /**
-     * Update profile name
-     */
     public void updateProfileName(Profile profile, String newName) {
         try {
             profile.setName(newName);

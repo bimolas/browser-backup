@@ -12,10 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/**
- * Controller for tab management operations.
- * Handles tab creation, closing, switching, and state management.
- */
+
 public class TabController {
     private static final Logger logger = LoggerFactory.getLogger(TabController.class);
 
@@ -32,37 +29,27 @@ public class TabController {
         this.tabService = tabService;
     }
 
-    /**
-     * Set the TabPane to manage
-     */
+
     public void setTabPane(TabPane tabPane) {
         this.tabPane = tabPane;
     }
 
-    /**
-     * Set callback for tab selection
-     */
+
     public void setOnTabSelected(Consumer<BrowserTab> callback) {
         this.onTabSelected = callback;
     }
 
-    /**
-     * Set callback for tab closed
-     */
+
     public void setOnTabClosed(Consumer<BrowserTab> callback) {
         this.onTabClosed = callback;
     }
 
-    /**
-     * Create a new tab with the given URL
-     */
+
     public javafx.scene.control.Tab createTab(String url) {
         return createTab(url, null);
     }
 
-    /**
-     * Create a new tab with URL and title
-     */
+
     public javafx.scene.control.Tab createTab(String url, String title) {
         try {
             // Create model
@@ -97,9 +84,7 @@ public class TabController {
         }
     }
 
-    /**
-     * Close a tab
-     */
+
     public void closeTab(javafx.scene.control.Tab tab) {
         if (tab == null) return;
 
@@ -131,32 +116,23 @@ public class TabController {
         logger.info("Closed tab");
     }
 
-    /**
-     * Get the BrowserTab for a JavaFX Tab
-     */
+
     public BrowserTab getBrowserTab(javafx.scene.control.Tab tab) {
         return tabBrowserMap.get(tab);
     }
 
-    /**
-     * Get the currently selected BrowserTab
-     */
+
     public BrowserTab getCurrentBrowserTab() {
         if (tabPane == null) return null;
         javafx.scene.control.Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
         return selectedTab != null ? tabBrowserMap.get(selectedTab) : null;
     }
 
-    /**
-     * Get the currently selected Tab
-     */
     public javafx.scene.control.Tab getCurrentTab() {
         return tabPane != null ? tabPane.getSelectionModel().getSelectedItem() : null;
     }
 
-    /**
-     * Select a tab
-     */
+
     public void selectTab(javafx.scene.control.Tab tab) {
         if (tabPane != null && tab != null) {
             tabPane.getSelectionModel().select(tab);
@@ -168,16 +144,12 @@ public class TabController {
         }
     }
 
-    /**
-     * Get the number of open tabs
-     */
+
     public int getTabCount() {
         return tabPane != null ? tabPane.getTabs().size() : 0;
     }
 
-    /**
-     * Close all tabs
-     */
+
     public void closeAllTabs() {
         if (tabPane != null) {
             // Copy list to avoid concurrent modification
@@ -188,9 +160,7 @@ public class TabController {
         }
     }
 
-    /**
-     * Update tab title
-     */
+
     public void updateTabTitle(javafx.scene.control.Tab tab, String title) {
         if (tab != null) {
             tab.setText(title != null ? title : "New Tab");
@@ -203,9 +173,7 @@ public class TabController {
         }
     }
 
-    /**
-     * Get tab browser map (for external access if needed)
-     */
+
     public Map<javafx.scene.control.Tab, BrowserTab> getTabBrowserMap() {
         return tabBrowserMap;
     }

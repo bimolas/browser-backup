@@ -18,19 +18,12 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
-/**
- * Controller for settings and theme management.
- * Handles theme switching, appearance settings, and interface customization.
- * Theme changes affect ALL windows and scenes in the application.
- */
+
 public class SettingsController {
     private static final Logger logger = LoggerFactory.getLogger(SettingsController.class);
 
     private final SettingsService settingsService;
-    private Consumer<String> themeChangeCallback;
-    private static SettingsController instance;
 
     // Track all managed scenes for theme updates
     private final List<Scene> managedScenes = new ArrayList<>();
@@ -47,19 +40,38 @@ public class SettingsController {
 
     public SettingsController(SettingsService settingsService) {
         this.settingsService = settingsService;
-        instance = this;
+        // Initialize currentResolvedTheme based on current saved settings
+        try {
+            String initial = settingsService.getTheme();
+            currentResolvedTheme = resolveTheme(initial);
+        } catch (Exception e) {
+            currentResolvedTheme = "light";
+        }
+        try {
+            // Use the provided Settings object to decide if theme actually changed.
+            settingsService.addSettingsChangeListener(newSettings -> {
+                try {
+                    if (newSettings == null) return;
+                    String incoming = newSettings.getTheme();
+                    String resolved = resolveTheme(incoming);
+                    // Only re-apply if resolved theme changed from currentResolvedTheme
+                    if (!resolved.equalsIgnoreCase(currentResolvedTheme)) {
+                        logger.debug("Theme changed in settings listener: {} -> {}", currentResolvedTheme, resolved);
+                        currentResolvedTheme = resolved;
+                        applyTheme(resolved);
+                    } else {
+                        logger.debug("Settings changed but theme unchanged ({}), skipping reapply", resolved);
+                    }
+                } catch (Exception ex) {
+                    logger.debug("Failed to handle settings change in SettingsController", ex);
+                }
+            });
+        } catch (Exception e) {
+            logger.debug("Could not register settings change listener in SettingsController", e);
+        }
     }
 
-    /**
-     * Get singleton instance
-     */
-    public static SettingsController getInstance() {
-        return instance;
-    }
 
-    /**
-     * Set UI component references for styling
-     */
     public void setUIComponents(BorderPane rootPane, TextField addressBar,
                                  TabPane tabPane, StackPane browserContainer, HBox statusBar) {
         this.rootPane = rootPane;
@@ -69,16 +81,7 @@ public class SettingsController {
         this.statusBar = statusBar;
     }
 
-    /**
-     * Set callback for theme changes
-     */
-    public void setThemeChangeCallback(Consumer<String> callback) {
-        this.themeChangeCallback = callback;
-    }
 
-    /**
-     * Register a scene to receive theme updates
-     */
     public void registerScene(Scene scene) {
         if (scene != null && !managedScenes.contains(scene)) {
             managedScenes.add(scene);
@@ -87,16 +90,12 @@ public class SettingsController {
         }
     }
 
-    /**
-     * Unregister a scene from theme updates
-     */
+
     public void unregisterScene(Scene scene) {
         managedScenes.remove(scene);
     }
 
-    /**
-     * Apply theme to the browser - this is the main entry point
-     */
+
     public void applyTheme(String theme) {
         Platform.runLater(() -> {
             try {
@@ -104,8 +103,8 @@ public class SettingsController {
                 String actualTheme = resolveTheme(theme);
                 currentResolvedTheme = actualTheme;
 
-                // Save to settings (persists to database)
-                settingsService.setTheme(theme);
+                // Do NOT persist here; this method applies theme to UI only. Persistence
+                // is handled by SettingsService callers (e.g. SettingsPanel or SettingsService API).
 
                 // Apply to main window
                 if (rootPane != null && rootPane.getScene() != null) {
@@ -120,11 +119,6 @@ public class SettingsController {
                 applyAccentColor(settingsService.getAccentColor());
                 applyFontSize(settingsService.getFontSize());
 
-                // Notify callback if set
-                if (themeChangeCallback != null) {
-                    themeChangeCallback.accept(theme);
-                }
-
                 logger.info("Applied theme: {} (actual: {}) to all windows", theme, actualTheme);
             } catch (Exception e) {
                 logger.error("Error applying theme", e);
@@ -132,9 +126,7 @@ public class SettingsController {
         });
     }
 
-    /**
-     * Apply theme to all open windows in the application
-     */
+
     private void applyThemeToAllWindows(String theme) {
         for (Window window : Window.getWindows()) {
             if (window instanceof Stage stage) {
@@ -157,9 +149,7 @@ public class SettingsController {
         }
     }
 
-    /**
-     * Apply theme CSS to a specific scene
-     */
+
     public void applyThemeToScene(Scene scene, String theme) {
         if (scene == null) return;
 
@@ -168,7 +158,7 @@ public class SettingsController {
 
         // For light theme, use main.css. For dark theme, use dark.css
         String themeCssPath;
-        if ("light".equals(theme)) {
+        if ("light".equalsIgnoreCase(theme) || "main".equalsIgnoreCase(theme)) {
             themeCssPath = "/com/example/nexus/css/main.css";
         } else {
             themeCssPath = "/com/example/nexus/css/dark.css";
@@ -188,36 +178,26 @@ public class SettingsController {
         }
     }
 
-    /**
-     * Apply theme styling to a specific node and its children
-     */
+
     private void applyThemeToNode(Node node, String theme) {
-        boolean isDark = "dark".equals(theme);
-
-        if (node instanceof BorderPane pane) {
-            pane.setStyle("-fx-background-color: " + (isDark ? "#1e1e1e" : "#ffffff") + ";");
-        } else if (node instanceof StackPane pane) {
-            pane.setStyle("-fx-background-color: " + (isDark ? "#1e1e1e" : "#ffffff") + ";");
-        }
-
-        // Add/remove theme class
+        // Do not apply inline background styles here. Backgrounds and component-specific
+        // inline styles are applied centrally in applyThemeToComponents() (dark/light branches)
+        // so that each theme has an explicit and symmetric definition.
+        // Here we only toggle the theme CSS class which lets stylesheets handle the rest.
         node.getStyleClass().removeAll("light", "dark");
-        node.getStyleClass().add(theme);
+        node.getStyleClass().add(theme == null ? "light" : theme);
     }
 
-    /**
-     * Resolve theme name (handle system preference)
-     */
     public String resolveTheme(String theme) {
         if ("system".equals(theme)) {
             return detectSystemTheme();
         }
-        return theme != null ? theme : "light";
+        if (theme == null) return "light";
+        if ("main".equalsIgnoreCase(theme)) return "light"; // legacy key
+        return theme;
     }
 
-    /**
-     * Detect system theme preference - comprehensive detection for Linux
-     */
+
     public String detectSystemTheme() {
         try {
             // Method 1: Check GTK_THEME environment variable
@@ -302,103 +282,157 @@ public class SettingsController {
     }
 
     /**
-     * Apply theme styling to UI components
+     * Return whether the system theme preference is dark.
+     * Callers (UI panels) use this to resolve "system" theme choices.
      */
+    public boolean isSystemDark() {
+        try {
+            return "dark".equalsIgnoreCase(detectSystemTheme());
+        } catch (Exception e) {
+            logger.debug("Failed to determine system dark preference", e);
+            return false;
+        }
+    }
+
     private void applyThemeToComponents(String theme) {
         boolean isDark = "dark".equals(theme);
 
         // Apply base colors
         if (isDark) {
             if (rootPane != null) {
-                rootPane.setStyle("-fx-background-color: #1e1e1e;");
+                // Use CSS classes to apply theme visuals. CSS files define root.dark and related rules.
                 rootPane.getStyleClass().removeAll("light", "dark");
                 rootPane.getStyleClass().add("dark");
+                // Expose theme colors to CSS via variables if needed
+                rootPane.setStyle("--bg-primary: #1e1e1e; --bg-secondary: #252525; --bg-tertiary: #2d2d2d; --border-color: #404040; --text-primary: #e0e0e0;");
             }
             applyDarkThemeToComponents();
         } else {
             if (rootPane != null) {
-                rootPane.setStyle("-fx-background-color: #ffffff;");
                 rootPane.getStyleClass().removeAll("light", "dark");
                 rootPane.getStyleClass().add("light");
+                rootPane.setStyle("--bg-primary: #ffffff; --bg-secondary: #f8f9fa; --bg-tertiary: #e9ecef; --border-color: #dee2e6; --text-primary: #212529;");
             }
             applyLightThemeToComponents();
         }
     }
 
-    /**
-     * Apply dark theme styling to components
-     */
+
     private void applyDarkThemeToComponents() {
         if (addressBar != null) {
-            addressBar.setStyle(
-                "-fx-background-color: transparent;" +
-                "-fx-text-fill: #e0e0e0;" +
-                "-fx-prompt-text-fill: #808080;"
-            );
+            addressBar.getStyleClass().removeAll("light", "dark");
+            addressBar.getStyleClass().add("address-bar");
+            addressBar.getStyleClass().add("dark");
+            // set text colors via css variables if needed
+            addressBar.setStyle("--text-fill: #e0e0e0; --prompt-text-fill: #808080;");
         }
         if (tabPane != null) {
-            tabPane.setStyle("-fx-background-color: #1e1e1e;");
+            tabPane.getStyleClass().removeAll("light", "dark");
+            tabPane.getStyleClass().add("browser-tab-pane");
+            tabPane.getStyleClass().add("dark");
         }
         if (browserContainer != null) {
-            browserContainer.setStyle("-fx-background-color: #1e1e1e;");
+            browserContainer.getStyleClass().removeAll("light", "dark");
+            browserContainer.getStyleClass().add("browser-container");
+            browserContainer.getStyleClass().add("dark");
         }
         if (statusBar != null) {
-            statusBar.setStyle("-fx-background-color: #2d2d2d; -fx-border-color: #404040; -fx-border-width: 1 0 0 0;");
+            statusBar.getStyleClass().removeAll("light", "dark");
+            statusBar.getStyleClass().add("status-bar");
+            statusBar.getStyleClass().add("dark");
         }
     }
 
-    /**
-     * Apply light theme styling to components
-     */
+
     private void applyLightThemeToComponents() {
         if (addressBar != null) {
-            addressBar.setStyle(
-                "-fx-background-color: transparent;" +
-                "-fx-text-fill: #202124;" +
-                "-fx-prompt-text-fill: #5f6368;"
-            );
+            addressBar.getStyleClass().removeAll("light", "dark");
+            addressBar.getStyleClass().add("address-bar");
+            addressBar.getStyleClass().add("light");
+            addressBar.setStyle("--text-fill: #202124; --prompt-text-fill: #5f6368;");
         }
         if (tabPane != null) {
-            tabPane.setStyle("-fx-background-color: #ffffff;");
+            tabPane.getStyleClass().removeAll("light", "dark");
+            tabPane.getStyleClass().add("browser-tab-pane");
+            tabPane.getStyleClass().add("light");
         }
         if (browserContainer != null) {
-            browserContainer.setStyle("-fx-background-color: #ffffff;");
+            browserContainer.getStyleClass().removeAll("light", "dark");
+            browserContainer.getStyleClass().add("browser-container");
+            browserContainer.getStyleClass().add("light");
         }
         if (statusBar != null) {
-            statusBar.setStyle("-fx-background-color: #f8f9fa; -fx-border-color: #e9ecef; -fx-border-width: 1 0 0 0;");
+            statusBar.getStyleClass().removeAll("light", "dark");
+            statusBar.getStyleClass().add("status-bar");
+            statusBar.getStyleClass().add("light");
         }
     }
 
-    /**
-     * Apply accent color to UI elements
-     */
+
     public void applyAccentColor(String accentColor) {
         if (accentColor == null || accentColor.isEmpty()) {
             accentColor = "#6366f1"; // Default accent
         }
-        // Save to settings
-        settingsService.setAccentColor(accentColor);
-        logger.debug("Applied accent color: {}", accentColor);
+        // Apply accent color to UI components if needed. DO NOT persist here to avoid triggering
+        // settings-change listeners that could create a loop. Persistence should be handled by
+        // the SettingsService caller when the user explicitly changes a value.
+
+        // Example: set a global CSS variable on rootPane or scenes
+        try {
+            String css = String.format("-accent-color: %s;", accentColor);
+            if (rootPane != null) {
+                String existing = rootPane.getStyle();
+                if (existing == null) existing = "";
+                // Replace any previous accent variable (this is a simple approach)
+                existing = existing.replaceAll("-accent-color:\\s*#[0-9a-fA-F]{3,6};?", "");
+                rootPane.setStyle(existing + " " + css);
+            }
+            // Also set on registered scenes
+            for (Scene s : managedScenes) {
+                Parent r = s.getRoot();
+                if (r != null) {
+                    String existing = r.getStyle();
+                    if (existing == null) existing = "";
+                    existing = existing.replaceAll("-accent-color:\\s*#[0-9a-fA-F]{3,6};?", "");
+                    r.setStyle(existing + " " + css);
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Failed to apply accent color to UI", e);
+        }
+
+        logger.debug("Applied accent color: {} (UI only)", accentColor);
     }
 
-    /**
-     * Apply font size to UI elements
-     */
+
     public void applyFontSize(int fontSize) {
+        // Apply font size to address bar and other components, but DO NOT persist here.
         if (addressBar != null) {
             String currentStyle = addressBar.getStyle();
             if (currentStyle == null) currentStyle = "";
             currentStyle = currentStyle.replaceAll("-fx-font-size:\\s*\\d+px;?", "");
             addressBar.setStyle(currentStyle + " -fx-font-size: " + fontSize + "px;");
         }
-        // Save to settings
-        settingsService.setFontSize(fontSize);
-        logger.debug("Applied font size: {}px", fontSize);
+
+        // Optionally apply to registered scenes by updating root style
+        try {
+            for (Scene s : managedScenes) {
+                Parent r = s.getRoot();
+                if (r != null) {
+                    String cs = r.getStyle();
+                    if (cs == null) cs = "";
+                    cs = cs.replaceAll("-fx-font-size:\\s*\\d+px;?", "");
+                    r.setStyle(cs + " -fx-font-size: " + fontSize + "px;");
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Failed to apply font size to managed scenes", e);
+        }
+
+        logger.debug("Applied font size: {}px (UI only)", fontSize);
     }
 
-    /**
-     * Apply interface settings (bookmarks bar, status bar, compact mode)
-     */
+
     public void applyInterfaceSettings() {
         Platform.runLater(() -> {
             // Show/hide bookmarks bar
@@ -424,33 +458,5 @@ public class SettingsController {
 
             logger.debug("Applied interface settings");
         });
-    }
-
-    /**
-     * Get current theme setting
-     */
-    public String getCurrentTheme() {
-        return settingsService.getTheme();
-    }
-
-    /**
-     * Get current resolved theme (actual light/dark, not "system")
-     */
-    public String getCurrentResolvedTheme() {
-        return currentResolvedTheme;
-    }
-
-    /**
-     * Get current accent color
-     */
-    public String getCurrentAccentColor() {
-        return settingsService.getAccentColor();
-    }
-
-    /**
-     * Get current font size
-     */
-    public int getCurrentFontSize() {
-        return settingsService.getFontSize();
     }
 }

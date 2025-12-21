@@ -8,10 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.function.Consumer;
 
-/**
- * Controller for history-related operations.
- * Handles history tracking, searching, and management.
- */
+
 public class HistoryController {
     private static final Logger logger = LoggerFactory.getLogger(HistoryController.class);
 
@@ -22,16 +19,12 @@ public class HistoryController {
         this.historyService = historyService;
     }
 
-    /**
-     * Set callback for opening URLs
-     */
+
     public void setOnOpenUrl(Consumer<String> callback) {
         this.onOpenUrl = callback;
     }
 
-    /**
-     * Record a page visit in history
-     */
+
     public void recordVisit(String url, String title) {
         if (url == null || url.isEmpty()) {
             return;
@@ -45,37 +38,25 @@ public class HistoryController {
         }
     }
 
-    /**
-     * Get all history entries
-     */
+
     public List<HistoryEntry> getAllHistory() {
         return historyService.getAllHistory();
     }
 
-    /**
-     * Get history for today
-     */
     public List<HistoryEntry> getTodayHistory() {
         return historyService.getTodayHistory();
     }
 
-    /**
-     * Get history for this week
-     */
     public List<HistoryEntry> getWeekHistory() {
         return historyService.getThisWeekHistory();
     }
 
-    /**
-     * Get history for this month
-     */
+
     public List<HistoryEntry> getMonthHistory() {
         return historyService.getThisMonthHistory();
     }
 
-    /**
-     * Search history entries
-     */
+
     public List<HistoryEntry> searchHistory(String query) {
         if (query == null || query.trim().isEmpty()) {
             return getAllHistory();
@@ -83,9 +64,7 @@ public class HistoryController {
         return historyService.searchHistory(query.trim());
     }
 
-    /**
-     * Delete a specific history entry
-     */
+
     public void deleteEntry(int id) {
         try {
             historyService.deleteHistoryEntry(id);
@@ -95,9 +74,7 @@ public class HistoryController {
         }
     }
 
-    /**
-     * Clear all history
-     */
+
     public void clearAllHistory() {
         try {
             historyService.clearHistory();
@@ -107,9 +84,7 @@ public class HistoryController {
         }
     }
 
-    /**
-     * Open a URL from history
-     */
+
     public void openHistoryEntry(HistoryEntry entry) {
         if (entry != null && onOpenUrl != null) {
             onOpenUrl.accept(entry.getUrl());

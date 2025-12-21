@@ -42,7 +42,8 @@ public class SettingsRepository extends BaseRepository<Settings> {
     }
 
     public Settings findByUserId(int userId) {
-        String sql = "SELECT * FROM settings WHERE user_id = ?";
+        // Return the newest settings row for the user to avoid stale/older entries
+        String sql = "SELECT * FROM settings WHERE user_id = ? ORDER BY id DESC LIMIT 1";
 
         try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
             stmt.setInt(1, userId);
@@ -59,8 +60,65 @@ public class SettingsRepository extends BaseRepository<Settings> {
         return null;
     }
 
+    /**
+     * Delete duplicate settings rows for a user, keeping only the row with keepId (if keepId>0). If keepId==0, keep the newest row.
+     */
+    public void deleteDuplicatesForUser(int userId, int keepId) {
+        try {
+            String findSql = "SELECT id FROM settings WHERE user_id = ? ORDER BY id DESC";
+            try (PreparedStatement findStmt = getConnection().prepareStatement(findSql)) {
+                findStmt.setInt(1, userId);
+                try (ResultSet rs = findStmt.executeQuery()) {
+                    java.util.List<Integer> ids = new java.util.ArrayList<>();
+                    while (rs.next()) {
+                        ids.add(rs.getInt("id"));
+                    }
+                    if (ids.size() <= 1) return;
+
+                    // Determine which id to keep
+                    int keep = keepId > 0 ? keepId : ids.get(0);
+
+                    // Build delete statement for other ids
+                    StringBuilder sb = new StringBuilder("DELETE FROM settings WHERE user_id = ? AND id IN (");
+                    for (int i = 0; i < ids.size(); i++) {
+                        if (ids.get(i) == keep) continue;
+                        if (sb.charAt(sb.length()-1) != '(') sb.append(',');
+                        sb.append('?');
+                    }
+                    sb.append(')');
+
+                    try (PreparedStatement del = getConnection().prepareStatement(sb.toString())) {
+                        del.setInt(1, userId);
+                        int param = 2;
+                        for (Integer id : ids) {
+                            if (id == keep) continue;
+                            del.setInt(param++, id);
+                        }
+                        int removed = del.executeUpdate();
+                        logger.info("Deleted {} duplicate settings rows for user {} (kept id={})", removed, userId, keep);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error cleaning duplicate settings for user " + userId, e);
+        }
+    }
+
     @Override
     public void save(Settings s) {
+        // If there's already a settings row for this user, update it instead of inserting a duplicate
+        try {
+            Settings existing = findByUserId(s.getUserId());
+            if (existing != null) {
+                // Ensure we update the existing row
+                s.setId(existing.getId());
+                update(s);
+                return;
+            }
+        } catch (Exception e) {
+            logger.debug("Could not check existing settings before insert", e);
+        }
+
         String sql = """
             INSERT INTO settings (
                 user_id, theme, accent_color, font_size, page_zoom, show_bookmarks_bar, show_status_bar, compact_mode,
@@ -140,6 +198,8 @@ public class SettingsRepository extends BaseRepository<Settings> {
             stmt.setBoolean(i++, s.isSoundEnabled());
 
             int affectedRows = stmt.executeUpdate();
+
+            logger.debug("SettingsRepository.save() executed, theme={}, home={}, search={}, affectedRows={}", s.getTheme(), s.getHomePage(), s.getSearchEngine(), affectedRows);
 
             if (affectedRows > 0) {
                 try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
@@ -235,8 +295,9 @@ public class SettingsRepository extends BaseRepository<Settings> {
             // WHERE
             stmt.setInt(i++, s.getId());
 
-            stmt.executeUpdate();
-            logger.debug("Updated settings with ID: " + s.getId());
+            int affected = stmt.executeUpdate();
+            logger.debug("SettingsRepository.update() executed, theme={}, home={}, search={}, affectedRows={}", s.getTheme(), s.getHomePage(), s.getSearchEngine(), affected);
+            logger.info("Updated settings with ID: {} (affectedRows={})", s.getId(), affected);
         } catch (SQLException e) {
             logger.error("Error updating settings", e);
         }

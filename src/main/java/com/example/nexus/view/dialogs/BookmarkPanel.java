@@ -6,6 +6,7 @@ import com.example.nexus.model.Bookmark;
 import com.example.nexus.model.BookmarkFolder;
 import com.example.nexus.service.BookmarkService;
 import com.example.nexus.service.SettingsService;
+import com.example.nexus.view.components.DownloadManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -108,7 +109,9 @@ public class BookmarkPanel extends Stage {
     private void initializeUI() {
         BorderPane root = new BorderPane();
         root.getStyleClass().add("bookmark-panel");
-        root.setStyle("-fx-background-color: " + getBgPrimary() + ";");
+        // theme colors handled by CSS; provide CSS variables for dynamic colors
+        root.setStyle(String.format("--bg-primary: %s; --bg-secondary: %s; --bg-tertiary: %s; --border-color: %s; --text-primary: %s; --text-secondary: %s;",
+            getBgPrimary(), getBgSecondary(), getBgTertiary(), getBorderColor(), getTextPrimary(), getTextSecondary()));
 
         // Header
         root.setTop(createHeader());
@@ -155,7 +158,7 @@ public class BookmarkPanel extends Stage {
     private VBox createHeader() {
         VBox header = new VBox(15);
         header.setPadding(new Insets(20, 20, 15, 20));
-        header.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-border-color: " + getBorderColor() + "; -fx-border-width: 0 0 1 0;");
+        header.getStyleClass().add("bookmark-header");
 
         // Title row
         HBox titleRow = new HBox(15);
@@ -178,8 +181,7 @@ public class BookmarkPanel extends Stage {
         addIcon.setIconSize(16);
         addIcon.setIconColor(Color.WHITE);
         addBookmarkBtn.setGraphic(addIcon);
-        addBookmarkBtn.setStyle("-fx-background-color: #0d6efd; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 16;");
-        addBookmarkBtn.setOnAction(e -> showAddBookmarkDialog());
+        addBookmarkBtn.getStyleClass().addAll("primary-button","bookmark-add-btn");
 
         String folderBtnBg = isDarkTheme ? "#4a4a4a" : "#6c757d";
         Button addFolderBtn = new Button("New Folder");
@@ -187,8 +189,7 @@ public class BookmarkPanel extends Stage {
         folderIcon.setIconSize(16);
         folderIcon.setIconColor(Color.WHITE);
         addFolderBtn.setGraphic(folderIcon);
-        addFolderBtn.setStyle("-fx-background-color: " + folderBtnBg + "; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 16;");
-        addFolderBtn.setOnAction(e -> showAddFolderDialog());
+        addFolderBtn.getStyleClass().addAll("secondary-button","bookmark-new-folder-btn");
 
         titleRow.getChildren().addAll(bookmarkIcon, titleLabel, spacer, addBookmarkBtn, addFolderBtn);
 
@@ -206,9 +207,7 @@ public class BookmarkPanel extends Stage {
         backIcon.setIconSize(16);
         backIcon.setIconColor(Color.valueOf(getTextSecondary()));
         backBtn.setGraphic(backIcon);
-        backBtn.setStyle("-fx-background-color: transparent; -fx-padding: 5;");
-        backBtn.setOnAction(e -> navigateBack());
-        backBtn.setVisible(false);
+        backBtn.getStyleClass().add("bookmark-back-btn");
 
         HBox breadcrumbBox = new HBox(8);
         breadcrumbBox.setAlignment(Pos.CENTER_LEFT);
@@ -223,7 +222,7 @@ public class BookmarkPanel extends Stage {
         searchField = new TextField();
         searchField.setPromptText("Search bookmarks...");
         searchField.setPrefWidth(300);
-        searchField.setStyle("-fx-background-radius: 20; -fx-padding: 8 15; -fx-border-color: " + searchBorder + "; -fx-border-radius: 20; -fx-background-color: " + searchBg + "; -fx-text-fill: " + getTextPrimary() + ";");
+        searchField.getStyleClass().add("bookmark-search-field");
         searchField.textProperty().addListener((obs, oldVal, newVal) -> filterBookmarks());
 
         searchRow.getChildren().addAll(breadcrumbBox, spacer2, searchField);
@@ -235,7 +234,7 @@ public class BookmarkPanel extends Stage {
     private VBox createSidebar() {
         VBox sidebar = new VBox(10);
         sidebar.setPadding(new Insets(15));
-        sidebar.setStyle("-fx-background-color: " + getBgSecondary() + ";");
+        sidebar.getStyleClass().add("bookmark-sidebar");
 
         Label sidebarTitle = new Label("Folders");
         sidebarTitle.setFont(Font.font("System", FontWeight.BOLD, 14));
@@ -268,12 +267,8 @@ public class BookmarkPanel extends Stage {
         btn.setGraphic(icon);
         btn.setMaxWidth(Double.MAX_VALUE);
         btn.setAlignment(Pos.CENTER_LEFT);
-        btn.setStyle("-fx-background-color: transparent; -fx-padding: 10 15; -fx-font-size: 13px; -fx-text-fill: " + getTextPrimary() + ";");
+        btn.getStyleClass().add("sidebar-btn");
         btn.setOnAction(e -> action.run());
-
-        String hoverBg = isDarkTheme ? "#353535" : "#e9ecef";
-        btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: " + hoverBg + "; -fx-padding: 10 15; -fx-font-size: 13px; -fx-background-radius: 6; -fx-text-fill: " + getTextPrimary() + ";"));
-        btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: transparent; -fx-padding: 10 15; -fx-font-size: 13px; -fx-text-fill: " + getTextPrimary() + ";"));
 
         return btn;
     }
@@ -284,7 +279,7 @@ public class BookmarkPanel extends Stage {
 
         TreeView<Object> tree = new TreeView<>(root);
         tree.setShowRoot(false);
-        tree.setStyle("-fx-background-color: transparent;");
+        tree.getStyleClass().add("folder-tree");
 
         tree.setCellFactory(tv -> new TreeCell<>() {
             @Override
@@ -985,5 +980,16 @@ public class BookmarkPanel extends Stage {
             }
         }
     }
-}
 
+    // 1. Add a method to open the Download Manager panel from anywhere in the app
+    public static void showDownloadManager(DIContainer container) {
+        DownloadManager downloadManager = new DownloadManager(container);
+        downloadManager.show();
+    }
+    // 2. (If not present) Add a method to trigger download from the BookmarkPanel (for demonstration)
+    public void triggerDownload(String url, String fileName) {
+        // You may need to adapt this to your actual download trigger logic
+        // For demonstration, just open the download manager
+        showDownloadManager(container);
+    }
+}

@@ -16,10 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-/**
- * Controller for bookmark-related operations.
- * Handles bookmark creation, editing, deletion and UI interactions.
- */
+
 public class BookmarkController {
     private static final Logger logger = LoggerFactory.getLogger(BookmarkController.class);
 
@@ -30,9 +27,7 @@ public class BookmarkController {
         this.bookmarkService = bookmarkService;
     }
 
-    /**
-     * Set callback for opening URLs
-     */
+
     public void setOnOpenUrl(Consumer<String> callback) {
         this.onOpenUrl = callback;
     }
@@ -44,16 +39,11 @@ public class BookmarkController {
         return url != null && bookmarkService.isBookmarked(url);
     }
 
-    /**
-     * Get bookmark by URL
-     */
+
     public Optional<Bookmark> getBookmarkByUrl(String url) {
         return bookmarkService.getBookmarkByUrl(url);
     }
 
-    /**
-     * Toggle bookmark for a URL - adds if not bookmarked, shows edit dialog if already bookmarked
-     */
     public void toggleBookmark(String url, String title, Button bookmarkButton) {
         if (isBookmarked(url)) {
             showBookmarkEditDialog(url, title, bookmarkButton);
@@ -62,9 +52,7 @@ public class BookmarkController {
         }
     }
 
-    /**
-     * Show dialog to add a new bookmark
-     */
+
     public void showAddBookmarkDialog(String url, String title, Button bookmarkButton) {
         Dialog<Bookmark> dialog = new Dialog<>();
         dialog.setTitle("Add Bookmark");
@@ -135,9 +123,11 @@ public class BookmarkController {
 
         dialog.getDialogPane().setContent(grid);
 
-        // Style the save button
-        dialog.getDialogPane().lookupButton(saveButtonType).setStyle(
-            "-fx-background-color: #0d6efd; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 20;");
+        // Style the save button via CSS class
+        var saveBtn = dialog.getDialogPane().lookupButton(saveButtonType);
+        if (saveBtn != null) {
+            saveBtn.getStyleClass().add("dialog-save-button");
+        }
 
         dialog.setResultConverter(buttonType -> {
             if (buttonType == saveButtonType) {
@@ -166,9 +156,7 @@ public class BookmarkController {
         });
     }
 
-    /**
-     * Show dialog to edit or remove an existing bookmark
-     */
+
     public void showBookmarkEditDialog(String url, String title, Button bookmarkButton) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Edit Bookmark");
@@ -193,9 +181,7 @@ public class BookmarkController {
         });
     }
 
-    /**
-     * Remove a bookmark by URL
-     */
+
     public void removeBookmark(String url, Button bookmarkButton) {
         try {
             bookmarkService.getBookmarkByUrl(url).ifPresent(bookmark -> {
@@ -209,24 +195,22 @@ public class BookmarkController {
         }
     }
 
-    /**
-     * Update the visual state of a bookmark button
-     */
+
     public void updateBookmarkButtonState(Button bookmarkButton, boolean isBookmarked) {
         if (bookmarkButton != null && bookmarkButton.getGraphic() instanceof FontIcon icon) {
             if (isBookmarked) {
                 icon.setIconLiteral("mdi2b-bookmark");
-                icon.setStyle("-fx-fill: #ffc107;");
+                icon.getStyleClass().removeAll("bookmark-icon", "bookmarked", "default");
+                icon.getStyleClass().addAll("bookmark-icon", "bookmarked");
             } else {
                 icon.setIconLiteral("mdi2b-bookmark-outline");
-                icon.setStyle("-fx-fill: #495057;");
+                icon.getStyleClass().removeAll("bookmark-icon", "bookmarked", "default");
+                icon.getStyleClass().addAll("bookmark-icon", "default");
             }
         }
     }
 
-    /**
-     * Update bookmark button based on URL
-     */
+
     public void updateBookmarkButtonForUrl(Button bookmarkButton, String url) {
         updateBookmarkButtonState(bookmarkButton, isBookmarked(url));
     }

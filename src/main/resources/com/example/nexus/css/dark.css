@@ -117,9 +117,6 @@
     -fx-background-color: #5a5a5a;
 }
 
-.browser-tab-pane > .tab-header-area > .headers-region > .tab:hover:!selected {
-    -fx-background-color: #5a5a5a;
-}
 
 /* Tab label styling */
 .browser-tab-pane > .tab-header-area > .headers-region > .tab > .tab-container > .tab-label {
@@ -157,6 +154,10 @@
 
 .tab-close-btn:hover {
     -fx-background-color: rgba(255, 255, 255, 0.15);
+}
+
+.tab-close-btn:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.12);
 }
 
 .tab-close-btn .ikonli-font-icon {
@@ -253,9 +254,9 @@
     -fx-alignment: center-left;
 }
 
-.address-bar-container:focused-within {
-    -fx-background-color: #2d2d2d;
-    -fx-border-color: #6366f1;
+.address-bar-container:focused {
+    -fx-background-color: #2a2a2a;
+    -fx-border-color: #2196f3;
     -fx-border-radius: 24;
     -fx-border-width: 2;
 }
@@ -611,13 +612,9 @@
 }
 
 .progress-bar .bar {
-    -fx-background-color: #6366f1;
-    -fx-background-radius: 4;
-}
-
-.progress-bar .track {
-    -fx-background-color: #404040;
-    -fx-background-radius: 4;
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 0%, #3b82f6 0%, #2563eb 100%);
+    -fx-background-radius: 999px;
+    -fx-effect: dropshadow(gaussian, rgba(37,99,235,0.12), 6, 0, 0, 2);
 }
 
 /* ========================================
@@ -889,3 +886,352 @@
     -fx-background-color: #2d2d2d;
 }
 
+/* Inline-style replacements for Java code (dark theme) */
+.notification-box {
+    -fx-background-color: rgba(0, 0, 0, 0.85);
+    -fx-background-radius: 8px;
+    -fx-padding: 15px;
+}
+.notification-title {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+.notification-message {
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+}
+
+.card {
+    -fx-background-color: #1e1e1e;
+    -fx-background-radius: 8;
+    -fx-border-color: #333333;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-padding: 14;
+}
+.card .card-header .card-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #e0e0e0;
+}
+
+.toggle-row {
+    -fx-border-color: transparent transparent #2d2d2d transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 10 0 10 0;
+}
+.toggle-row .title-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: 500;
+    -fx-text-fill: #e0e0e0;
+}
+.toggle-row .desc-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #808080;
+}
+
+.toggle-track-off {
+    -fx-background-color: #4a4a4a;
+    -fx-background-radius: 12;
+}
+
+.dialog-save-button {
+    -fx-background-color: #0d6efd;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-padding: 8 20;
+}
+
+/* Download Manager Panel (dark) */
+.download-panel {
+    -fx-background-color: #1e1e1e;
+    -fx-padding: 8;
+}
+
+.download-panel .download-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #e0e0e0;
+}
+
+.download-panel .status {
+    -fx-text-fill: #909090;
+    -fx-font-size: 12px;
+}
+
+.download-panel .progress-bar .bar {
+    -fx-background-color: #6366f1;
+}
+
+.download-panel .button {
+    -fx-padding: 6 10;
+}
+
+/* Popup notification (dark) */
+.popup-notification {
+    -fx-background-color: rgba(255,255,255,0.08);
+    -fx-padding: 10 16;
+    -fx-background-radius: 6;
+    -fx-alignment: center;
+}
+.popup-notification .popup-label {
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+.dialog-pane.custom-dialog {
+    -fx-background-color: #1e1e1e;
+}
+.dialog-field {
+    -fx-background-radius: 6;
+    -fx-padding: 8 12;
+}
+.dialog-save-button {
+    -fx-background-color: #0d6efd;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-padding: 8 20;
+}
+
+.tab-header-padding {
+    -fx-padding: 0 4 0 4;
+}
+
+/* Download panel dark adjustments */
+.download-panel {
+    -fx-background-color: #1e1e1e;
+}
+
+.modern-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #e6eef8;
+    -fx-padding: 4 8 4 0;
+}
+
+.search-icon {
+    -fx-font-size: 14px;
+    -fx-text-fill: #9ca3af;
+    -fx-padding: 4 2 0 2;
+}
+
+.search-field {
+    -fx-background-color: #2a2a2a;
+    -fx-border-color: #3a3a3a;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8 10;
+    -fx-text-fill: #e6eef8;
+}
+.search-field:focused {
+    -fx-border-color: #3b82f6;
+    -fx-border-width: 2;
+}
+
+.download-item-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #e6eef8;
+}
+
+.danger-button {
+    -fx-background-color: rgba(220,53,69,0.06);
+    -fx-text-fill: #ff8a9a;
+    -fx-border-color: rgba(220,53,69,0.12);
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 6 10;
+}
+.danger-button:hover {
+    -fx-background-color: rgba(220,53,69,0.12);
+}
+
+.secondary-button {
+    -fx-background-color: transparent;
+    -fx-border-color: rgba(255,255,255,0.06);
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-text-fill: #cbd5e1;
+    -fx-padding: 6 10;
+}
+.secondary-button:hover {
+    -fx-background-color: rgba(255,255,255,0.04);
+}
+
+/* File type icon / action icon in dark mode */
+.file-type-icon {
+    -fx-font-size: 18px;
+    -fx-padding: 0 8 0 0;
+    -fx-text-fill: #9ca3af;
+}
+
+.action-icon {
+    -fx-font-size: 14px;
+}
+
+/* Icon button neutral style override for dark theme */
+.icon-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 6;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+.icon-button .action-icon {
+    -fx-text-fill: #e6eef8;
+}
+.icon-button:hover {
+    -fx-background-color: rgba(255,255,255,0.03);
+    -fx-background-radius: 8;
+}
+.icon-button.danger-button .action-icon {
+    -fx-text-fill: #ff8a9a;
+}
+.icon-button.danger-button:hover {
+    -fx-background-color: rgba(220,53,69,0.08);
+}
+
+/* Download dropdown dark style improvements */
+.download-dropdown-root {
+    -fx-background-color: transparent;
+    -fx-padding: 8;
+}
+
+.download-dropdown {
+    -fx-background-color: #111318; /* deeper, near-black card */
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(255,255,255,0.03);
+    -fx-border-radius: 12;
+    -fx-padding: 8;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 12, 0, 0, 8);
+}
+
+.download-dropdown .download-card-row {
+    -fx-background-color: transparent;
+    -fx-border-color: rgba(255,255,255,0.03);
+    -fx-border-width: 1;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 10;
+}
+
+.download-dropdown-empty {
+    -fx-text-fill: #9ca3af;
+    -fx-padding: 12;
+}
+
+.download-dropdown-name {
+    -fx-font-size: 13px;
+    -fx-text-fill: #e6eef8;
+    -fx-font-weight: 500;
+}
+
+.download-dropdown-percent {
+    -fx-font-size: 12px;
+    -fx-text-fill: #9ca3af;
+}
+
+/* Icon / action buttons in dropdown - remove default borders/backgrounds but keep hover rounded effect */
+.icon-button, .download-action-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 6;
+    -fx-cursor: hand;
+    -fx-background-radius: 8;
+}
+
+.icon-button.open, .icon-button.delete,
+.download-action-button.open, .download-action-button.delete {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 6;
+    -fx-background-radius: 8;
+}
+
+.icon-button:hover, .download-action-button:hover {
+    -fx-background-color: rgba(255,255,255,0.03);
+    -fx-background-radius: 8;
+}
+
+/* Icon colors to match settings dark icons */
+.icon-button .ikonli-font-icon,
+.download-action-button .ikonli-font-icon {
+    -fx-icon-size: 14;
+    -fx-icon-color: #cbd5e1;
+}
+
+/* Update progress bar visuals for dark theme: blue inner bar with smooth transition */
+.progress-bar.download-progress {
+    -fx-background-color: transparent;
+    -fx-pref-height: 12;
+}
+
+.progress-bar.download-progress .bar {
+    -fx-background-color: #2563eb; /* solid blue */
+    -fx-background-radius: 999px;
+    -fx-effect: dropshadow(gaussian, rgba(37,99,235,0.18), 6, 0, 0, 2);
+    -fx-transition: all 280ms ease-in-out;
+}
+
+.progress-bar.download-progress .track {
+    -fx-background-color: #1f2326;
+    -fx-background-radius: 999px;
+}
+
+/* Smooth entry animation for dropdown children */
+.download-dropdown-root > * {
+    -fx-opacity: 0;
+    -fx-translate-y: -6;
+}
+.download-dropdown-root.showing > * {
+    -fx-opacity: 1;
+    -fx-translate-y: 0;
+    -fx-transition: all 260ms cubic-bezier(.22,.9,.32,1);
+}
+
+/* file-type icon color */
+.file-type-icon {
+    -fx-font-size: 14px;
+    -fx-text-fill: #9ca3af;
+}
+
+/* Ensure action icons have neutral look and rounded hover */
+.icon-button.action-icon {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-padding: 6;
+}
+.icon-button.action-icon:hover {
+    -fx-background-color: rgba(96,165,250,0.06);
+}
+
+/* danger look for delete */
+.icon-button.delete .ikonli-font-icon {
+    -fx-icon-color: #ff8a9a;
+}
+.icon-button.delete:hover {
+    -fx-background-color: rgba(220,53,69,0.08);
+}
+
+/* Keep primary footer button style */
+.download-dropdown .primary-button {
+    -fx-font-weight: 600;
+}
+
+/* Icon color overrides for open/delete in dark theme */
+.icon-button.open .ikonli-font-icon {
+    -fx-icon-color: #cbd5e1; /* neutral light */
+}
+.icon-button.open:hover .ikonli-font-icon {
+    -fx-icon-color: #3b82f6; /* accent on hover */
+}
+.icon-button.delete .ikonli-font-icon {
+    -fx-icon-color: #ff8a9a; /* soft danger */
+}
+.icon-button.delete:hover .ikonli-font-icon {
+    -fx-icon-color: #ff6b7a;
+}
+
+/* End of dark dropdown styles */

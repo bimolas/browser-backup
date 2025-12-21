@@ -9,7 +9,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 
 public abstract class BaseRepository<T> {
@@ -21,7 +20,7 @@ public abstract class BaseRepository<T> {
         this.dbManager = dbManager;
     }
 
-    protected Connection getConnection() {
+    protected Connection getConnection() throws SQLException {
         return dbManager.getConnection();
     }
 

@@ -117,10 +117,6 @@
     -fx-background-color: #bcc2c8;
 }
 
-.browser-tab-pane > .tab-header-area > .headers-region > .tab:hover:!selected {
-    -fx-background-color: #bcc2c8;
-}
-
 /* Tab label styling */
 .browser-tab-pane > .tab-header-area > .headers-region > .tab > .tab-container > .tab-label {
     -fx-text-fill: #495057;
@@ -241,7 +237,7 @@
     -fx-alignment: center-left;
 }
 
-.address-bar-container:focused-within {
+.address-bar-container:focused {
     -fx-background-color: #ffffff;
     -fx-border-color: #80bdff;
     -fx-border-radius: 24;
@@ -403,7 +399,7 @@
     -fx-padding: 0 6 0 0;
 }
 
-.context-menu .check-menu-item:checked > .left-container > .check {
+.context-menu .check-menu-item:selected > .left-container > .check {
     -fx-background-color: #3b82f6;
     -fx-padding: 3;
 }
@@ -510,9 +506,7 @@
     -fx-border-width: 0 0 1 0;
 }
 
-.list-cell:last-child {
-    -fx-border-width: 0;
-}
+/* Removed unsupported :last-child selector - handled by list-cell styling in code or default behavior */
 
 .list-cell:hover {
     -fx-background-color: #f5f5f5;
@@ -1209,4 +1203,401 @@
 
 .radio-button .text {
     -fx-fill: #212529;
+}
+
+/* Inline-style replacements for Java code (light theme) */
+.notification-box {
+    -fx-background-color: rgba(0, 0, 0, 0.8);
+    -fx-background-radius: 8px;
+    -fx-padding: 15px;
+}
+.notification-title {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+.notification-message {
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+}
+
+.card {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8;
+    -fx-border-color: #dee2e6;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-padding: 14;
+}
+.card .card-header .card-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #212529;
+}
+
+.toggle-row {
+    -fx-border-color: transparent transparent #e9ecef transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 10 0 10 0;
+}
+.toggle-row .title-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: 500;
+    -fx-text-fill: #212529;
+}
+.toggle-row .desc-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #6c757d;
+}
+
+/* Toggle track colors will be handled by inline style property for primaryColor; keep a default */
+.toggle-track-off {
+    -fx-background-color: #adb5bd;
+    -fx-background-radius: 12;
+}
+
+/* Small helpers for dialog buttons */
+.dialog-save-button {
+    -fx-background-color: #0d6efd;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-padding: 8 20;
+}
+
+/* End of added light theme rules */
+
+/* Tab title and tooltip */
+.tab-title {
+    -fx-font-size: 11px;
+}
+
+.tooltip {
+    -fx-font-size: 12px; /* override default tooltip font size */
+}
+
+/* Tab preview popup */
+.tab-preview {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 10, 0, 0, 2);
+}
+
+.preview-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #212529;
+}
+
+.preview-url {
+    -fx-font-size: 10px;
+    -fx-text-fill: #6c757d;
+}
+
+/* Ensure tab close button hover uses CSS rather than inline handlers */
+.tab-close-btn {
+    -fx-background-color: transparent;
+    -fx-padding: 2;
+    -fx-cursor: hand;
+}
+.tab-close-btn:hover {
+    -fx-background-color: rgba(108, 117, 125, 0.25);
+    -fx-background-radius: 50%;
+}
+
+/* Download Manager Panel */
+.download-panel {
+    -fx-background-color: #ffffff;
+    -fx-padding: 8;
+}
+
+.download-panel .download-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #212529;
+    -fx-padding: 0 12 0 0;
+}
+
+.download-panel .status {
+    -fx-text-fill: #6c757d;
+    -fx-font-size: 12px;
+}
+
+.download-panel .progress-bar .bar {
+    -fx-background-color: #0d6efd;
+}
+
+.download-panel .button {
+    -fx-padding: 6 10;
+}
+
+.download-panel .action-button {
+    -fx-background-radius: 6;
+}
+
+/* Popup notification (centered labels) */
+.popup-notification {
+    -fx-background-color: rgba(33,33,33,0.9);
+    -fx-padding: 10 16;
+    -fx-background-radius: 6;
+    -fx-alignment: center;
+}
+
+.popup-notification .popup-label {
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+/* Dialog form element classes */
+.dialog-pane.custom-dialog {
+    -fx-background-color: #ffffff;
+}
+.dialog-field {
+    -fx-background-radius: 6;
+    -fx-padding: 8 12;
+}
+.dialog-save-button {
+    -fx-background-color: #0d6efd;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-padding: 8 20;
+}
+
+/* Tab header padding helper */
+.tab-header-padding {
+    -fx-padding: 0 4 0 4;
+}
+
+/* End added rules */
+
+/* Bookmark panel styles */
+.bookmark-panel {
+    -fx-background-color: #ffffff;
+}
+.bookmark-header {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 20 20 15 20;
+}
+.bookmark-sidebar {
+    -fx-background-color: #f8f9fa;
+}
+.sidebar-btn {
+    -fx-background-color: transparent;
+    -fx-padding: 10 15;
+    -fx-font-size: 13px;
+    -fx-text-fill: #212529;
+    -fx-alignment: center-left;
+}
+.sidebar-btn:hover {
+    -fx-background-color: #e9ecef;
+    -fx-background-radius: 6;
+}
+.bookmark-search-field {
+    -fx-background-radius: 20;
+    -fx-padding: 8 15;
+    -fx-border-color: #ced4da;
+    -fx-border-radius: 20;
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #212529;
+}
+.bookmark-panel .bookmark-list-cell {
+    -fx-background-radius: 8;
+    -fx-padding: 12 15;
+    -fx-background-color: #ffffff;
+}
+.bookmark-panel .bookmark-list-cell:hover {
+    -fx-background-color: #f8f9fa;
+}
+.bookmark-panel .icon-container {
+    -fx-background-radius: 8;
+}
+.bookmark-add-btn {
+    -fx-background-color: #0d6efd;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-padding: 8 16;
+}
+.bookmark-new-folder-btn {
+    -fx-background-color: #6c757d;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-padding: 8 16;
+}
+.primary-button {
+    -fx-background-color: #0d6efd;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-padding: 8 16;
+}
+.secondary-button {
+    -fx-background-color: #6c757d;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-padding: 8 16;
+}
+.bookmark-back-btn {
+    -fx-background-color: transparent;
+    -fx-padding: 5;
+}
+
+/* Bookmark cell customizations (list cell graphics) */
+.bookmark-panel .bookmark-item {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8;
+}
+.bookmark-panel .bookmark-item:hover {
+    -fx-background-color: #f8f9fa;
+}
+
+/* Downloads dropdown / card styling (light theme) */
+.download-dropdown-root {
+    -fx-padding: 8;
+}
+
+.download-dropdown {
+    /* slightly warmer white and subtle border for contrast */
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 10;
+    -fx-border-color: #e6e6e6;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 6);
+}
+
+.download-dropdown .download-card-row {
+    -fx-background-color: transparent;
+    -fx-border-color: #f1f5f9;
+    -fx-border-width: 1;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 10;
+}
+
+.download-dropdown-empty {
+    -fx-text-fill: #6b7280;
+    -fx-padding: 12;
+}
+
+.download-dropdown-name {
+    -fx-font-size: 13px;
+    -fx-text-fill: #111827;
+    -fx-font-weight: 500;
+}
+
+.download-dropdown-percent {
+    -fx-font-size: 12px;
+    -fx-text-fill: #6b7280;
+}
+
+/* Icon / action buttons in dropdown - clean borderless look but keep hover rounded effect */
+.icon-button, .download-action-button {
+    -fx-background-color: transparent; /* remove default button fill */
+    -fx-border-color: transparent;     /* remove default border */
+    -fx-padding: 6;
+    -fx-cursor: hand;
+    -fx-background-radius: 8;
+}
+
+/* Specific open/delete helper classes (preserve icons, remove default borders) */
+.icon-button.open, .icon-button.delete,
+.download-action-button.open, .download-action-button.delete {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 6;
+    -fx-background-radius: 8;
+}
+
+/* Hover state: subtle rounded background that matches settings panel style */
+.icon-button:hover, .download-action-button:hover {
+    -fx-background-color: rgba(59,130,246,0.06);
+    -fx-background-radius: 8;
+}
+
+/* Icon color consistent with settings icons */
+.icon-button .ikonli-font-icon,
+.download-action-button .ikonli-font-icon {
+    -fx-icon-size: 14;
+    -fx-icon-color: #374151; /* neutral dark-gray */
+}
+
+/* open/delete icon button colors (light theme) */
+.icon-button.open .ikonli-font-icon {
+    -fx-icon-color: #374151; /* neutral */
+}
+.icon-button.open:hover .ikonli-font-icon {
+    -fx-icon-color: #0d6efd; /* accent on hover */
+}
+.icon-button.delete .ikonli-font-icon {
+    -fx-icon-color: #dc3545; /* danger red */
+}
+.icon-button.delete:hover .ikonli-font-icon {
+    -fx-icon-color: #b02a37;
+}
+
+/* Primary button in dropdown footer */
+.download-dropdown .primary-button {
+    -fx-font-weight: 600;
+}
+
+/* Progress bar modern look */
+.progress-bar.download-progress {
+    -fx-background-color: transparent;
+    -fx-pref-height: 10;
+}
+
+/* Blue inner bar with rounded ends; use a simple solid color to avoid CSS parsing issues */
+.progress-bar.download-progress .bar {
+    -fx-background-color: #2563eb; /* microsoft-blue-ish */
+    -fx-background-radius: 6;
+    -fx-padding: 0.5;
+    -fx-effect: dropshadow(gaussian, rgba(37,99,235,0.12), 6, 0, 0, 2);
+}
+
+.progress-bar.download-progress .track {
+    -fx-background-color: #eef2f7;
+    -fx-background-radius: 6;
+}
+
+/* Small file type icon */
+.file-type-icon {
+    -fx-font-size: 14px;
+    -fx-text-fill: #6b7280;
+}
+
+/* Download manager list styling to match dropdown */
+.download-panel .download-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #111827;
+}
+
+.icon-button.action-icon {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-padding: 6;
+}
+
+.icon-button.action-icon:hover {
+    -fx-background-color: rgba(59,130,246,0.06);
+}
+
+/* small rounded subtle danger button */
+.danger-button .ikonli-font-icon {
+    -fx-icon-color: #ef4444;
+}
+
+/* Footer open downloads button style */
+.download-dropdown .primary-button {
+    -fx-font-weight: 600;
+}
+
+/* Ensure popup root showing class triggers scale/opacity animation */
+.download-dropdown-root.showing {
+    -fx-opacity: 1;
+    -fx-scale-x: 1;
+    -fx-scale-y: 1;
 }

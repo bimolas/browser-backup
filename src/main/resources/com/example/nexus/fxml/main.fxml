@@ -47,7 +47,7 @@
                     </Button>
                 </HBox>
 
-                <Button fx:id="downloadsButton" onAction="#handleShowDownloads" styleClass="nav-button">
+                <Button fx:id="downloadsButton" onAction="#handleDownloadsButtonClicked" styleClass="nav-button">
                     <tooltip><Tooltip text="Downloads"/></tooltip>
                 </Button>
                 <Button fx:id="menuButton" onAction="#handleMenu" styleClass="nav-button">

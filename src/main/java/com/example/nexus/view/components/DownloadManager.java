@@ -20,11 +20,14 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.format.DateTimeFormatter;
 
 public class DownloadManager extends BorderPane {
     private final DIContainer container;
+    private static final Logger logger = LoggerFactory.getLogger(DownloadManager.class);
     private final DownloadService downloadService;
     private final ObservableList<Download> downloadList;
     private final ListView<Download> downloadListView;
@@ -134,17 +137,26 @@ public class DownloadManager extends BorderPane {
                 // Action buttons
                 HBox buttonBox = new HBox(5);
 
-                Button pauseButton = new Button();
-                pauseButton.setGraphic(new FontIcon("mdi-pause"));
+                Button openButton = new Button("Open");
+                openButton.setOnAction(e -> {
+                    try {
+                        java.io.File f = new java.io.File(item.getFilePath());
+                        if (f.exists()) {
+                            new ProcessBuilder("xdg-open", f.getAbsolutePath()).start();
+                        } else {
+                            // open folder if file missing
+                            new ProcessBuilder("xdg-open", new java.io.File(item.getFilePath()).getParent()).start();
+                        }
+                    } catch (Exception ex) {
+                        logger.warn("Failed to open download file", ex);
+                    }
+                });
+
+                Button pauseButton = new Button("Pause");
                 pauseButton.setOnAction(e -> pauseDownload(item));
 
-                Button cancelButton = new Button();
-                cancelButton.setGraphic(new FontIcon("mdi-close"));
+                Button cancelButton = new Button("Cancel");
                 cancelButton.setOnAction(e -> cancelDownload(item));
-
-                Button openButton = new Button();
-                openButton.setGraphic(new FontIcon("mdi-folder-open"));
-                openButton.setOnAction(e -> openDownload(item));
 
                 buttonBox.getChildren().addAll(pauseButton, cancelButton, openButton);
 
@@ -156,7 +168,12 @@ public class DownloadManager extends BorderPane {
         }
 
         private void pauseDownload(Download download) {
-            // Implementation for pausing a download
+            try {
+                downloadService.pauseDownload(download.getId());
+                loadDownloads();
+            } catch (Exception e) {
+                logger.warn("Failed to pause download {}", download.getId(), e);
+            }
         }
 
         private void cancelDownload(Download download) {
@@ -165,7 +182,16 @@ public class DownloadManager extends BorderPane {
         }
 
         private void openDownload(Download download) {
-            // Implementation for opening a downloaded file
+            try {
+                java.io.File f = new java.io.File(download.getFilePath());
+                if (f.exists()) {
+                    new ProcessBuilder("xdg-open", f.getAbsolutePath()).start();
+                } else if (f.getParentFile() != null) {
+                    new ProcessBuilder("xdg-open", f.getParent()).start();
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to open download {}", download.getId(), e);
+            }
         }
     }
 }

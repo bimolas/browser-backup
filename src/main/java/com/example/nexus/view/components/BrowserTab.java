@@ -2,6 +2,7 @@ package com.example.nexus.view.components;
 
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.model.Tab;
+import com.example.nexus.controller.DownloadController;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -10,7 +11,6 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
@@ -19,10 +19,15 @@ import javafx.scene.transform.Scale;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.scene.SnapshotParameters;
+import javafx.beans.value.ChangeListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * A JavaFX browser tab component using JavaFX WebView.
@@ -51,6 +56,14 @@ public class BrowserTab extends BorderPane {
     // Dark mode for web pages (like Dark Reader)
     private boolean webPageDarkMode = false;
     private static boolean globalDarkModeEnabled = false;  // Global setting for all tabs
+
+    // Keep references to listeners so they can be removed on dispose
+    private ChangeListener<javafx.geometry.Bounds> viewportBoundsListener;
+    private ChangeListener<String> titleChangeListener;
+    private ChangeListener<String> locationChangeListener;
+    private ChangeListener<Worker.State> stateChangeListener;
+    private ChangeListener<Number> progressChangeListener;
+    private ChangeListener<Throwable> exceptionChangeListener;
 
     public BrowserTab(DIContainer container, String url) {
         this.container = container;
@@ -100,15 +113,16 @@ public class BrowserTab extends BorderPane {
         setTop(loadingBar);
         setCenter(contentPane);
 
-        // Bind WebView size to scroll pane viewport
-        scrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> {
+        // Bind WebView size to scroll pane viewport (keep reference so we can remove later)
+        viewportBoundsListener = (obs, oldBounds, newBounds) -> {
             if (viewportZoom == 1.0) {
                 webView.setPrefWidth(newBounds.getWidth());
                 webView.setPrefHeight(newBounds.getHeight());
             }
-        });
+        };
+        scrollPane.viewportBoundsProperty().addListener(viewportBoundsListener);
 
-        // Setup WebEngine handlers
+        // Setup WebEngine handlers (listeners are stored for removal)
         setupWebEngineHandlers();
 
         // Handle popup windows
@@ -132,40 +146,124 @@ public class BrowserTab extends BorderPane {
 
     private void setupWebEngineHandlers() {
         // Title changes
-        webEngine.titleProperty().addListener((obs, oldTitle, newTitle) -> {
-            Platform.runLater(() -> {
-                titleProperty.set(newTitle != null && !newTitle.isEmpty() ? newTitle : "New Tab");
-            });
-        });
+        titleChangeListener = (obs, oldTitle, newTitle) -> {
+            Platform.runLater(() -> titleProperty.set(newTitle != null && !newTitle.isEmpty() ? newTitle : "New Tab"));
+        };
+        webEngine.titleProperty().addListener(titleChangeListener);
 
         // URL/Location changes
-        webEngine.locationProperty().addListener((obs, oldUrl, newUrl) -> {
+        locationChangeListener = (obs, oldUrl, newUrl) -> {
             Platform.runLater(() -> {
-                urlProperty.set(newUrl != null ? newUrl : "");
-                // Update favicon URL when location changes
-                updateFaviconUrl(newUrl);
-                logger.debug("Location changed to: {}", newUrl);
-            });
-        });
+                try {
+                    String urlStr = newUrl != null ? newUrl : "";
+                    // If this navigation targets a likely-downloadable resource, intercept and start download
+                    if (urlStr != null && !urlStr.isEmpty()) {
+                        String lower = urlStr.split("\\?")[0].toLowerCase();
+                        if (lower.matches(".*\\.(zip|exe|msi|pdf|docx?|xlsx?|rar|7z|png|jpe?g|gif|bmp|webp)$")) {
+                            try {
+                                String fileName = suggestFileNameFromUrl(urlStr);
+                                DownloadController dc = container.getOrCreate(DownloadController.class);
+                                dc.requestDownloadFromUI(urlStr, fileName);
+                                // Cancel loading the resource in the WebView to avoid trying to render binary data
+                                try { webEngine.getLoadWorker().cancel(); } catch (Exception ignore) {}
+                                logger.info("Intercepted navigation and started download: {}", urlStr);
+                                return; // do not update URL/favicons for this navigation
+                            } catch (Exception ex) {
+                                logger.debug("Failed to start download for intercepted URL: {}", urlStr, ex);
+                            }
+                        } else {
+                            // For URLs without clear extension, perform a non-blocking HEAD check to detect downloads
+                            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                                HttpURLConnection conn = null;
+                                try {
+                                    java.net.URL u = new java.net.URL(urlStr);
+                                    conn = (HttpURLConnection) u.openConnection();
+                                    conn.setRequestMethod("HEAD");
+                                    conn.setInstanceFollowRedirects(true);
+                                    conn.setConnectTimeout(8000);
+                                    conn.setReadTimeout(8000);
+                                    conn.connect();
+
+                                    String disposition = conn.getHeaderField("Content-Disposition");
+                                    String contentType = conn.getContentType();
+                                    int code = conn.getResponseCode();
+
+                                    boolean looksLikeAttachment = false;
+                                    if (disposition != null && disposition.toLowerCase().contains("attachment")) looksLikeAttachment = true;
+                                    if (disposition != null && (disposition.toLowerCase().contains("filename=") || disposition.toLowerCase().contains("filename*="))) looksLikeAttachment = true;
+                                    if (contentType != null) {
+                                        String ct = contentType.toLowerCase();
+                                        // Treat most non-html and non-image types as downloadable (application/* etc.)
+                                        if (ct.startsWith("application/") || ct.startsWith("video/") || ct.startsWith("audio/") ) looksLikeAttachment = true;
+                                        // Some servers send octet-stream which is clearly a download
+                                        if (ct.equals("application/octet-stream")) looksLikeAttachment = true;
+                                    }
+
+                                    if (looksLikeAttachment || code == HttpURLConnection.HTTP_OK && (contentType == null || !contentType.toLowerCase().contains("text/html"))) {
+                                        // Suggest filename from disposition or URL
+                                        String suggested = null;
+                                        if (disposition != null) {
+                                            // Try to extract filename
+                                            java.util.regex.Matcher m = java.util.regex.Pattern.compile("filename\\*?=\\s*(?:\\\"?)(?:UTF-8'')?([^;\\\"]+)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(disposition);
+                                            if (m.find()) {
+                                                suggested = m.group(1).trim().replaceAll("[\\\"]", "");
+                                                try { suggested = java.net.URLDecoder.decode(suggested, java.nio.charset.StandardCharsets.UTF_8); } catch (Exception ignored) {}
+                                            }
+                                        }
+                                        if (suggested == null || suggested.isEmpty()) suggested = suggestFileNameFromUrl(urlStr);
+
+                                        final String fileName = suggested;
+                                        // Trigger download on FX thread
+                                        javafx.application.Platform.runLater(() -> {
+                                            try {
+                                                DownloadController dc = container.getOrCreate(DownloadController.class);
+                                                dc.requestDownloadFromUI(urlStr, fileName);
+                                                try { webEngine.getLoadWorker().cancel(); } catch (Exception ignore) {}
+                                                logger.info("HEAD-detected download and started: {} (suggested={})", urlStr, fileName);
+                                            } catch (Exception ex) {
+                                                logger.debug("Failed to start HEAD-detected download for {}", urlStr, ex);
+                                            }
+                                        });
+                                    }
+                                } catch (Exception e) {
+                                    // ignore HEAD failures (many hosts block HEAD)
+                                    logger.debug("HEAD check failed for {}: {}", urlStr, e.getMessage());
+                                } finally {
+                                    if (conn != null) conn.disconnect();
+                                }
+                            });
+                        }
+                    }
+
+                    urlProperty.set(newUrl != null ? newUrl : "");
+                    // Update favicon URL when location changes
+                    updateFaviconUrl(newUrl);
+                    logger.debug("Location changed to: {}", newUrl);
+                } catch (Exception e) {
+                    logger.debug("Error processing location change", e);
+                }
+             });
+         };
+         webEngine.locationProperty().addListener(locationChangeListener);
 
         // Loading state
-        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+        stateChangeListener = (obs, oldState, newState) -> {
             Platform.runLater(() -> {
                 logger.debug("WebEngine state changed: {} -> {}", oldState, newState);
 
+                if (newState == null) return;
+
                 switch (newState) {
-                    case READY:
-                        loadingBar.setVisible(false);
-                        break;
-                    case SCHEDULED:
+                    case READY -> loadingBar.setVisible(false);
+                    case SCHEDULED -> {
                         loadingBar.setVisible(true);
                         loadingBar.setProgress(0);
-                        break;
-                    case RUNNING:
+                    }
+                    case RUNNING -> {
                         loadingBar.setVisible(true);
                         loadingBar.setProgress(-1); // Indeterminate
-                        break;
-                    case SUCCEEDED:
+                    }
+                    case SUCCEEDED -> {
                         loadingBar.setVisible(false);
                         loadingBar.setProgress(1.0);
                         // Try to extract favicon from the page after load
@@ -173,25 +271,27 @@ public class BrowserTab extends BorderPane {
                         // Apply dark mode if enabled
                         reapplyDarkModeIfEnabled();
                         logger.info("Page loaded successfully: {}", webEngine.getLocation());
-                        break;
-                    case CANCELLED:
+                    }
+                    case CANCELLED -> {
                         loadingBar.setVisible(false);
-                        logger.info("Page load cancelled");
-                        break;
-                    case FAILED:
+                        // Loading cancelled is normal for downloads/navigation cancellations; lower to debug to avoid info spam
+                        logger.debug("Page load cancelled");
+                    }
+                    case FAILED -> {
                         loadingBar.setVisible(false);
                         Throwable ex = webEngine.getLoadWorker().getException();
                         if (ex != null) {
                             logger.error("Page load failed: {}", ex.getMessage());
                             showErrorView("Failed to load page: " + ex.getMessage());
                         }
-                        break;
+                    }
                 }
             });
-        });
+        };
+        webEngine.getLoadWorker().stateProperty().addListener(stateChangeListener);
 
         // Loading progress
-        webEngine.getLoadWorker().progressProperty().addListener((obs, oldProgress, newProgress) -> {
+        progressChangeListener = (obs, oldProgress, newProgress) -> {
             Platform.runLater(() -> {
                 double progress = newProgress.doubleValue();
                 if (progress >= 0 && progress < 1.0) {
@@ -200,22 +300,20 @@ public class BrowserTab extends BorderPane {
                     loadingBar.setProgress(1.0);
                 }
             });
-        });
+        };
+        webEngine.getLoadWorker().progressProperty().addListener(progressChangeListener);
 
         // Error handling
-        webEngine.getLoadWorker().exceptionProperty().addListener((obs, oldEx, newEx) -> {
+        exceptionChangeListener = (obs, oldEx, newEx) -> {
             if (newEx != null) {
                 logger.error("WebEngine exception: {}", newEx.getMessage(), newEx);
-                Platform.runLater(() -> {
-                    loadingBar.setVisible(false);
-                });
+                Platform.runLater(() -> loadingBar.setVisible(false));
             }
-        });
+        };
+        webEngine.getLoadWorker().exceptionProperty().addListener(exceptionChangeListener);
 
         // Handle document load errors via onError
-        webEngine.setOnError(event -> {
-            logger.error("WebEngine error event: {}", event.getMessage());
-        });
+        webEngine.setOnError(event -> logger.error("WebEngine error event: {}", event.getMessage()));
     }
 
     /**
@@ -268,12 +366,28 @@ public class BrowserTab extends BorderPane {
 
     /**
      * Get a snapshot/preview image of the current page
+     * Produces a downscaled image capped to 320x200 to avoid large memory usage
      */
     public WritableImage getPreviewSnapshot() {
         if (disposed || webView == null) return null;
         try {
+            double w = Math.max(1, webView.getWidth());
+            double h = Math.max(1, webView.getHeight());
+
+            // Target cap
+            final double MAX_W = 320;
+            final double MAX_H = 200;
+
+            double scale = Math.min(1.0, Math.min(MAX_W / w, MAX_H / h));
+
             SnapshotParameters params = new SnapshotParameters();
-            return webView.snapshot(params, null);
+            params.setTransform(new Scale(scale, scale));
+
+            int outW = Math.max(1, (int) Math.round(w * scale));
+            int outH = Math.max(1, (int) Math.round(h * scale));
+
+            WritableImage out = new WritableImage(outW, outH);
+            return webView.snapshot(params, out);
         } catch (Exception e) {
             logger.debug("Could not create page snapshot", e);
             return null;
@@ -446,23 +560,17 @@ public class BrowserTab extends BorderPane {
 
     public void zoomIn() {
         if (disposed) return;
-        Platform.runLater(() -> {
-            webView.setZoom(webView.getZoom() * 1.1);
-        });
+        Platform.runLater(() -> webView.setZoom(webView.getZoom() * 1.1));
     }
 
     public void zoomOut() {
         if (disposed) return;
-        Platform.runLater(() -> {
-            webView.setZoom(webView.getZoom() / 1.1);
-        });
+        Platform.runLater(() -> webView.setZoom(webView.getZoom() / 1.1));
     }
 
     public void resetZoom() {
         if (disposed) return;
-        Platform.runLater(() -> {
-            webView.setZoom(1.0);
-        });
+        Platform.runLater(() -> webView.setZoom(1.0));
     }
 
     /**
@@ -470,9 +578,7 @@ public class BrowserTab extends BorderPane {
      */
     public void setZoomLevel(double zoomLevel) {
         if (disposed) return;
-        Platform.runLater(() -> {
-            webView.setZoom(zoomLevel);
-        });
+        Platform.runLater(() -> webView.setZoom(zoomLevel));
     }
 
     /**
@@ -765,18 +871,55 @@ public class BrowserTab extends BorderPane {
     }
 
     public void dispose() {
+        if (disposed) return;
         disposed = true;
 
         // Stop smooth scroll animation
         stopSmoothScrollAnimation();
 
-        Platform.runLater(() -> {
-            try {
-                webEngine.load(null);
-            } catch (Exception e) {
-                // Ignore
+        // Remove all listeners we attached
+        try {
+            if (viewportBoundsListener != null) scrollPane.viewportBoundsProperty().removeListener(viewportBoundsListener);
+            if (titleChangeListener != null) webEngine.titleProperty().removeListener(titleChangeListener);
+            if (locationChangeListener != null) webEngine.locationProperty().removeListener(locationChangeListener);
+            if (stateChangeListener != null) webEngine.getLoadWorker().stateProperty().removeListener(stateChangeListener);
+            if (progressChangeListener != null) webEngine.getLoadWorker().progressProperty().removeListener(progressChangeListener);
+            if (exceptionChangeListener != null) webEngine.getLoadWorker().exceptionProperty().removeListener(exceptionChangeListener);
+        } catch (Exception e) {
+            logger.debug("Error removing listeners during dispose", e);
+        }
+
+        // Clear event handlers and references
+        try {
+            this.setOnMouseMoved(null);
+            this.setOnMouseDragged(null);
+            this.setOnMouseExited(null);
+            this.setOnKeyPressed(null);
+            if (scrollPane != null) {
+                scrollPane.setOnMouseMoved(null);
+                scrollPane.setOnMouseDragged(null);
             }
-        });
+
+            webEngine.setOnAlert(null);
+            webEngine.setOnError(null);
+            webEngine.setCreatePopupHandler(null);
+
+            // Cancel any running loads and clear content
+            try {
+                webEngine.getLoadWorker().cancel();
+            } catch (Exception ignore) {}
+
+            Platform.runLater(() -> {
+                try {
+                    webEngine.load(null);
+                    contentPane.getChildren().clear();
+                } catch (Exception ignore) {
+                }
+            });
+        } catch (Exception e) {
+            logger.debug("Error cleaning up BrowserTab", e);
+        }
+
         logger.info("BrowserTab disposed");
     }
 
@@ -799,15 +942,8 @@ public class BrowserTab extends BorderPane {
         [data-darkreader-inline-color] {
             filter: none !important;
         }
-        /* Ensure text remains readable */
-        body {
-            background-color: #1a1a1a !important;
-        }
-        /* Fix code blocks and pre elements */
-        pre, code, .code, .highlight {
-            filter: invert(100%) hue-rotate(180deg) !important;
-        }
-        """;
+
+""";
 
     /**
      * Alternative dark mode using background/text color changes (less aggressive)
@@ -966,5 +1102,19 @@ public class BrowserTab extends BorderPane {
             delay.play();
         }
     }
-}
 
+    private String suggestFileNameFromUrl(String urlStr) {
+        try {
+            URI u = new URI(urlStr);
+            String path = u.getPath();
+            if (path != null && !path.isEmpty()) {
+                String last = path.substring(path.lastIndexOf('/') + 1);
+                if (last == null || last.isEmpty()) last = "download";
+                return java.net.URLDecoder.decode(last, java.nio.charset.StandardCharsets.UTF_8);
+            }
+        } catch (Exception e) {
+            // fallback
+        }
+        return "download";
+    }
+}

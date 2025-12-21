@@ -94,7 +94,7 @@
     -fx-background-color: #ffffff;
 }
 
-.browser-tab-pane > .tab-header-area > .headers-region > .tab:hover:!selected {
+.browser-tab-pane > .tab-header-area > .headers-region > .tab:hover {
     -fx-background-color: #ced4da;
 }
 
@@ -200,9 +200,9 @@
     -fx-alignment: center-left;
 }
 
-.address-bar-container:focused-within {
-    -fx-background-color: #ffffff;
-    -fx-border-color: #80bdff;
+.address-bar-container:focused {
+    -fx-background-color: #2d2d2d;
+    -fx-border-color: #6366f1;
     -fx-border-radius: 24;
     -fx-border-width: 2;
 }
@@ -824,4 +824,3 @@
 .light * {
     -fx-control-inner-background: #f8f9fa;
 }
-

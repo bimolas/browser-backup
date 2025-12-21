@@ -19,13 +19,14 @@ public class NotificationManager {
 
         VBox notificationBox = new VBox(5);
         notificationBox.setAlignment(Pos.CENTER);
-        notificationBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.8); -fx-background-radius: 8px; -fx-padding: 15px;");
+        // Let CSS handle visual styling; add style class that has light/dark variants
+        notificationBox.getStyleClass().add("notification-box");
 
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;");
+        titleLabel.getStyleClass().add("notification-title");
 
         Label messageLabel = new Label(message);
-        messageLabel.setStyle("-fx-text-fill: white; -fx-font-size: 12px;");
+        messageLabel.getStyleClass().add("notification-message");
 
         notificationBox.getChildren().addAll(titleLabel, messageLabel);
 

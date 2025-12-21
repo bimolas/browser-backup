@@ -10,6 +10,7 @@ import org.cef.handler.CefLoadHandlerAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,6 +39,18 @@ public class BrowserService {
         // Store the browser
         String browserId = generateBrowserId();
         browsers.put(browserId, browser);
+
+        // Attempt to attach an optional JCEF download integrator (reflective, no hard dependency)
+        try {
+            Class<?> integrator = Class.forName("com.example.nexus.integration.JcefDownloadIntegrator");
+            Method attach = integrator.getMethod("attachToBrowser", Object.class, Class.forName("com.example.nexus.service.DownloadService"));
+            // obtain DownloadService from DI container if present
+            Object ds = null;
+            try { ds = container.get(com.example.nexus.service.DownloadService.class); } catch (Throwable ignore) {}
+            attach.invoke(null, browser, ds);
+        } catch (Throwable t) {
+            logger.debug("JCEF integrator not attached or unavailable", t);
+        }
 
         // Add handlers
         setupBrowserHandlers(browser);
@@ -87,6 +100,12 @@ public class BrowserService {
                 logger.error("Loading error: {} - {}", failedUrl, errorText);
             }
         });
+
+        // Note: download handling for JCEF was previously attempted via a reflective proxy.
+        // Reverted to a simpler approach: leave JCEF download handler registration to the
+        // platform-specific integration or explicit implementations elsewhere to avoid
+        // fragile runtime reflection and accidental breakage.
+        // (No-op here.)
     }
 
     private String generateBrowserId() {

@@ -63,14 +63,9 @@ public class UIComponentFactory {
         VBox card = new VBox(6);
         card.setMaxWidth(Double.MAX_VALUE);
         card.setFillWidth(true);
-        card.setStyle(
-            "-fx-background-color: " + bgPrimary + ";" +
-            "-fx-background-radius: 8;" +
-            "-fx-border-color: " + borderColor + ";" +
-            "-fx-border-radius: 8;" +
-            "-fx-border-width: 1;" +
-            "-fx-padding: 14;"
-        );
+        card.getStyleClass().add("card");
+        // Provide CSS variables for colors where needed
+        card.setStyle(String.format("--bg-primary: %s; --border-color: %s; --text-primary: %s;", bgPrimary, borderColor, textPrimary));
 
         HBox header = new HBox(8);
         header.setAlignment(Pos.CENTER_LEFT);
@@ -98,7 +93,8 @@ public class UIComponentFactory {
         row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new Insets(10, 0, 10, 0));
         row.setMaxWidth(Double.MAX_VALUE);
-        row.setStyle("-fx-border-color: transparent transparent " + bgTertiary + " transparent; -fx-border-width: 0 0 1 0;");
+        row.getStyleClass().add("toggle-row");
+        row.setStyle(String.format("--bg-tertiary: %s; --text-primary: %s; --text-muted: %s;", bgTertiary, textPrimary, textMuted));
 
         FontIcon icon = new FontIcon(iconCode);
         icon.setIconSize(18);
@@ -107,9 +103,11 @@ public class UIComponentFactory {
         VBox textBox = new VBox(2);
         textBox.setMaxWidth(Double.MAX_VALUE);
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: 500; -fx-text-fill: " + textPrimary + ";");
+        titleLabel.getStyleClass().add("title-label");
+        titleLabel.setStyle(String.format("--text-primary: %s;", textPrimary));
         Label descLabel = new Label(description);
-        descLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " + textMuted + ";");
+        descLabel.getStyleClass().add("desc-label");
+        descLabel.setStyle(String.format("--text-muted: %s;", textMuted));
         descLabel.setWrapText(true);
         descLabel.setMaxWidth(Double.MAX_VALUE);
         textBox.getChildren().addAll(titleLabel, descLabel);
@@ -133,11 +131,10 @@ public class UIComponentFactory {
 
         Region track = new Region();
         track.setPrefSize(44, 24);
+        track.getStyleClass().add("toggle-track");
+        // Keep dynamic color for primary and off colors
         String offColor = bgTertiary.equals("#2d2d2d") ? "#4a4a4a" : "#adb5bd";
-        track.setStyle(
-            "-fx-background-color: " + (initialValue ? primaryColor : offColor) + ";" +
-            "-fx-background-radius: 12;"
-        );
+        track.setStyle(String.format("-fx-background-color: %s; -fx-background-radius: 12;", (initialValue ? primaryColor : offColor)));
 
         Circle thumb = new Circle(9);
         thumb.setFill(Color.WHITE);
@@ -154,10 +151,7 @@ public class UIComponentFactory {
             TranslateTransition tt = new TranslateTransition(Duration.millis(150), thumb);
             tt.setToX(state[0] ? 10 : -10);
 
-            track.setStyle(
-                "-fx-background-color: " + (state[0] ? primaryColor : offColor) + ";" +
-                "-fx-background-radius: 12;"
-            );
+            track.setStyle(String.format("-fx-background-color: %s; -fx-background-radius: 12;", (state[0] ? primaryColor : offColor)));
 
             tt.play();
 
@@ -189,9 +183,11 @@ public class UIComponentFactory {
         HBox.setHgrow(textBox, Priority.ALWAYS);
 
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: 600; -fx-text-fill: " + textPrimary + ";");
+        titleLabel.getStyleClass().add("page-title");
+        titleLabel.setStyle(String.format("-fx-font-size: 20px; -fx-font-weight: 600; -fx-text-fill: %s;", textPrimary));
         Label subtitleLabel = new Label(subtitle);
-        subtitleLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + textMuted + ";");
+        subtitleLabel.getStyleClass().add("page-subtitle");
+        subtitleLabel.setStyle(String.format("-fx-font-size: 12px; -fx-text-fill: %s;", textMuted));
         textBox.getChildren().addAll(titleLabel, subtitleLabel);
 
         titleBox.getChildren().addAll(icon, textBox);
@@ -210,7 +206,10 @@ public class UIComponentFactory {
             icon.setIconSize(14);
             button.setGraphic(icon);
         }
-        button.setStyle(style);
+        // Prefer using style classes whenever possible, but accept a style string for custom buttons
+        if (style != null && !style.isEmpty()) {
+            button.setStyle(style);
+        }
         return button;
     }
 
@@ -261,14 +260,8 @@ public class UIComponentFactory {
     public TextField createTextField(String promptText) {
         TextField field = new TextField();
         field.setPromptText(promptText);
-        field.setStyle(
-            "-fx-background-color: " + bgSecondary + ";" +
-            "-fx-border-color: " + borderColor + ";" +
-            "-fx-border-radius: 6;" +
-            "-fx-background-radius: 6;" +
-            "-fx-padding: 8 12;" +
-            "-fx-text-fill: " + textPrimary + ";"
-        );
+        field.getStyleClass().add("text-field");
+        field.setStyle(String.format("--bg-secondary: %s; --border-color: %s; --text-primary: %s;", bgSecondary, borderColor, textPrimary));
         return field;
     }
 
@@ -278,12 +271,8 @@ public class UIComponentFactory {
     public <T> ComboBox<T> createComboBox(String promptText) {
         ComboBox<T> combo = new ComboBox<>();
         combo.setPromptText(promptText);
-        combo.setStyle(
-            "-fx-background-color: " + bgSecondary + ";" +
-            "-fx-border-color: " + borderColor + ";" +
-            "-fx-border-radius: 6;" +
-            "-fx-background-radius: 6;"
-        );
+        combo.getStyleClass().add("filter-combo");
+        combo.setStyle(String.format("--bg-secondary: %s; --border-color: %s;", bgSecondary, borderColor));
         return combo;
     }
 

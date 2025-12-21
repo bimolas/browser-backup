@@ -1,38 +1,43 @@
 module com.example.nexus {
+
+    // JavaFX
     requires javafx.controls;
     requires javafx.fxml;
-    requires javafx.swing;
-    requires javafx.web;           // For WebView
-    requires javafx.graphics;
-    requires javafx.media;         // For media playback support
+    requires javafx.web;
+    requires javafx.media;
 
-    // MaterialFX
-    requires MaterialFX;
-
-    // Database
+    // Java
     requires java.sql;
+    requires java.desktop;
+    requires jdk.jsobject;
 
     // Logging
     requires org.slf4j;
 
-    // Icons
-    requires org.kordamp.ikonli.materialdesign2;
+    // Ikonli
     requires org.kordamp.ikonli.javafx;
+    requires org.kordamp.ikonli.materialdesign2;
 
-    // AWT for printing
-    requires java.desktop;
+    // MaterialFX and supporting libraries (likely automatic-module-names)
+
+    requires MaterialFX;
+    requires VirtualizedFX;
+
+    // JCEF wrapper (keep original name used previously)
     requires jcef;
 
+    // Reflection for FXML
     opens com.example.nexus to javafx.fxml;
-    exports com.example.nexus.core to javafx.graphics;
-    opens com.example.nexus.core to javafx.graphics;
+    opens com.example.nexus.core to javafx.fxml;
     opens com.example.nexus.controller to javafx.fxml;
     opens com.example.nexus.view.dialogs to javafx.fxml;
 
+    // Public API
     exports com.example.nexus;
-    exports com.example.nexus.exception;
+    exports com.example.nexus.core;
     exports com.example.nexus.model;
     exports com.example.nexus.service;
     exports com.example.nexus.repository;
-    exports com.example.nexus.view.dialogs;
+    exports com.example.nexus.exception;
 }
+

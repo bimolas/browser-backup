@@ -5,8 +5,12 @@ import com.example.nexus.model.Tab;
 import com.example.nexus.service.*;
 import com.example.nexus.util.KeyboardShortcutManager;
 import com.example.nexus.view.components.BrowserTab;
+import com.example.nexus.view.components.DownloadDropdown;
+import com.example.nexus.view.components.DownloadManagerPanel;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
+import javafx.geometry.Bounds;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
@@ -16,6 +20,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +38,9 @@ public class MainController {
     private SettingsController settingsController;
     private KeyboardShortcutManager shortcutManager;
 
-    // Map to store browser tabs associated with JavaFX tabs
     private final Map<javafx.scene.control.Tab, BrowserTab> tabBrowserMap = new HashMap<>();
+    // Cleanup actions per tab (to remove listeners and free references)
+    private final Map<javafx.scene.control.Tab, Runnable> tabCleanupMap = new HashMap<>();
 
     @FXML private BorderPane rootPane;
     @FXML private TabPane tabPane;
@@ -51,6 +57,8 @@ public class MainController {
     @FXML private Label securityIcon;
     @FXML private Label statusLabel;
     @FXML private HBox statusBar;
+
+    private DownloadDropdown downloadDropdown;
 
     public void setContainer(DIContainer container) {
         this.container = container;
@@ -73,6 +81,41 @@ public class MainController {
 
         // Set up icons
         setupIcons();
+
+        // Initialize download dropdown
+        try {
+            var ds = container.getOrCreate(com.example.nexus.service.DownloadService.class);
+            boolean isDarkTheme = "dark".equals(settingsService.getTheme()) || ("system".equals(settingsService.getTheme()) && settingsController.isSystemDark());
+            DownloadController dc = container.getOrCreate(DownloadController.class);
+            downloadDropdown = new DownloadDropdown(ds, dc, isDarkTheme, () -> {
+                try { handleShowDownloads(); } catch (Exception ex) { logger.warn("Failed to open downloads panel", ex); }
+            });
+            // Auto-show dropdown briefly when a new download is added or updated
+            ds.addListener(new com.example.nexus.service.DownloadListener() {
+                @Override
+                public void downloadAdded(com.example.nexus.model.Download download) {
+                    Platform.runLater(() -> {
+                        try {
+                            updateDownloadsBadge();
+                            if (downloadsButton != null && downloadsButton.getScene() != null) {
+                                var bounds = downloadsButton.localToScene(downloadsButton.getBoundsInLocal());
+                                Window w = downloadsButton.getScene().getWindow();
+                                downloadDropdown.showNear(w, bounds);
+                            }
+                        } catch (Exception ignored) {}
+                    });
+                }
+
+                @Override
+                public void downloadUpdated(com.example.nexus.model.Download download) {
+                    // refresh dropdown if visible
+                    Platform.runLater(() -> { try { downloadDropdown.refreshContent(); } catch (Exception ignored) {} });
+                    Platform.runLater(() -> updateDownloadsBadge());
+                }
+            });
+        } catch (Exception e) {
+            logger.warn("Could not create download dropdown", e);
+        }
 
         // Set up address bar
         addressBar.setOnAction(e -> navigateToUrl(addressBar.getText()));
@@ -102,9 +145,7 @@ public class MainController {
 
         // Listen for settings changes
         settingsService.addSettingsChangeListener(settings -> {
-            Platform.runLater(() -> {
-                settingsController.applyInterfaceSettings();
-            });
+            Platform.runLater(() -> settingsController.applyInterfaceSettings());
         });
 
         // Load initial tab
@@ -117,9 +158,7 @@ public class MainController {
         logger.info("Main controller initialized");
     }
 
-    /**
-     * Hide the dropdown arrow button that appears in the tab pane header
-     */
+
     private void hideTabDropdownButton() {
         // Find and hide the control buttons (dropdown arrow)
         tabPane.lookupAll(".control-buttons-tab").forEach(node -> {
@@ -134,27 +173,40 @@ public class MainController {
 
     private void setupIcons() {
         // Navigation buttons
-        backButton.setGraphic(new FontIcon("mdi2a-arrow-left"));
-        forwardButton.setGraphic(new FontIcon("mdi2a-arrow-right"));
-        reloadButton.setGraphic(new FontIcon("mdi2r-refresh"));
-        homeButton.setGraphic(new FontIcon("mdi2h-home"));
-        newTabButton.setGraphic(new FontIcon("mdi2p-plus"));
-        menuButton.setGraphic(new FontIcon("mdi2m-menu"));
+        backButton.setGraphic(safeIcon("mdi2a-arrow-left", 18));
+        forwardButton.setGraphic(safeIcon("mdi2a-arrow-right", 18));
+        reloadButton.setGraphic(safeIcon("mdi2r-refresh", 18));
+        homeButton.setGraphic(safeIcon("mdi2h-home", 18));
+        newTabButton.setGraphic(safeIcon("mdi2p-plus", 18));
+        menuButton.setGraphic(safeIcon("mdi2m-menu", 18));
 
         if (bookmarkButton != null) {
-            bookmarkButton.setGraphic(new FontIcon("mdi2b-bookmark-outline"));
+            bookmarkButton.setGraphic(safeIcon("mdi2b-bookmark-outline", 16));
         }
         if (downloadsButton != null) {
-            downloadsButton.setGraphic(new FontIcon("mdi2d-download"));
+            downloadsButton.setGraphic(safeIcon("mdi2d-download", 16));
+            // create a simple badge label overlay (using tooltip as a lightweight approach)
+            downloadsButton.getProperties().put("downloadBadge", new javafx.scene.control.Label(""));
         }
         if (securityIcon != null) {
-            securityIcon.setGraphic(new FontIcon("mdi2l-lock"));
+            securityIcon.setGraphic(safeIcon("mdi2l-lock", 14));
         }
     }
 
-    /**
-     * Show the browser view for the selected tab
-     */
+    // Small safe icon helper - returns a FontIcon when possible or a fallback label
+    private javafx.scene.Node safeIcon(String literal, int size) {
+        try {
+            FontIcon fi = new FontIcon(literal);
+            fi.setIconSize(size);
+            return fi;
+        } catch (Throwable t) {
+            Label l = new Label("?");
+            l.setStyle("-fx-font-size: " + Math.max(12, size-2) + "px; -fx-text-fill: #495057;");
+            return l;
+        }
+    }
+
+
     private void showBrowserForTab(javafx.scene.control.Tab tab) {
         BrowserTab browserTab = tabBrowserMap.get(tab);
         if (browserTab != null) {
@@ -178,17 +230,15 @@ public class MainController {
             FontIcon icon = (FontIcon) securityIcon.getGraphic();
             if (url != null && url.startsWith("https://")) {
                 icon.setIconLiteral("mdi2l-lock");
-                icon.setStyle("-fx-fill: green;");
+                icon.setIconColor(javafx.scene.paint.Color.valueOf("#28a745"));
             } else {
                 icon.setIconLiteral("mdi2l-lock-open-outline");
-                icon.setStyle("-fx-fill: gray;");
+                icon.setIconColor(javafx.scene.paint.Color.valueOf("#6c757d"));
             }
         }
     }
 
-    /**
-     * Create a new tab with the given URL
-     */
+
     private void createNewTab(String url) {
         System.out.println("Creating new tab with URL: " + url);
 
@@ -211,6 +261,54 @@ public class MainController {
         // Store the mapping
         tabBrowserMap.put(tab, browserTab);
 
+        // Prepare cleanup for listeners for this tab
+        final ChangeListener<String> titleListener = (obs, oldTitle, newTitle) -> Platform.runLater(() -> {
+            updateTabTitle(tab, newTitle);
+            // update DB in background
+            Tab tabModelRef = (Tab) browserTab.getTabModel();
+            if (tabModelRef != null) {
+                tabModelRef.setTitle(newTitle);
+                tabService.updateTab(tabModelRef);
+            }
+        });
+
+        final ChangeListener<String> urlListener = (obs, oldUrl, newUrl) -> Platform.runLater(() -> {
+            // Update address bar if this is the selected tab
+            if (tabPane.getSelectionModel().getSelectedItem() == tab) {
+                addressBar.setText(newUrl);
+                updateSecurityIcon(newUrl);
+                updateBookmarkButtonState(newUrl);
+            }
+            Tab tabModelRef = (Tab) browserTab.getTabModel();
+            if (tabModelRef != null) {
+                tabModelRef.setUrl(newUrl);
+                tabService.updateTab(tabModelRef);
+            }
+            // Add to history - track every page visit
+            if (newUrl != null && !newUrl.isEmpty() && !newUrl.startsWith("about:") && !newUrl.startsWith("data:")) {
+                try {
+                    String pageTitle = browserTab.getTitle();
+                    if (pageTitle == null || pageTitle.isEmpty()) pageTitle = newUrl;
+                    historyService.addToHistory(newUrl, pageTitle);
+                    logger.info("Added to history: {} - {}", pageTitle, newUrl);
+                } catch (Exception e) {
+                    logger.error("Failed to add to history: {}", newUrl, e);
+                }
+            }
+        });
+
+        // Attach listeners and store cleanup
+        browserTab.titleProperty().addListener(titleListener);
+        browserTab.urlProperty().addListener(urlListener);
+        tabCleanupMap.put(tab, () -> {
+            try {
+                browserTab.titleProperty().removeListener(titleListener);
+            } catch (Exception ignored) {}
+            try {
+                browserTab.urlProperty().removeListener(urlListener);
+            } catch (Exception ignored) {}
+        });
+
         // Add tab to pane and select it
         tabPane.getTabs().add(tab);
         tabPane.getSelectionModel().select(tab);
@@ -219,51 +317,9 @@ public class MainController {
         Tab tabModel = new Tab(url);
         tabService.saveTab(tabModel);
         browserTab.setTabModel(tabModel);
-
-        // Set up listeners for title and URL changes
-        browserTab.titleProperty().addListener((obs, oldTitle, newTitle) -> {
-            Platform.runLater(() -> {
-                updateTabTitle(tab, newTitle);
-                if (tabModel != null) {
-                    tabModel.setTitle(newTitle);
-                    tabService.updateTab(tabModel);
-                }
-            });
-        });
-
-        browserTab.urlProperty().addListener((obs, oldUrl, newUrl) -> {
-            Platform.runLater(() -> {
-                // Update address bar if this is the selected tab
-                if (tabPane.getSelectionModel().getSelectedItem() == tab) {
-                    addressBar.setText(newUrl);
-                    updateSecurityIcon(newUrl);
-                    updateBookmarkButtonState(newUrl);
-                }
-                if (tabModel != null) {
-                    tabModel.setUrl(newUrl);
-                    tabService.updateTab(tabModel);
-                }
-                // Add to history - track every page visit
-                if (newUrl != null && !newUrl.isEmpty() &&
-                    !newUrl.startsWith("about:") && !newUrl.startsWith("data:")) {
-                    try {
-                        String pageTitle = browserTab.getTitle();
-                        if (pageTitle == null || pageTitle.isEmpty()) {
-                            pageTitle = newUrl;
-                        }
-                        historyService.addToHistory(newUrl, pageTitle);
-                        logger.info("Added to history: {} - {}", pageTitle, newUrl);
-                    } catch (Exception e) {
-                        logger.error("Failed to add to history: {}", newUrl, e);
-                    }
-                }
-            });
-        });
     }
 
-    /**
-     * Create a custom tab header with icon, title, and close button
-     */
+
     private HBox createTabHeader(javafx.scene.control.Tab tab, BrowserTab browserTab) {
         HBox header = new HBox(4);
         header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
@@ -299,7 +355,7 @@ public class MainController {
         titleLabel.setPrefWidth(90);
         titleLabel.setMinWidth(30);
         titleLabel.setMaxWidth(110);
-        titleLabel.setStyle("-fx-font-size: 11px; -fx-text-overrun: ellipsis;");
+        titleLabel.getStyleClass().add("tab-title");
         titleLabel.setFocusTraversable(false);
         titleLabel.setTextOverrun(javafx.scene.control.OverrunStyle.ELLIPSIS);
         titleLabel.setEllipsisString("...");
@@ -308,7 +364,6 @@ public class MainController {
         // Tooltip to show full title on hover
         Tooltip titleTooltip = new Tooltip("New Tab");
         titleTooltip.setShowDelay(javafx.util.Duration.millis(500));
-        titleTooltip.setStyle("-fx-font-size: 12px;");
         Tooltip.install(titleLabel, titleTooltip);
 
         // Listen for favicon changes
@@ -345,19 +400,10 @@ public class MainController {
         closeBtn.setPrefSize(16, 16);
         closeBtn.setMinSize(16, 16);
         closeBtn.setMaxSize(16, 16);
-        closeBtn.setStyle("-fx-background-color: transparent; -fx-padding: 2; -fx-cursor: hand;");
-        closeBtn.setOnAction(e -> {
-            e.consume();
-            handleTabClose(tab);
-        });
+        // closeBtn.setStyle("-fx-background-color: transparent; -fx-padding: 2; -fx-cursor: hand;"); // Let CSS handle hover and cursor; only attach action handler (do not call setStyle here)
+        closeBtn.setOnAction(e -> handleTabClose(tab));
 
-        // Hover effect for close button - gray background on hover
-        closeBtn.setOnMouseEntered(e ->
-            closeBtn.setStyle("-fx-background-color: rgba(108, 117, 125, 0.25); -fx-background-radius: 50%; -fx-padding: 2; -fx-cursor: hand;")
-        );
-        closeBtn.setOnMouseExited(e ->
-            closeBtn.setStyle("-fx-background-color: transparent; -fx-padding: 2; -fx-cursor: hand;")
-        );
+        // Hover effect is handled by CSS (.tab-close-btn:hover)
 
         header.getChildren().addAll(faviconContainer, titleLabel, closeBtn);
 
@@ -370,14 +416,11 @@ public class MainController {
         return header;
     }
 
-    /**
-     * Setup tab preview popup that shows on hover (like Chrome)
-     */
     private void setupTabPreview(javafx.scene.control.Tab tab, HBox header, BrowserTab browserTab) {
         javafx.stage.Popup previewPopup = new javafx.stage.Popup();
         previewPopup.setAutoHide(true);
 
-        VBox previewContent = new VBox(5);
+        VBox previewContent = new javafx.scene.layout.VBox(5);
         previewContent.setPrefWidth(240);
 
         // Preview title
@@ -424,12 +467,15 @@ public class MainController {
                     String imageBgColor = isDark ? "#1e1e1e" : "#f8f9fa";
                     String shadowColor = isDark ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.2)";
 
-                    // Apply theme styles
-                    previewContent.setStyle("-fx-background-color: " + bgColor + "; -fx-border-color: " + borderColor + "; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8; -fx-effect: dropshadow(gaussian, " + shadowColor + ", 10, 0, 0, 2);");
-                    previewTitle.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: " + titleColor + ";");
-                    previewUrl.setStyle("-fx-font-size: 10px; -fx-text-fill: " + urlColor + ";");
-                    previewImage.setStyle("-fx-background-color: " + imageBgColor + ";");
-                    imageContainer.setStyle("-fx-background-color: " + imageBgColor + "; -fx-background-radius: 4;");
+                    // Apply theme-aware CSS variables to preview popup (styles defined in CSS)
+                    previewContent.getStyleClass().add("tab-preview");
+                    previewContent.setStyle(String.format("--bg-primary: %s; --border-color: %s;", bgColor, borderColor));
+                    previewTitle.getStyleClass().add("preview-title");
+                    previewTitle.setStyle(String.format("-fx-text-fill: %s;", titleColor));
+                    previewUrl.getStyleClass().add("preview-url");
+                    previewUrl.setStyle(String.format("-fx-text-fill: %s;", urlColor));
+                    imageContainer.getStyleClass().add("preview-image");
+                    imageContainer.setStyle(String.format("-fx-background-color: %s; -fx-background-radius: 4;", imageBgColor));
 
                     // Update preview content
                     previewTitle.setText(browserTab.getTitle());
@@ -462,9 +508,7 @@ public class MainController {
         });
     }
 
-    /**
-     * Update the title displayed in the tab header
-     */
+
     private void updateTabTitle(javafx.scene.control.Tab tab, String title) {
         if (tab.getGraphic() instanceof HBox header) {
             Object userData = header.getUserData();
@@ -485,9 +529,7 @@ public class MainController {
         }
     }
 
-    /**
-     * Check if dark theme is currently active by examining loaded stylesheets
-     */
+
     private boolean isDarkThemeActive() {
         // First check if dark.css is loaded in the current scene - most reliable
         if (tabPane != null && tabPane.getScene() != null) {
@@ -532,11 +574,15 @@ public class MainController {
         return false;
     }
 
-    /**
-     * Handle tab close request
-     */
+
     private void handleTabClose(javafx.scene.control.Tab tab) {
         BrowserTab browserTab = tabBrowserMap.get(tab);
+
+        // Run cleanup actions (remove listeners etc.)
+        Runnable cleanup = tabCleanupMap.remove(tab);
+        if (cleanup != null) {
+            try { cleanup.run(); } catch (Exception e) { logger.debug("Error running tab cleanup", e); }
+        }
 
         // Remove from map
         tabBrowserMap.remove(tab);
@@ -823,9 +869,6 @@ public class MainController {
     // Which zoom mode is active: false = CSS zoom, true = viewport zoom (magnifier)
     private boolean viewportZoomMode = true;
 
-    /**
-     * Handle zoom in
-     */
     public void handleZoomIn() {
         BrowserTab currentTab = getCurrentBrowserTab();
         if (currentTab != null) {
@@ -842,9 +885,7 @@ public class MainController {
         }
     }
 
-    /**
-     * Handle zoom out
-     */
+
     public void handleZoomOut() {
         BrowserTab currentTab = getCurrentBrowserTab();
         if (currentTab != null) {
@@ -867,9 +908,7 @@ public class MainController {
         }
     }
 
-    /**
-     * Handle zoom reset to 100%
-     */
+
     public void handleZoomReset() {
         BrowserTab currentTab = getCurrentBrowserTab();
         if (currentTab != null) {
@@ -885,17 +924,13 @@ public class MainController {
         }
     }
 
-    /**
-     * Toggle between CSS zoom and viewport zoom modes
-     */
+
     public void toggleZoomMode() {
         viewportZoomMode = !viewportZoomMode;
         showZoomModeNotification();
     }
 
-    /**
-     * Show zoom mode notification
-     */
+
     private void showZoomModeNotification() {
         javafx.stage.Popup popup = new javafx.stage.Popup();
 
@@ -904,14 +939,14 @@ public class MainController {
 
         HBox content = new HBox(8);
         content.setAlignment(javafx.geometry.Pos.CENTER);
-        content.setStyle("-fx-background-color: rgba(33, 33, 33, 0.9); -fx-padding: 10 16; -fx-background-radius: 6;");
+        content.getStyleClass().add("popup-notification");
 
         FontIcon icon = new FontIcon(iconCode);
         icon.setIconSize(16);
         icon.setIconColor(javafx.scene.paint.Color.WHITE);
 
         Label label = new Label("Zoom Mode: " + mode);
-        label.setStyle("-fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: bold;");
+        label.getStyleClass().add("popup-label");
 
         content.getChildren().addAll(icon, label);
         popup.getContent().add(content);
@@ -931,17 +966,12 @@ public class MainController {
         });
     }
 
-    /**
-     * Toggle mouse tracking for zoom navigation
-     */
+
     public void toggleMouseTracking() {
         mouseTrackingEnabled = !mouseTrackingEnabled;
         showMouseTrackingNotification();
     }
 
-    /**
-     * Show mouse tracking status notification
-     */
     private void showMouseTrackingNotification() {
         javafx.stage.Popup popup = new javafx.stage.Popup();
 
@@ -950,14 +980,14 @@ public class MainController {
 
         HBox content = new HBox(8);
         content.setAlignment(javafx.geometry.Pos.CENTER);
-        content.setStyle("-fx-background-color: rgba(33, 33, 33, 0.9); -fx-padding: 10 16; -fx-background-radius: 6;");
+        content.getStyleClass().add("popup-notification");
 
         FontIcon icon = new FontIcon(iconCode);
         icon.setIconSize(16);
         icon.setIconColor(javafx.scene.paint.Color.WHITE);
 
         Label label = new Label(status);
-        label.setStyle("-fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: bold;");
+        label.getStyleClass().add("popup-label");
 
         content.getChildren().addAll(icon, label);
         popup.getContent().add(content);
@@ -977,9 +1007,7 @@ public class MainController {
         });
     }
 
-    /**
-     * Show a brief notification of current zoom level
-     */
+
     private void showZoomNotification() {
         double zoom = viewportZoomMode ? viewportZoom : currentZoom;
         int zoomPercent = (int) Math.round(zoom * 100);
@@ -989,7 +1017,7 @@ public class MainController {
 
         String modeIndicator = viewportZoomMode ? "🔍 " : "";
         Label zoomLabel = new Label(modeIndicator + zoomPercent + "%");
-        zoomLabel.setStyle("-fx-background-color: rgba(33, 33, 33, 0.9); -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 6;");
+        zoomLabel.getStyleClass().addAll("popup-notification","popup-label");
 
         popup.getContent().add(zoomLabel);
         popup.setAutoHide(true);
@@ -1010,10 +1038,7 @@ public class MainController {
         });
     }
 
-    /**
-     * Setup Ctrl+Scroll wheel zoom for a browser tab
-     * Also sets up mouse tracking for smooth navigation when zoomed
-     */
+
     private void setupScrollZoom(BrowserTab browserTab) {
         // Track mouse position for navigation when zoomed (viewport zoom only)
         // Use multiple event handlers to track mouse even over scrollbars
@@ -1122,10 +1147,7 @@ public class MainController {
         });
     }
 
-    /**
-     * Scroll the page to center on the mouse position when zoomed
-     * This is now handled by BrowserTab.scrollViewportSmooth()
-     */
+
     private void scrollToMousePosition(BrowserTab browserTab, double mouseX, double mouseY) {
         // Delegate to browser tab's viewport scroll
         double relX = mouseX / browserTab.getWidth();
@@ -1157,7 +1179,7 @@ public class MainController {
         dialog.setHeaderText("Save this page to your bookmarks");
 
         // Style the dialog
-        dialog.getDialogPane().setStyle("-fx-background-color: #ffffff;");
+        dialog.getDialogPane().getStyleClass().add("custom-dialog");
 
         ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
@@ -1171,17 +1193,17 @@ public class MainController {
         TextField titleField = new TextField(title);
         titleField.setPromptText("Bookmark name");
         titleField.setPrefWidth(300);
-        titleField.setStyle("-fx-background-radius: 6; -fx-padding: 8 12;");
+        titleField.getStyleClass().add("dialog-field");
 
         TextField urlField = new TextField(url);
         urlField.setPromptText("URL");
-        urlField.setStyle("-fx-background-radius: 6; -fx-padding: 8 12;");
+        urlField.getStyleClass().add("dialog-field");
 
         // Folder selection
         ComboBox<com.example.nexus.model.BookmarkFolder> folderCombo = new ComboBox<>();
         folderCombo.setPromptText("Select folder (optional)");
         folderCombo.setPrefWidth(300);
-        folderCombo.setStyle("-fx-background-radius: 6;");
+        folderCombo.getStyleClass().add("dialog-field");
 
         // Add "No folder" option first
         folderCombo.getItems().add(null);
@@ -1206,7 +1228,7 @@ public class MainController {
         // Add new folder button
         Button newFolderBtn = new Button("New Folder");
         newFolderBtn.setGraphic(new FontIcon("mdi2f-folder-plus"));
-        newFolderBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #0d6efd; -fx-cursor: hand;");
+        newFolderBtn.getStyleClass().add("bookmark-new-folder-btn");
         newFolderBtn.setOnAction(e -> {
             TextInputDialog folderDialog = new TextInputDialog();
             folderDialog.setTitle("New Folder");
@@ -1241,8 +1263,7 @@ public class MainController {
         dialog.getDialogPane().setContent(grid);
 
         // Style the save button
-        dialog.getDialogPane().lookupButton(saveButtonType).setStyle(
-            "-fx-background-color: #0d6efd; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 20;");
+        dialog.getDialogPane().lookupButton(saveButtonType).getStyleClass().add("dialog-save-button");
 
         dialog.setResultConverter(buttonType -> {
             if (buttonType == saveButtonType) {
@@ -1333,7 +1354,40 @@ public class MainController {
 
     @FXML
     public void handleShowDownloads() {
-        showNotImplementedAlert("Downloads");
+        try {
+            DownloadController downloadController = container.getOrCreate(DownloadController.class);
+            boolean isDarkTheme = "dark".equals(settingsService.getTheme()) || ("system".equals(settingsService.getTheme()) && settingsController.isSystemDark());
+            DownloadManagerPanel panel = new DownloadManagerPanel(container, downloadController, isDarkTheme);
+            panel.show();
+        } catch (Exception e) {
+            logger.error("Error opening download manager panel", e);
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setHeaderText("Failed to open Download Manager");
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
+        }
+    }
+
+    @FXML
+    public void handleDownloadsButtonClicked() {
+        try {
+            if (downloadDropdown != null && downloadsButton != null && downloadsButton.getScene() != null) {
+                Bounds b = downloadsButton.localToScene(downloadsButton.getBoundsInLocal());
+                Window w = downloadsButton.getScene().getWindow();
+                // Toggle: hide if already showing
+                if (downloadDropdown.isShowing()) {
+                    downloadDropdown.hide();
+                } else {
+                    downloadDropdown.showNear(w, b);
+                }
+            } else {
+                handleShowDownloads();
+            }
+        } catch (Exception e) {
+            logger.warn("Error showing download dropdown", e);
+            handleShowDownloads();
+        }
     }
 
     @FXML
@@ -1429,37 +1483,26 @@ public class MainController {
         }
     }
 
-    /**
-     * Apply theme to the browser - delegates to settings controller
-     */
+
     private void applyTheme(String theme) {
         settingsController.applyTheme(theme);
     }
 
-    /**
-     * Apply interface settings - delegates to settings controller
-     */
     public void applyInterfaceSettings() {
         settingsController.applyInterfaceSettings();
     }
 
-    /**
-     * Detect system theme preference - delegates to settings controller
-     */
+
     private String detectSystemTheme() {
         return settingsController.detectSystemTheme();
     }
 
-    /**
-     * Apply accent color to UI elements - delegates to settings controller
-     */
+
     private void applyAccentColor(String accentColor) {
         settingsController.applyAccentColor(accentColor);
     }
 
-    /**
-     * Apply font size to UI elements - delegates to settings controller
-     */
+
     private void applyFontSize(int fontSize) {
         settingsController.applyFontSize(fontSize);
     }
@@ -1563,10 +1606,7 @@ public class MainController {
         }
     }
 
-    /**
-     * Toggle dark mode for web pages (like Dark Reader)
-     * Shortcut: Ctrl+Shift+D
-     */
+
     public void toggleWebPageDarkMode() {
         BrowserTab currentTab = getCurrentBrowserTab();
         if (currentTab != null) {
@@ -1596,6 +1636,26 @@ public class MainController {
                 tabService.saveTab(sessionTab);
             }
         }
+    }
+
+    private void updateDownloadsBadge() {
+        try {
+            var ds = container.getOrCreate(com.example.nexus.service.DownloadService.class);
+            long active = ds.getAllDownloads().stream().filter(d -> "downloading".equals(d.getStatus())).count();
+            javafx.application.Platform.runLater(() -> {
+                if (downloadsButton != null) {
+                    if (active > 0) {
+                        downloadsButton.setText(String.valueOf(active));
+                        downloadsButton.getStyleClass().remove("badge-hidden");
+                        downloadsButton.getStyleClass().add("badge-visible");
+                    } else {
+                        downloadsButton.setText("");
+                        downloadsButton.getStyleClass().remove("badge-visible");
+                        downloadsButton.getStyleClass().add("badge-hidden");
+                    }
+                }
+            });
+        } catch (Exception ignored) {}
     }
 }
 

@@ -116,7 +116,9 @@ public class HistoryPanel extends Stage {
     private void initializeUI() {
         BorderPane root = new BorderPane();
         root.getStyleClass().add("history-panel");
-        root.setStyle("-fx-background-color: " + getBgPrimary() + ";");
+        // expose theme colors as CSS variables for this root
+        root.setStyle(String.format("--bg-primary: %s; --bg-secondary: %s; --border-color: %s; --text-primary: %s; --text-muted: %s;",
+            getBgPrimary(), getBgSecondary(), getBorderColor(), getTextPrimary(), getTextMuted()));
 
         // Header
         root.setTop(createHeader());
@@ -124,7 +126,8 @@ public class HistoryPanel extends Stage {
         // Content
         contentBox = new VBox(10);
         contentBox.setPadding(new Insets(15));
-        contentBox.setStyle("-fx-background-color: " + getBgSecondary() + ";");
+        contentBox.getStyleClass().add("history-content");
+        contentBox.setStyle(String.format("--bg-secondary: %s;", getBgSecondary()));
 
         // History list
         historyListView = createHistoryListView();
@@ -178,8 +181,7 @@ public class HistoryPanel extends Stage {
         clearIcon.setIconSize(16);
         clearIcon.setIconColor(Color.WHITE);
         clearAllBtn.setGraphic(clearIcon);
-        clearAllBtn.getStyleClass().add("danger-button");
-        clearAllBtn.setStyle("-fx-background-color: #dc3545; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 16;");
+        clearAllBtn.getStyleClass().addAll("danger-button");
         clearAllBtn.setOnAction(e -> clearAllHistory());
 
         titleRow.getChildren().addAll(historyIcon, titleLabel, spacer, clearAllBtn);
@@ -196,12 +198,16 @@ public class HistoryPanel extends Stage {
         searchField = new TextField();
         searchField.setPromptText("Search history by title or URL...");
         searchField.setPrefWidth(400);
-        searchField.setStyle("-fx-background-color: " + searchBgNormal + "; -fx-background-radius: 24; -fx-padding: 10 16; -fx-border-color: transparent; -fx-text-fill: " + getTextPrimary() + ";");
+        searchField.getStyleClass().add("search-field");
+        searchField.setStyle(String.format("--search-bg-normal: %s; --search-bg-focused: %s; --search-border-focused: %s; --text-primary: %s;", searchBgNormal, searchBgFocused, searchBorderFocused, getTextPrimary()));
+        // Toggle focus pseudo-class via style class
         searchField.focusedProperty().addListener((obs, oldVal, focused) -> {
             if (focused) {
-                searchField.setStyle("-fx-background-color: " + searchBgFocused + "; -fx-background-radius: 24; -fx-padding: 10 16; -fx-border-color: " + searchBorderFocused + "; -fx-border-width: 2; -fx-border-radius: 24; -fx-text-fill: " + getTextPrimary() + ";");
+                if (!searchField.getStyleClass().contains("search-focused")) {
+                    searchField.getStyleClass().add("search-focused");
+                }
             } else {
-                searchField.setStyle("-fx-background-color: " + searchBgNormal + "; -fx-background-radius: 24; -fx-padding: 10 16; -fx-border-color: transparent; -fx-text-fill: " + getTextPrimary() + ";");
+                searchField.getStyleClass().remove("search-focused");
             }
         });
 
@@ -211,7 +217,8 @@ public class HistoryPanel extends Stage {
 
         HBox searchBox = new HBox(10);
         searchBox.setAlignment(Pos.CENTER_LEFT);
-        searchBox.setStyle("-fx-background-color: " + searchBgNormal + "; -fx-background-radius: 24; -fx-padding: 2 10 2 15;");
+        searchBox.getStyleClass().add("search-box");
+        searchBox.setStyle(String.format("--search-bg-normal: %s;", searchBgNormal));
         searchBox.getChildren().addAll(searchIcon, searchField);
         HBox.setHgrow(searchField, Priority.ALWAYS);
         HBox.setHgrow(searchBox, Priority.ALWAYS);
