@@ -11,8 +11,6 @@ import java.util.List;
 import com.example.nexus.view.components.DownloadDropdown;
 import javafx.scene.control.Button;
 import com.example.nexus.core.DIContainer;
-import com.example.nexus.service.SettingsService;
-import com.example.nexus.controller.SettingsController;
 import com.example.nexus.view.components.DownloadManagerPanel;
 
 public class DownloadController {
@@ -68,41 +66,6 @@ public class DownloadController {
         }
     }
 
-    public void pauseDownload(int downloadId) {
-        try {
-            downloadService.pauseDownload(downloadId);
-            logger.info("Paused download: {}", downloadId);
-        } catch (Exception e) {
-            logger.error("Error pausing download: {}", downloadId, e);
-        }
-    }
-
-    public void resumeDownload(int downloadId) {
-        try {
-            downloadService.resumeDownload(downloadId);
-            logger.info("Resumed download: {}", downloadId);
-        } catch (Exception e) {
-            logger.error("Error resuming download: {}", downloadId, e);
-        }
-    }
-
-    public void retryDownload(int downloadId) {
-        try {
-            downloadService.retryDownload(downloadId);
-            logger.info("Retrying download: {}", downloadId);
-        } catch (Exception e) {
-            logger.error("Error retrying download: {}", downloadId, e);
-        }
-    }
-
-    public void cancelDownload(int downloadId) {
-        try {
-            downloadService.cancelDownload(downloadId);
-            logger.info("Cancelled download: {}", downloadId);
-        } catch (Exception e) {
-            logger.error("Error cancelling download: {}", downloadId, e);
-        }
-    }
 
     public List<Download> getAllDownloads() {
         return downloadService.getAllDownloads();
@@ -157,9 +120,6 @@ public class DownloadController {
         }
     }
 
-    public String getDownloadPath() {
-        return settingsService.getDownloadPath();
-    }
 
     public boolean shouldAskDownloadLocation() {
         return settingsService.isAskDownloadLocation();
@@ -234,27 +194,23 @@ public class DownloadController {
         return downloadDropdown;
     }
 
-    public void showDownloadManagerPanel(DIContainer container, SettingsService settingsService, SettingsController settingsController) {
-        boolean isDarkTheme = false;
-        if (settingsService != null && settingsController != null) {
-            isDarkTheme = "dark".equals(settingsService.getTheme()) || ("system".equals(settingsService.getTheme()) && settingsController.isSystemDark());
-        }
-        DownloadManagerPanel panel = new DownloadManagerPanel(container, this, isDarkTheme);
-        panel.show();
+    public void showDownloadManagerPanel(DIContainer container, SettingsService settingsService, com.example.nexus.controller.SettingsController settingsController) {
+        showDownloadManagerPanel(container, settingsService, settingsController, null);
     }
 
-    public void showDownloadManagerPanel(DIContainer container, SettingsService settingsService, SettingsController settingsController, com.example.nexus.util.KeyboardShortcutManager shortcutManager) {
+    public void showDownloadManagerPanel(DIContainer container, SettingsService settingsService, com.example.nexus.controller.SettingsController settingsController, com.example.nexus.util.KeyboardShortcutManager shortcutManager) {
         boolean isDarkTheme = false;
         if (settingsService != null && settingsController != null) {
             isDarkTheme = "dark".equals(settingsService.getTheme()) || ("system".equals(settingsService.getTheme()) && settingsController.isSystemDark());
         }
         DownloadManagerPanel panel = new DownloadManagerPanel(container, this, isDarkTheme);
         panel.show();
-        try {
-            if (shortcutManager != null && panel.getScene() != null) {
+
+        if (shortcutManager != null && panel.getScene() != null) {
+            try {
                 shortcutManager.setupForScene(panel.getScene());
-            }
-        } catch (Exception ignored) {}
+            } catch (Exception ignored) {}
+        }
     }
 
     public void toggleDownloadDropdown(DownloadDropdown downloadDropdown, Button downloadsButton) {

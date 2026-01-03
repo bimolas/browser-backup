@@ -13,7 +13,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
-public class HistoryService implements IHistoryService {
+public class HistoryService {
     private static final Logger logger = LoggerFactory.getLogger(HistoryService.class);
 
     private final HistoryRepository historyRepository;
@@ -22,7 +22,6 @@ public class HistoryService implements IHistoryService {
         this.historyRepository = container.getOrCreate(HistoryRepository.class);
     }
 
-    @Override
     public List<HistoryEntry> getAllHistory() {
         try {
             return historyRepository.findAll();
@@ -33,18 +32,7 @@ public class HistoryService implements IHistoryService {
         }
     }
 
-    @Override
-    public Optional<HistoryEntry> getHistoryEntry(int id) {
-        try {
-            return Optional.ofNullable(historyRepository.findById(id));
-        } catch (Exception e) {
-            logger.error("Error retrieving history entry with ID: " + id, e);
-            throw new BrowserException(BrowserException.ErrorCode.HISTORY_NOT_FOUND,
-                "Failed to retrieve history entry", e);
-        }
-    }
 
-    @Override
     public HistoryEntry addToHistory(String url, String title, String faviconUrl) {
         if (url == null || url.trim().isEmpty()) {
             throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT,
@@ -83,33 +71,11 @@ public class HistoryService implements IHistoryService {
         }
     }
 
-    @Override
     public HistoryEntry addToHistory(String url, String title) {
         return addToHistory(url, title, null);
     }
 
-    public void addToHistory(String url, String title, boolean ignored) {
-        addToHistory(url, title);
-    }
 
-    @Override
-    public void updateHistoryEntry(HistoryEntry entry) {
-        if (entry == null) {
-            throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT,
-                "History entry cannot be null");
-        }
-
-        try {
-            historyRepository.update(entry);
-            logger.info("Updated history entry: " + entry.getUrl());
-        } catch (Exception e) {
-            logger.error("Error updating history entry", e);
-            throw new BrowserException(BrowserException.ErrorCode.HISTORY_SAVE_ERROR,
-                "Failed to update history entry", e);
-        }
-    }
-
-    @Override
     public void deleteHistoryEntry(int id) {
         try {
             historyRepository.delete(id);
@@ -121,7 +87,6 @@ public class HistoryService implements IHistoryService {
         }
     }
 
-    @Override
     public void clearHistory() {
         try {
             historyRepository.clearAll();
@@ -133,7 +98,6 @@ public class HistoryService implements IHistoryService {
         }
     }
 
-    @Override
     public List<HistoryEntry> searchHistory(String query) {
         if (query == null || query.trim().isEmpty()) {
             return getAllHistory();
@@ -148,7 +112,6 @@ public class HistoryService implements IHistoryService {
         }
     }
 
-    @Override
     public List<HistoryEntry> getHistoryByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         if (startDate == null || endDate == null) {
             throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT,
@@ -164,7 +127,6 @@ public class HistoryService implements IHistoryService {
         }
     }
 
-    @Override
     public List<HistoryEntry> getTodayHistory() {
         LocalDate today = LocalDate.now();
         return getHistoryByDateRange(
@@ -173,16 +135,7 @@ public class HistoryService implements IHistoryService {
         );
     }
 
-    @Override
-    public List<HistoryEntry> getYesterdayHistory() {
-        LocalDate yesterday = LocalDate.now().minusDays(1);
-        return getHistoryByDateRange(
-            yesterday.atStartOfDay(),
-            yesterday.atTime(LocalTime.MAX)
-        );
-    }
 
-    @Override
     public List<HistoryEntry> getThisWeekHistory() {
         LocalDate today = LocalDate.now();
         LocalDate weekStart = today.minusDays(today.getDayOfWeek().getValue() - 1);
@@ -192,7 +145,6 @@ public class HistoryService implements IHistoryService {
         );
     }
 
-    @Override
     public List<HistoryEntry> getThisMonthHistory() {
         LocalDate today = LocalDate.now();
         LocalDate monthStart = today.withDayOfMonth(1);
@@ -200,44 +152,5 @@ public class HistoryService implements IHistoryService {
             monthStart.atStartOfDay(),
             today.atTime(LocalTime.MAX)
         );
-    }
-
-    @Override
-    public List<HistoryEntry> getMostVisited(int limit) {
-        if (limit <= 0) {
-            limit = 10;
-        }
-
-        try {
-            return historyRepository.findMostVisited(limit);
-        } catch (Exception e) {
-            logger.error("Error retrieving most visited history entries", e);
-            throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR,
-                "Failed to retrieve most visited sites", e);
-        }
-    }
-
-    @Override
-    public boolean existsInHistory(String url) {
-        if (url == null || url.trim().isEmpty()) {
-            return false;
-        }
-
-        try {
-            return historyRepository.existsByUrl(url);
-        } catch (Exception e) {
-            logger.error("Error checking history existence for URL: " + url, e);
-            return false;
-        }
-    }
-
-    @Override
-    public int getHistoryCount() {
-        try {
-            return historyRepository.count();
-        } catch (Exception e) {
-            logger.error("Error counting history entries", e);
-            return 0;
-        }
     }
 }
