@@ -4,8 +4,7 @@ import com.example.nexus.core.DIContainer;
 import com.example.nexus.model.Tab;
 import com.example.nexus.controller.DownloadController;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
+import javafx.beans.property.*;
 import javafx.concurrent.Worker;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
@@ -29,10 +28,6 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 
-/**
- * A JavaFX browser tab component using JavaFX WebView.
- * This provides a fully embedded browser experience within the JavaFX application.
- */
 public class BrowserTab extends BorderPane {
     private static final Logger logger = LoggerFactory.getLogger(BrowserTab.class);
 
@@ -47,17 +42,16 @@ public class BrowserTab extends BorderPane {
     private final StringProperty titleProperty = new SimpleStringProperty("New Tab");
     private final StringProperty urlProperty = new SimpleStringProperty("");
     private final StringProperty faviconUrlProperty = new SimpleStringProperty("");
+    private final BooleanProperty loadingProperty = new SimpleBooleanProperty(false);
+    private final DoubleProperty zoomProperty = new SimpleDoubleProperty(1.0);
     private Tab tabModel;
     private boolean disposed = false;
 
-    // Viewport zoom level (magnifier style)
     private double viewportZoom = 1.0;
 
-    // Dark mode for web pages (like Dark Reader)
     private boolean webPageDarkMode = false;
-    private static boolean globalDarkModeEnabled = false;  // Global setting for all tabs
+    private static boolean globalDarkModeEnabled = false;
 
-    // Keep references to listeners so they can be removed on dispose
     private ChangeListener<javafx.geometry.Bounds> viewportBoundsListener;
     private ChangeListener<String> titleChangeListener;
     private ChangeListener<String> locationChangeListener;
@@ -68,32 +62,33 @@ public class BrowserTab extends BorderPane {
     public BrowserTab(DIContainer container, String url) {
         this.container = container;
 
-        // Create WebView with optimized settings
         this.webView = new WebView();
         this.webEngine = webView.getEngine();
 
-        // Enable caching and optimize WebView performance
         webView.setCache(true);
         webView.setContextMenuEnabled(true);
 
-        // Configure WebEngine for better compatibility and speed
         webEngine.setJavaScriptEnabled(true);
 
-        // Set a modern user agent to improve site compatibility
         String userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
         webEngine.setUserAgent(userAgent);
 
-        // Create loading bar
+        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            loadingProperty.set(newState == Worker.State.RUNNING || newState == Worker.State.SCHEDULED);
+        });
+
+        webView.zoomProperty().addListener((obs, oldZoom, newZoom) -> {
+            zoomProperty.set(newZoom.doubleValue());
+        });
+
         this.loadingBar = new ProgressBar();
         loadingBar.setMaxWidth(Double.MAX_VALUE);
         loadingBar.setPrefHeight(3);
         loadingBar.setVisible(false);
         loadingBar.setStyle("-fx-accent: #4285f4;");
 
-        // Create zoom group to hold WebView - this enables viewport zooming
         this.zoomGroup = new javafx.scene.Group(webView);
 
-        // Create scroll pane for panning when zoomed in
         this.scrollPane = new ScrollPane(zoomGroup);
         scrollPane.setPannable(true);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
@@ -102,18 +97,14 @@ public class BrowserTab extends BorderPane {
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
 
-        // Create content pane
         this.contentPane = new StackPane(scrollPane);
         contentPane.setStyle("-fx-background-color: #ffffff;");
 
-        // Style the root
         this.setStyle("-fx-background-color: #ffffff;");
 
-        // Set up layout
         setTop(loadingBar);
         setCenter(contentPane);
 
-        // Bind WebView size to scroll pane viewport (keep reference so we can remove later)
         viewportBoundsListener = (obs, oldBounds, newBounds) -> {
             if (viewportZoom == 1.0) {
                 webView.setPrefWidth(newBounds.getWidth());
@@ -122,10 +113,8 @@ public class BrowserTab extends BorderPane {
         };
         scrollPane.viewportBoundsProperty().addListener(viewportBoundsListener);
 
-        // Setup WebEngine handlers (listeners are stored for removal)
         setupWebEngineHandlers();
 
-        // Handle popup windows
         webEngine.setCreatePopupHandler(config -> {
             WebView popupView = new WebView();
             popupView.getEngine().setJavaScriptEnabled(true);
@@ -133,10 +122,8 @@ public class BrowserTab extends BorderPane {
             return popupView.getEngine();
         });
 
-        // Handle JavaScript alerts
         webEngine.setOnAlert(event -> logger.info("JavaScript Alert: {}", event.getData()));
 
-        // Load initial URL
         if (url != null && !url.isEmpty()) {
             loadUrl(url);
         }
@@ -144,19 +131,29 @@ public class BrowserTab extends BorderPane {
         logger.info("BrowserTab created with URL: {}", url);
     }
 
+    public BooleanProperty loadingProperty() {
+        return loadingProperty;
+    }
+
+    public DoubleProperty zoomProperty() {
+        return zoomProperty;
+    }
+
+    public double getZoom() {
+        return zoomProperty.get();
+    }
     private void setupWebEngineHandlers() {
-        // Title changes
+
         titleChangeListener = (obs, oldTitle, newTitle) -> {
             Platform.runLater(() -> titleProperty.set(newTitle != null && !newTitle.isEmpty() ? newTitle : "New Tab"));
         };
         webEngine.titleProperty().addListener(titleChangeListener);
 
-        // URL/Location changes
         locationChangeListener = (obs, oldUrl, newUrl) -> {
             Platform.runLater(() -> {
                 try {
                     String urlStr = newUrl != null ? newUrl : "";
-                    // If this navigation targets a likely-downloadable resource, intercept and start download
+
                     if (urlStr != null && !urlStr.isEmpty()) {
                         String lower = urlStr.split("\\?")[0].toLowerCase();
                         if (lower.matches(".*\\.(zip|exe|msi|pdf|docx?|xlsx?|rar|7z|png|jpe?g|gif|bmp|webp)$")) {
@@ -164,15 +161,15 @@ public class BrowserTab extends BorderPane {
                                 String fileName = suggestFileNameFromUrl(urlStr);
                                 DownloadController dc = container.getOrCreate(DownloadController.class);
                                 dc.requestDownloadFromUI(urlStr, fileName);
-                                // Cancel loading the resource in the WebView to avoid trying to render binary data
+
                                 try { webEngine.getLoadWorker().cancel(); } catch (Exception ignore) {}
                                 logger.info("Intercepted navigation and started download: {}", urlStr);
-                                return; // do not update URL/favicons for this navigation
+                                return;
                             } catch (Exception ex) {
                                 logger.debug("Failed to start download for intercepted URL: {}", urlStr, ex);
                             }
                         } else {
-                            // For URLs without clear extension, perform a non-blocking HEAD check to detect downloads
+
                             java.util.concurrent.CompletableFuture.runAsync(() -> {
                                 HttpURLConnection conn = null;
                                 try {
@@ -193,17 +190,17 @@ public class BrowserTab extends BorderPane {
                                     if (disposition != null && (disposition.toLowerCase().contains("filename=") || disposition.toLowerCase().contains("filename*="))) looksLikeAttachment = true;
                                     if (contentType != null) {
                                         String ct = contentType.toLowerCase();
-                                        // Treat most non-html and non-image types as downloadable (application/* etc.)
+
                                         if (ct.startsWith("application/") || ct.startsWith("video/") || ct.startsWith("audio/") ) looksLikeAttachment = true;
-                                        // Some servers send octet-stream which is clearly a download
+
                                         if (ct.equals("application/octet-stream")) looksLikeAttachment = true;
                                     }
 
                                     if (looksLikeAttachment || code == HttpURLConnection.HTTP_OK && (contentType == null || !contentType.toLowerCase().contains("text/html"))) {
-                                        // Suggest filename from disposition or URL
+
                                         String suggested = null;
                                         if (disposition != null) {
-                                            // Try to extract filename
+
                                             java.util.regex.Matcher m = java.util.regex.Pattern.compile("filename\\*?=\\s*(?:\\\"?)(?:UTF-8'')?([^;\\\"]+)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(disposition);
                                             if (m.find()) {
                                                 suggested = m.group(1).trim().replaceAll("[\\\"]", "");
@@ -213,7 +210,7 @@ public class BrowserTab extends BorderPane {
                                         if (suggested == null || suggested.isEmpty()) suggested = suggestFileNameFromUrl(urlStr);
 
                                         final String fileName = suggested;
-                                        // Trigger download on FX thread
+
                                         javafx.application.Platform.runLater(() -> {
                                             try {
                                                 DownloadController dc = container.getOrCreate(DownloadController.class);
@@ -226,7 +223,7 @@ public class BrowserTab extends BorderPane {
                                         });
                                     }
                                 } catch (Exception e) {
-                                    // ignore HEAD failures (many hosts block HEAD)
+
                                     logger.debug("HEAD check failed for {}: {}", urlStr, e.getMessage());
                                 } finally {
                                     if (conn != null) conn.disconnect();
@@ -236,7 +233,7 @@ public class BrowserTab extends BorderPane {
                     }
 
                     urlProperty.set(newUrl != null ? newUrl : "");
-                    // Update favicon URL when location changes
+
                     updateFaviconUrl(newUrl);
                     logger.debug("Location changed to: {}", newUrl);
                 } catch (Exception e) {
@@ -246,7 +243,6 @@ public class BrowserTab extends BorderPane {
          };
          webEngine.locationProperty().addListener(locationChangeListener);
 
-        // Loading state
         stateChangeListener = (obs, oldState, newState) -> {
             Platform.runLater(() -> {
                 logger.debug("WebEngine state changed: {} -> {}", oldState, newState);
@@ -261,20 +257,20 @@ public class BrowserTab extends BorderPane {
                     }
                     case RUNNING -> {
                         loadingBar.setVisible(true);
-                        loadingBar.setProgress(-1); // Indeterminate
+                        loadingBar.setProgress(-1);
                     }
                     case SUCCEEDED -> {
                         loadingBar.setVisible(false);
                         loadingBar.setProgress(1.0);
-                        // Try to extract favicon from the page after load
+
                         extractFaviconFromPage();
-                        // Apply dark mode if enabled
+
                         reapplyDarkModeIfEnabled();
                         logger.info("Page loaded successfully: {}", webEngine.getLocation());
                     }
                     case CANCELLED -> {
                         loadingBar.setVisible(false);
-                        // Loading cancelled is normal for downloads/navigation cancellations; lower to debug to avoid info spam
+
                         logger.debug("Page load cancelled");
                     }
                     case FAILED -> {
@@ -290,7 +286,6 @@ public class BrowserTab extends BorderPane {
         };
         webEngine.getLoadWorker().stateProperty().addListener(stateChangeListener);
 
-        // Loading progress
         progressChangeListener = (obs, oldProgress, newProgress) -> {
             Platform.runLater(() -> {
                 double progress = newProgress.doubleValue();
@@ -303,7 +298,6 @@ public class BrowserTab extends BorderPane {
         };
         webEngine.getLoadWorker().progressProperty().addListener(progressChangeListener);
 
-        // Error handling
         exceptionChangeListener = (obs, oldEx, newEx) -> {
             if (newEx != null) {
                 logger.error("WebEngine exception: {}", newEx.getMessage(), newEx);
@@ -312,13 +306,9 @@ public class BrowserTab extends BorderPane {
         };
         webEngine.getLoadWorker().exceptionProperty().addListener(exceptionChangeListener);
 
-        // Handle document load errors via onError
         webEngine.setOnError(event -> logger.error("WebEngine error event: {}", event.getMessage()));
     }
 
-    /**
-     * Update the favicon URL based on the current page URL
-     */
     private void updateFaviconUrl(String pageUrl) {
         if (pageUrl == null || pageUrl.isEmpty()) {
             faviconUrlProperty.set("");
@@ -329,7 +319,7 @@ public class BrowserTab extends BorderPane {
             URI uri = new URI(pageUrl);
             String host = uri.getHost();
             if (host != null) {
-                // Use Google's favicon service as a reliable source
+
                 String faviconUrl = "https://www.google.com/s2/favicons?domain=" + host + "&sz=32";
                 faviconUrlProperty.set(faviconUrl);
             }
@@ -339,12 +329,9 @@ public class BrowserTab extends BorderPane {
         }
     }
 
-    /**
-     * Try to extract favicon URL from the page's HTML
-     */
     private void extractFaviconFromPage() {
         try {
-            // Try to find favicon link in the page
+
             String script = """
                 (function() {
                     var link = document.querySelector("link[rel*='icon']");
@@ -359,22 +346,17 @@ public class BrowserTab extends BorderPane {
                 faviconUrlProperty.set(result.toString());
             }
         } catch (Exception e) {
-            // Ignore - we'll use the Google favicon service fallback
+
             logger.debug("Could not extract favicon from page", e);
         }
     }
 
-    /**
-     * Get a snapshot/preview image of the current page
-     * Produces a downscaled image capped to 320x200 to avoid large memory usage
-     */
     public WritableImage getPreviewSnapshot() {
         if (disposed || webView == null) return null;
         try {
             double w = Math.max(1, webView.getWidth());
             double h = Math.max(1, webView.getHeight());
 
-            // Target cap
             final double MAX_W = 320;
             final double MAX_H = 200;
 
@@ -411,19 +393,16 @@ public class BrowserTab extends BorderPane {
         contentPane.getChildren().add(errorBox);
     }
 
-    // Public API methods
     public void loadUrl(String url) {
         if (disposed) return;
 
         String processedUrl = url;
 
-        // Add protocol if missing
         if (url != null && !url.isEmpty()) {
             String trimmedUrl = url.trim();
 
-            // Check if it's a search query or URL
             if (!trimmedUrl.contains(".") && !trimmedUrl.startsWith("http") && !trimmedUrl.startsWith("file")) {
-                // Treat as search query - use DuckDuckGo for privacy
+
                 processedUrl = "https://duckduckgo.com/?q=" + trimmedUrl.replace(" ", "+");
             } else if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://") &&
                 !trimmedUrl.startsWith("file://") && !trimmedUrl.startsWith("data:")) {
@@ -435,16 +414,14 @@ public class BrowserTab extends BorderPane {
 
         final String finalUrl = processedUrl;
 
-        // Show loading immediately for better UX
         Platform.runLater(() -> {
             loadingBar.setVisible(true);
             loadingBar.setProgress(-1);
         });
 
-        // Load URL in background to keep UI responsive
         Platform.runLater(() -> {
             try {
-                // Cancel any current loading first
+
                 if (webEngine.getLoadWorker().isRunning()) {
                     webEngine.getLoadWorker().cancel();
                 }
@@ -512,7 +489,7 @@ public class BrowserTab extends BorderPane {
         if (disposed) return;
         Platform.runLater(() -> {
             try {
-                // JavaFX WebView printing requires PrinterJob
+
                 javafx.print.PrinterJob job = javafx.print.PrinterJob.createPrinterJob();
                 if (job != null && job.showPrintDialog(webView.getScene().getWindow())) {
                     webEngine.print(job);
@@ -525,7 +502,7 @@ public class BrowserTab extends BorderPane {
     }
 
     public void print(boolean saveAsPdf, boolean printHeaders, boolean printBackground) {
-        // For JavaFX WebView, we use the standard print
+
         print();
     }
 
@@ -533,7 +510,7 @@ public class BrowserTab extends BorderPane {
         if (disposed || searchText == null || searchText.isEmpty()) return;
         Platform.runLater(() -> {
             try {
-                // Use JavaScript to find text
+
                 String script = String.format(
                     "window.find('%s', %b, %b, true, false, true, false);",
                     searchText.replace("'", "\\'"),
@@ -573,40 +550,30 @@ public class BrowserTab extends BorderPane {
         Platform.runLater(() -> webView.setZoom(1.0));
     }
 
-    /**
-     * Set zoom level using CSS zoom (makes elements bigger)
-     */
     public void setZoomLevel(double zoomLevel) {
         if (disposed) return;
         Platform.runLater(() -> webView.setZoom(zoomLevel));
     }
 
-    /**
-     * Set viewport zoom level (magnifier-style zoom) - zooms into the view
-     * This allows you to see details by zooming into a specific area
-     * @param zoomLevel The zoom level (1.0 = 100%, 2.0 = 200%, etc.)
-     */
     public void setViewportZoom(double zoomLevel) {
         if (disposed) return;
         this.viewportZoom = zoomLevel;
 
-        // Stop smooth scroll animation when zoom is reset
         if (zoomLevel <= 1.0) {
             stopSmoothScrollAnimation();
         }
 
         Platform.runLater(() -> {
-            // Apply scale transform to the WebView
+
             Scale scale = new Scale(zoomLevel, zoomLevel, 0, 0);
             webView.getTransforms().clear();
             webView.getTransforms().add(scale);
 
-            // Update scroll pane to handle the new size
             if (zoomLevel > 1.0) {
                 scrollPane.setFitToWidth(false);
                 scrollPane.setFitToHeight(false);
                 scrollPane.setPannable(true);
-                // Make scrollbars always visible when zoomed
+
                 scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
                 scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
             } else {
@@ -619,14 +586,10 @@ public class BrowserTab extends BorderPane {
         });
     }
 
-    /**
-     * Get current viewport zoom level
-     */
     public double getViewportZoom() {
         return viewportZoom;
     }
 
-    // Smooth scrolling state for edge-based navigation
     private double scrollSpeedX = 0;
     private double scrollSpeedY = 0;
     private javafx.animation.AnimationTimer scrollAnimator;
@@ -634,85 +597,65 @@ public class BrowserTab extends BorderPane {
     private double lastMouseX = 0.5;
     private double lastMouseY = 0.5;
 
-    /**
-     * Smooth scroll the viewport based on mouse position relative to edges
-     * Mouse near edges causes scrolling in that direction
-     * Works even when mouse is over scrollbars or outside the view
-     * @param relativeX Relative X position (0.0 to 1.0, can be outside this range)
-     * @param relativeY Relative Y position (0.0 to 1.0, can be outside this range)
-     */
     public void scrollViewportSmooth(double relativeX, double relativeY) {
         if (disposed || viewportZoom <= 1.0) return;
 
-        // Store last known position (even if outside bounds)
         lastMouseX = relativeX;
         lastMouseY = relativeY;
 
-        // Edge zone size (20% from each edge triggers scrolling)
         double edgeZone = 0.20;
 
-        // Base speed that increases with zoom level
         double baseSpeed = 0.025;
         double zoomBonus = Math.min((viewportZoom - 1.0) * 0.3, 1.0);
         double maxSpeed = baseSpeed * (1.0 + zoomBonus);
 
-        // Calculate horizontal scroll speed based on edge proximity
         if (relativeX < edgeZone) {
-            // Left edge - scroll left (negative)
+
             double intensity = 1.0 - (relativeX / edgeZone);
             scrollSpeedX = -maxSpeed * Math.pow(intensity, 1.3);
         } else if (relativeX > (1.0 - edgeZone)) {
-            // Right edge - scroll right (positive)
+
             double intensity = (relativeX - (1.0 - edgeZone)) / edgeZone;
             scrollSpeedX = maxSpeed * Math.pow(intensity, 1.3);
         } else if (relativeX <= 0) {
-            // Outside left - max scroll left
+
             scrollSpeedX = -maxSpeed * 1.5;
         } else if (relativeX >= 1.0) {
-            // Outside right - max scroll right
+
             scrollSpeedX = maxSpeed * 1.5;
         } else {
-            // In center - no horizontal scroll
+
             scrollSpeedX = 0;
         }
 
-        // Calculate vertical scroll speed based on edge proximity
         if (relativeY < edgeZone) {
-            // Top edge - scroll up (negative)
+
             double intensity = 1.0 - (relativeY / edgeZone);
             scrollSpeedY = -maxSpeed * Math.pow(intensity, 1.3);
         } else if (relativeY > (1.0 - edgeZone)) {
-            // Bottom edge - scroll down (positive)
+
             double intensity = (relativeY - (1.0 - edgeZone)) / edgeZone;
             scrollSpeedY = maxSpeed * Math.pow(intensity, 1.3);
         } else if (relativeY <= 0) {
-            // Outside top - max scroll up
+
             scrollSpeedY = -maxSpeed * 1.5;
         } else if (relativeY >= 1.0) {
-            // Outside bottom - max scroll down
+
             scrollSpeedY = maxSpeed * 1.5;
         } else {
-            // In center - no vertical scroll
+
             scrollSpeedY = 0;
         }
 
-        // Start animation if there's any scroll speed and not already running
         if ((scrollSpeedX != 0 || scrollSpeedY != 0) && !scrollAnimatorRunning) {
             startSmoothScrollAnimation();
         }
     }
 
-    /**
-     * Update scroll with last known mouse position
-     * Called when mouse tracking is active to continue scrolling
-     */
     public void updateScrollFromLastPosition() {
         scrollViewportSmooth(lastMouseX, lastMouseY);
     }
 
-    /**
-     * Start smooth scroll animation using AnimationTimer for 60fps updates
-     */
     private void startSmoothScrollAnimation() {
         if (scrollAnimator != null) {
             scrollAnimator.stop();
@@ -729,28 +672,23 @@ public class BrowserTab extends BorderPane {
                     return;
                 }
 
-                // Limit updates to ~60fps for consistent speed
                 if (lastUpdate > 0 && (now - lastUpdate) < 16_000_000) {
                     return;
                 }
                 lastUpdate = now;
 
-                // Apply scroll speeds
                 double currentH = scrollPane.getHvalue();
                 double currentV = scrollPane.getVvalue();
 
                 double newH = currentH + scrollSpeedX;
                 double newV = currentV + scrollSpeedY;
 
-                // Clamp to valid range
                 newH = Math.max(0, Math.min(1, newH));
                 newV = Math.max(0, Math.min(1, newV));
 
-                // Apply scroll
                 scrollPane.setHvalue(newH);
                 scrollPane.setVvalue(newV);
 
-                // Stop if no movement needed
                 if (scrollSpeedX == 0 && scrollSpeedY == 0) {
                     stopSmoothScrollAnimation();
                 }
@@ -759,9 +697,6 @@ public class BrowserTab extends BorderPane {
         scrollAnimator.start();
     }
 
-    /**
-     * Stop smooth scroll animation
-     */
     public void stopSmoothScrollAnimation() {
         scrollAnimatorRunning = false;
         scrollSpeedX = 0;
@@ -772,9 +707,6 @@ public class BrowserTab extends BorderPane {
         }
     }
 
-    /**
-     * Scroll viewport to specific position (0-1 range)
-     */
     public void scrollViewportTo(double relativeX, double relativeY) {
         if (disposed || viewportZoom <= 1.0) return;
 
@@ -784,22 +716,17 @@ public class BrowserTab extends BorderPane {
         });
     }
 
-    /**
-     * Get the scroll pane for external zoom control
-     */
     public ScrollPane getScrollPane() {
         return scrollPane;
     }
 
     public void showDevTools() {
-        // JavaFX WebView doesn't have built-in dev tools
-        // We could show a simple inspector dialog
+
         logger.info("Developer tools not available in WebView mode");
     }
 
     public void showDevTools(String mode) {
-        // JavaFX WebView doesn't have built-in dev tools
-        // mode parameter is ignored since WebView doesn't support docking
+
         logger.info("Developer tools not available in WebView mode (mode: {})", mode);
     }
 
@@ -855,11 +782,6 @@ public class BrowserTab extends BorderPane {
         return webEngine;
     }
 
-    /**
-     * Execute JavaScript in the current page
-     * @param script The JavaScript code to execute
-     * @return The result of the script execution, or null if failed
-     */
     public Object executeScript(String script) {
         if (disposed || script == null || script.isEmpty()) return null;
         try {
@@ -874,10 +796,8 @@ public class BrowserTab extends BorderPane {
         if (disposed) return;
         disposed = true;
 
-        // Stop smooth scroll animation
         stopSmoothScrollAnimation();
 
-        // Remove all listeners we attached
         try {
             if (viewportBoundsListener != null) scrollPane.viewportBoundsProperty().removeListener(viewportBoundsListener);
             if (titleChangeListener != null) webEngine.titleProperty().removeListener(titleChangeListener);
@@ -889,7 +809,6 @@ public class BrowserTab extends BorderPane {
             logger.debug("Error removing listeners during dispose", e);
         }
 
-        // Clear event handlers and references
         try {
             this.setOnMouseMoved(null);
             this.setOnMouseDragged(null);
@@ -904,7 +823,6 @@ public class BrowserTab extends BorderPane {
             webEngine.setOnError(null);
             webEngine.setCreatePopupHandler(null);
 
-            // Cancel any running loads and clear content
             try {
                 webEngine.getLoadWorker().cancel();
             } catch (Exception ignore) {}
@@ -923,11 +841,6 @@ public class BrowserTab extends BorderPane {
         logger.info("BrowserTab disposed");
     }
 
-    // ==================== Dark Mode for Web Pages (Dark Reader-like) ====================
-
-    /**
-     * Dark mode CSS that inverts colors intelligently - similar to Dark Reader
-     */
     private static final String DARK_MODE_CSS = """
         html {
             filter: invert(90%) hue-rotate(180deg) !important;
@@ -945,9 +858,6 @@ public class BrowserTab extends BorderPane {
 
 """;
 
-    /**
-     * Alternative dark mode using background/text color changes (less aggressive)
-     */
     private static final String DARK_MODE_CSS_SOFT = """
         :root {
             color-scheme: dark !important;
@@ -977,28 +887,18 @@ public class BrowserTab extends BorderPane {
         }
         """;
 
-    /**
-     * Enable dark mode on the current web page
-     * Uses CSS injection to create a Dark Reader-like experience
-     */
     public void enableWebPageDarkMode() {
         if (disposed) return;
         webPageDarkMode = true;
         injectDarkModeCSS();
     }
 
-    /**
-     * Disable dark mode on the current web page
-     */
     public void disableWebPageDarkMode() {
         if (disposed) return;
         webPageDarkMode = false;
         removeDarkModeCSS();
     }
 
-    /**
-     * Toggle dark mode on the current web page
-     */
     public void toggleWebPageDarkMode() {
         if (webPageDarkMode) {
             disableWebPageDarkMode();
@@ -1007,30 +907,18 @@ public class BrowserTab extends BorderPane {
         }
     }
 
-    /**
-     * Check if dark mode is enabled for this tab
-     */
     public boolean isWebPageDarkModeEnabled() {
         return webPageDarkMode;
     }
 
-    /**
-     * Set global dark mode for all new tabs
-     */
     public static void setGlobalDarkModeEnabled(boolean enabled) {
         globalDarkModeEnabled = enabled;
     }
 
-    /**
-     * Check if global dark mode is enabled
-     */
     public static boolean isGlobalDarkModeEnabled() {
         return globalDarkModeEnabled;
     }
 
-    /**
-     * Inject dark mode CSS into the current page
-     */
     private void injectDarkModeCSS() {
         if (disposed) return;
 
@@ -1047,7 +935,7 @@ public class BrowserTab extends BorderPane {
                         // Remove existing dark mode style if any
                         var existing = document.getElementById('nexus-dark-mode');
                         if (existing) existing.remove();
-                        
+
                         // Create and inject dark mode style
                         var style = document.createElement('style');
                         style.id = 'nexus-dark-mode';
@@ -1066,9 +954,6 @@ public class BrowserTab extends BorderPane {
         });
     }
 
-    /**
-     * Remove dark mode CSS from the current page
-     */
     private void removeDarkModeCSS() {
         if (disposed) return;
 
@@ -1090,13 +975,10 @@ public class BrowserTab extends BorderPane {
         });
     }
 
-    /**
-     * Re-inject dark mode CSS if enabled (called after page navigation)
-     */
     private void reapplyDarkModeIfEnabled() {
         if (webPageDarkMode || globalDarkModeEnabled) {
             webPageDarkMode = true;
-            // Small delay to ensure page is ready
+
             javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(100));
             delay.setOnFinished(e -> injectDarkModeCSS());
             delay.play();
@@ -1113,7 +995,7 @@ public class BrowserTab extends BorderPane {
                 return java.net.URLDecoder.decode(last, java.nio.charset.StandardCharsets.UTF_8);
             }
         } catch (Exception e) {
-            // fallback
+
         }
         return "download";
     }

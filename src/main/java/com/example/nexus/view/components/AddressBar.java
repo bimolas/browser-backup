@@ -25,33 +25,28 @@ public class AddressBar extends HBox {
         this.bookmarkService = container.getOrCreate(BookmarkService.class);
         this.historyService = container.getOrCreate(HistoryService.class);
 
-        // Create the address field
         addressField = new TextField();
         addressField.setPromptText("Search or enter address");
         addressField.getStyleClass().add("address-bar");
 
-        // Create the suggestion combo box
         suggestionComboBox = new ComboBox<>();
         suggestionComboBox.setVisible(false);
         suggestionComboBox.setManaged(false);
         suggestionComboBox.getStyleClass().add("suggestion-box");
 
-        // Set up the layout
         getChildren().addAll(addressField, suggestionComboBox);
         HBox.setHgrow(addressField, javafx.scene.layout.Priority.ALWAYS);
 
-        // Set up event handlers
         setupEventHandlers();
 
         logger.debug("Address bar initialized");
     }
 
     private void setupEventHandlers() {
-        // Handle key events
+
         addressField.setOnKeyPressed(this::handleKeyPressed);
         addressField.setOnKeyReleased(this::handleKeyReleased);
 
-        // Handle text changes
         addressField.textProperty().addListener((obs, oldVal, newVal) -> {
             if (!newVal.isEmpty()) {
                 updateSuggestions(newVal);
@@ -60,7 +55,6 @@ public class AddressBar extends HBox {
             }
         });
 
-        // Handle suggestion selection
         suggestionComboBox.setOnAction(e -> {
             String selected = suggestionComboBox.getSelectionModel().getSelectedItem();
             if (selected != null) {
@@ -69,7 +63,6 @@ public class AddressBar extends HBox {
             }
         });
 
-        // Handle focus events
         addressField.focusedProperty().addListener((obs, oldVal, newVal) -> {
             if (!newVal) {
                 hideSuggestions();
@@ -119,17 +112,14 @@ public class AddressBar extends HBox {
     private void updateSuggestions(String query) {
         ObservableList<String> suggestions = FXCollections.observableArrayList();
 
-        // Add matching bookmarks
         bookmarkService.searchBookmarks(query).forEach(bookmark -> {
             suggestions.add(bookmark.getUrl());
         });
 
-        // Add matching history
         historyService.searchHistory(query).forEach(entry -> {
             suggestions.add(entry.getUrl());
         });
 
-        // Update the combo box
         suggestionComboBox.setItems(suggestions);
 
         if (!suggestions.isEmpty()) {
@@ -143,7 +133,6 @@ public class AddressBar extends HBox {
         suggestionComboBox.setVisible(true);
         suggestionComboBox.setManaged(true);
 
-        // Position the suggestion box below the address field
         suggestionComboBox.setLayoutX(addressField.getLayoutX());
         suggestionComboBox.setLayoutY(addressField.getLayoutY() + addressField.getHeight());
         suggestionComboBox.setPrefWidth(addressField.getWidth());

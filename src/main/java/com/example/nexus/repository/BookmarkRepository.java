@@ -1,6 +1,5 @@
 package com.example.nexus.repository;
 
-
 import com.example.nexus.model.Bookmark;
 import com.example.nexus.util.DatabaseManager;
 
@@ -101,7 +100,7 @@ public class BookmarkRepository extends BaseRepository<Bookmark> {
                 "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement stmt = getConnection().prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
-            stmt.setInt(1, 1); // Default user ID
+            stmt.setInt(1, 1);
             stmt.setString(2, bookmark.getTitle());
             stmt.setString(3, bookmark.getUrl());
             stmt.setString(4, bookmark.getFaviconUrl());
@@ -134,7 +133,7 @@ public class BookmarkRepository extends BaseRepository<Bookmark> {
     @Override
     public void update(Bookmark bookmark) {
         String sql = """
-            UPDATE bookmarks SET title = ?, url = ?, favicon_url = ?, folder_id = ?, 
+            UPDATE bookmarks SET title = ?, url = ?, favicon_url = ?, folder_id = ?,
             position = ?, is_favorite = ?, description = ?, tags = ?, updated_at = ?
             WHERE id = ?
             """;
@@ -298,36 +297,35 @@ public class BookmarkRepository extends BaseRepository<Bookmark> {
         }
 
         bookmark.setPosition(rs.getInt("position"));
-        
-        // Handle new fields with graceful fallback for older schema
+
         try {
             bookmark.setFavorite(rs.getInt("is_favorite") == 1);
         } catch (SQLException ignored) {
             bookmark.setFavorite(false);
         }
-        
+
         try {
             bookmark.setDescription(rs.getString("description"));
         } catch (SQLException ignored) {}
-        
+
         try {
             bookmark.setTags(rs.getString("tags"));
         } catch (SQLException ignored) {}
-        
+
         try {
             java.sql.Timestamp createdAt = rs.getTimestamp("created_at");
             if (createdAt != null) {
                 bookmark.setCreatedAt(createdAt.toLocalDateTime());
             }
         } catch (SQLException ignored) {}
-        
+
         try {
             java.sql.Timestamp updatedAt = rs.getTimestamp("updated_at");
             if (updatedAt != null) {
                 bookmark.setUpdatedAt(updatedAt.toLocalDateTime());
             }
         } catch (SQLException ignored) {}
-        
+
         return bookmark;
     }
 }

@@ -8,29 +8,15 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.util.concurrent.*;
 
-/**
- * Responsible for schema creation and one-time migration from older project DBs.
- * Keeps SQL and file-copy logic out of DatabaseManager.
- *
- * Changes: schema init is fast and synchronous; heavy migration runs asynchronously
- * with a timeout and file-size safeguard so app startup isn't blocked or frozen.
- */
 public class DatabaseInitializer {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseInitializer.class);
 
-    // Maximum project DB size (bytes) we'll attempt to auto-migrate during startup.
-    // Prevents very large migrations from freezing the machine. 50 MB by default.
     private static final long MAX_MIGRATION_FILE_SIZE = 50L * 1024L * 1024L;
 
-    // Timeout for the migration task (seconds). If exceeded, migration will be cancelled.
     private static final long MIGRATION_TIMEOUT_SECONDS = 30L;
 
-    /**
-     * Run schema init quickly and schedule optional migration in background.
-     * Caller should ensure a valid DatabaseManager exists.
-     */
     public static void initialize(DatabaseManager dbManager) {
-        // Perform schema initialization synchronously (should be fast)
+
         try (Connection conn = dbManager.getConnection()) {
             if (conn == null) {
                 logger.error("DatabaseInitializer: could not obtain connection");
@@ -38,12 +24,14 @@ public class DatabaseInitializer {
             }
 
             initializeSchema(conn);
+
+            DatabaseMigration.migrate(conn);
+
             logger.info("DatabaseInitializer: schema initialization completed (fast path)");
         } catch (Exception e) {
             logger.error("DatabaseInitializer failed during schema init", e);
         }
 
-        // Schedule a background migration task (do not block application startup)
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "nexus-db-migration-scheduler");
             t.setDaemon(true);
@@ -51,7 +39,7 @@ public class DatabaseInitializer {
         });
 
         scheduler.submit(() -> {
-            // Use a separate executor to enforce timeout for the migration operation
+
             ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
                 Thread t = new Thread(r, "nexus-db-migration-worker");
                 t.setDaemon(true);
@@ -85,7 +73,6 @@ public class DatabaseInitializer {
             }
         });
 
-        // Shutdown scheduler after scheduling so it doesn't keep the JVM open.
         scheduler.shutdown();
     }
 
@@ -104,7 +91,6 @@ public class DatabaseInitializer {
                 return;
             }
 
-            // If current DB URL points to the same file, nothing to do
             String currentJdbc = null;
             try {
                 currentJdbc = DatabaseConnection.getInstance().getJdbcUrl();
@@ -117,13 +103,12 @@ public class DatabaseInitializer {
                 return;
             }
 
-            // Perform migration using provided connection. Keep operations short and robust.
             try (java.sql.Statement s = conn.createStatement()) {
-                // ATTACH may block if DB is busy; guard with a short PRAGMA timeout if possible
+
                 try {
                     s.execute("PRAGMA busy_timeout = 1000");
                 } catch (Exception ignore) {
-                    // ignore - not all drivers support PRAGMA via this connection
+
                 }
 
                 String pathEscaped = projectFile.getAbsolutePath().replace("'", "''");
@@ -132,8 +117,6 @@ public class DatabaseInitializer {
                 logger.info("Attempting to attach project DB for migration: {}", projectFile.getAbsolutePath());
                 s.execute(attach);
 
-                // Build a robust column-aware INSERT ... SELECT statement.
-                // Read columns from current DB's settings table and from attached olddb.settings.
                 java.util.List<String> targetCols = pragmaTableColumns(conn, "settings");
                 java.util.List<String> sourceCols = pragmaTableColumns(conn, "olddb.settings");
 
@@ -149,7 +132,6 @@ public class DatabaseInitializer {
                         if (i > 0) { insertCols.append(", "); selectExpr.append(", "); }
                         insertCols.append(col);
 
-                        // If source has this column, select it; otherwise select NULL so INSERT has a placeholder.
                         if (sourceCols.contains(col)) {
                             selectExpr.append("olddb.settings.").append(col);
                         } else {
@@ -164,7 +146,6 @@ public class DatabaseInitializer {
                     logger.info("Migration: copied {} rows from project DB into user DB", copied);
                 }
 
-                // Normalize theme/dark-mode flags
                 try {
                     boolean hasTheme = tableHasColumn(conn, "settings", "theme");
                     boolean hasDarkModeFlag = tableHasColumn(conn, "settings", "dark_mode")
@@ -214,10 +195,6 @@ public class DatabaseInitializer {
         }
     }
 
-    /**
-     * Return ordered list of column names for a table using PRAGMA table_info. The tableName
-     * may be qualified with attached schema (for example: "olddb.settings").
-     */
     private static java.util.List<String> pragmaTableColumns(Connection conn, String tableName) {
         java.util.List<String> cols = new java.util.ArrayList<>();
         java.sql.Statement stmt = null;
@@ -225,12 +202,12 @@ public class DatabaseInitializer {
         try {
             stmt = conn.createStatement();
             String pragmaSql;
-            // Support both forms: PRAGMA schema.table_info('name') and PRAGMA table_info('schema.table')
+
             if (tableName.contains(".")) {
                 String[] parts = tableName.split("\\.", 2);
                 String schema = parts[0];
                 String tbl = parts[1];
-                // Try pragma with schema prefix
+
                 pragmaSql = "PRAGMA " + schema + ".table_info('" + tbl + "')";
             } else {
                 pragmaSql = "PRAGMA table_info('" + tableName + "')";
@@ -238,7 +215,7 @@ public class DatabaseInitializer {
             try {
                 rs = stmt.executeQuery(pragmaSql);
             } catch (Exception e) {
-                // Fallback: try PRAGMA table_info with the full name (some SQLite builds accept this)
+
                 if (!tableName.contains(".")) throw e;
                 rs = stmt.executeQuery("PRAGMA table_info('" + tableName + "')");
             }
@@ -283,7 +260,7 @@ public class DatabaseInitializer {
         String sql = new String(is.readAllBytes());
 
         try (java.sql.Statement stmt = conn.createStatement()) {
-            // Execute each SQL statement
+
             for (String statement : sql.split(";")) {
                 if (!statement.trim().isEmpty()) {
                     stmt.execute(statement);

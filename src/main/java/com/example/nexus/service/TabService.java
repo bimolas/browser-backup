@@ -6,8 +6,6 @@ import com.example.nexus.repository.TabRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-
 import java.util.List;
 
 public class TabService {
@@ -43,10 +41,6 @@ public class TabService {
         return tabRepository.findBySessionId(sessionId);
     }
 
-    /**
-     * Delete all tabs with the specified session ID
-     * @param sessionId The session ID
-     */
     public void deleteTabsBySessionId(String sessionId) {
         List<Tab> tabs = tabRepository.findBySessionId(sessionId);
         for (Tab tab : tabs) {
@@ -54,16 +48,10 @@ public class TabService {
         }
     }
 
-    /**
-     * Save the current session tabs
-     * @param tabs The list of tabs to save
-     * @param sessionId The session ID to use
-     */
     public void saveSessionTabs(List<Tab> tabs, String sessionId) {
-        // First, delete any existing tabs with this session ID
+
         deleteTabsBySessionId(sessionId);
 
-        // Then save the new tabs
         for (Tab tab : tabs) {
             tab.setSessionId(sessionId);
             tabRepository.save(tab);

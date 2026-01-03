@@ -20,29 +20,23 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import java.io.File;
 import java.util.function.Consumer;
 
-/**
- * Modern Settings Panel with beautiful UI/UX design.
- * Features working theme switching, search engine selection, and more.
- */
 public class SettingsPanel extends BorderPane {
 
     private final SettingsService settingsService;
     private final VBox contentArea;
     private final VBox sidebar;
-    private ScrollPane mainScrollPane;  // Reference for theme updates
+    private ScrollPane mainScrollPane;
     private String currentCategory = "appearance";
     private Consumer<String> themeChangeCallback;
     private java.util.List<String> customColors = new java.util.ArrayList<>();
-    private boolean currentThemeIsDark = false;  // Track current theme state
+    private boolean currentThemeIsDark = false;
 
-    // Light theme colors (defaults)
     private static final String PRIMARY_COLOR = "#6366f1";
     private static final String PRIMARY_HOVER = "#4f46e5";
     private static final String SUCCESS_COLOR = "#22c55e";
     private static final String DANGER_COLOR = "#ef4444";
     private static final String WARNING_COLOR = "#f59e0b";
 
-    // These will be used dynamically based on theme
     private static final String TEXT_PRIMARY = "#212529";
     private static final String TEXT_SECONDARY = "#495057";
     private static final String TEXT_MUTED = "#6c757d";
@@ -52,7 +46,6 @@ public class SettingsPanel extends BorderPane {
     private static final String BORDER_COLOR = "#dee2e6";
     private static final String NAV_BG = "#f8f9fa";
 
-    // Dark theme colors
     private static final String DARK_TEXT_PRIMARY = "#e0e0e0";
     private static final String DARK_TEXT_SECONDARY = "#a0a0a0";
     private static final String DARK_TEXT_MUTED = "#808080";
@@ -61,7 +54,6 @@ public class SettingsPanel extends BorderPane {
     private static final String DARK_BG_TERTIARY = "#2d2d2d";
     private static final String DARK_BORDER_COLOR = "#333333";
 
-    // Dynamic color getters based on current theme
     private boolean isDarkTheme() {
         return currentThemeIsDark;
     }
@@ -79,7 +71,6 @@ public class SettingsPanel extends BorderPane {
     public SettingsPanel(SettingsService settingsService) {
         this.settingsService = settingsService;
 
-        // Initialize theme state from saved settings
         String savedTheme = settingsService.getTheme();
         if ("system".equals(savedTheme)) {
             currentThemeIsDark = "dark".equals(detectSystemTheme());
@@ -87,23 +78,19 @@ public class SettingsPanel extends BorderPane {
             currentThemeIsDark = "dark".equals(savedTheme);
         }
 
-        // Root panel - fill entire space
         setStyle("-fx-background-color: " + getBgPrimary() + ";");
-        // Allow resizing - no minimum constraints that block fullscreen
+
         setMinSize(0, 0);
         setPrefSize(850, 600);
 
-        // Create sidebar
         sidebar = createSidebar();
         setLeft(sidebar);
 
-        // Create content area
         contentArea = new VBox(12);
         contentArea.setPadding(new Insets(16));
         contentArea.setStyle("-fx-background-color: " + getBgPrimary() + ";");
         contentArea.setFillWidth(true);
 
-        // Create scroll pane without custom styling that causes cutout
         mainScrollPane = new ScrollPane(contentArea);
         mainScrollPane.setFitToWidth(true);
         mainScrollPane.setFitToHeight(true);
@@ -116,7 +103,6 @@ public class SettingsPanel extends BorderPane {
             "-fx-padding: 0;"
         );
 
-        // Apply minimal scrollbar styling
         mainScrollPane.skinProperty().addListener((obs, oldSkin, newSkin) -> {
             if (newSkin != null) {
                 Platform.runLater(() -> styleScrollBar(mainScrollPane));
@@ -125,15 +111,11 @@ public class SettingsPanel extends BorderPane {
 
         setCenter(mainScrollPane);
 
-        // Load initial category
         showCategory("appearance");
     }
 
-    /**
-     * Style the scrollbar programmatically for a clean modern look
-     */
     private void styleScrollBar(ScrollPane scrollPane) {
-        // Theme-aware scrollbar colors
+
         String thumbColor = currentThemeIsDark ? "#505050" : "#c0c0c0";
         String thumbHoverColor = currentThemeIsDark ? "#606060" : "#a0a0a0";
         String bgColor = currentThemeIsDark ? "#1e1e1e" : "transparent";
@@ -142,14 +124,13 @@ public class SettingsPanel extends BorderPane {
             if (node instanceof ScrollBar) {
                 ScrollBar scrollBar = (ScrollBar) node;
                 if (scrollBar.getOrientation() == javafx.geometry.Orientation.VERTICAL) {
-                    // Style the scrollbar
+
                     scrollBar.setStyle(
                         "-fx-background-color: " + bgColor + ";" +
                         "-fx-pref-width: 8;" +
                         "-fx-padding: 2;"
                     );
 
-                    // Style track
                     Node track = scrollBar.lookup(".track");
                     if (track != null) {
                         track.setStyle(
@@ -158,13 +139,11 @@ public class SettingsPanel extends BorderPane {
                         );
                     }
 
-                    // Style track-background
                     Node trackBg = scrollBar.lookup(".track-background");
                     if (trackBg != null) {
                         trackBg.setStyle("-fx-background-color: " + bgColor + ";");
                     }
 
-                    // Style thumb
                     Node thumb = scrollBar.lookup(".thumb");
                     if (thumb != null) {
                         thumb.setStyle(
@@ -173,7 +152,6 @@ public class SettingsPanel extends BorderPane {
                             "-fx-background-insets: 0;"
                         );
 
-                        // Add hover effect
                         thumb.setOnMouseEntered(e -> thumb.setStyle(
                             "-fx-background-color: " + thumbHoverColor + ";" +
                             "-fx-background-radius: 4;" +
@@ -186,7 +164,6 @@ public class SettingsPanel extends BorderPane {
                         ));
                     }
 
-                    // Hide increment/decrement buttons
                     Node incBtn = scrollBar.lookup(".increment-button");
                     Node decBtn = scrollBar.lookup(".decrement-button");
                     if (incBtn != null) {
@@ -196,7 +173,6 @@ public class SettingsPanel extends BorderPane {
                         decBtn.setStyle("-fx-pref-height: 0; -fx-min-height: 0; -fx-max-height: 0; visibility: hidden;");
                     }
 
-                    // Hide arrows
                     scrollBar.lookupAll(".increment-arrow").forEach(arrow ->
                         arrow.setStyle("-fx-shape: ''; -fx-padding: 0; visibility: hidden;")
                     );
@@ -208,9 +184,6 @@ public class SettingsPanel extends BorderPane {
         });
     }
 
-    /**
-     * Set callback for theme changes
-     */
     public void setOnThemeChange(Consumer<String> callback) {
         this.themeChangeCallback = callback;
     }
@@ -220,14 +193,13 @@ public class SettingsPanel extends BorderPane {
         sidebar.setPadding(new Insets(16, 12, 16, 12));
         sidebar.setPrefWidth(220);
         sidebar.setMinWidth(200);
-        // Match browser's navigation bar style - use dynamic colors
+
         sidebar.setStyle(
             "-fx-background-color: " + getNavBg() + ";" +
             "-fx-border-color: " + getBorderColor() + ";" +
             "-fx-border-width: 0 1 0 0;"
         );
 
-        // Header with icon - matching browser toolbar style
         HBox header = new HBox(10);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(8, 8, 20, 8));
@@ -242,7 +214,6 @@ public class SettingsPanel extends BorderPane {
         header.getChildren().addAll(settingsIcon, title);
         sidebar.getChildren().add(header);
 
-        // Navigation items
         sidebar.getChildren().addAll(
             createNavItem("Appearance", "mdi2p-palette-outline", "appearance", "Themes, colors, fonts"),
             createNavItem("On Startup", "mdi2r-rocket-launch-outline", "startup", "Home page, restore tabs"),
@@ -253,12 +224,10 @@ public class SettingsPanel extends BorderPane {
             createNavItem("Advanced", "mdi2c-code-tags", "advanced", "Developer options")
         );
 
-        // Spacer
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
         sidebar.getChildren().add(spacer);
 
-        // Version info
         Label version = new Label("Nexus Browser v1.0.0");
         version.setStyle("-fx-font-size: 11px; -fx-text-fill: " + getTextMuted() + ";");
         version.setPadding(new Insets(12, 0, 0, 8));
@@ -296,14 +265,14 @@ public class SettingsPanel extends BorderPane {
         item.setOnMouseEntered(e -> {
             if (!categoryId.equals(currentCategory)) {
                 item.setStyle(getNavItemHoverStyle());
-                // Update text color on hover
+
                 updateNavItemColors(item, false, true);
             }
         });
 
         item.setOnMouseExited(e -> {
             item.setStyle(getNavItemStyle(categoryId.equals(currentCategory)));
-            // Restore text colors
+
             updateNavItemColors(item, categoryId.equals(currentCategory), false);
         });
 
@@ -343,15 +312,11 @@ public class SettingsPanel extends BorderPane {
                 boolean selected = item.getUserData().equals(currentCategory);
                 item.setStyle(getNavItemStyle(selected));
 
-                // Update colors
                 updateNavItemColors(item, selected, false);
             }
         }
     }
 
-    /**
-     * Update nav item text and icon colors based on selection and hover state
-     */
     private void updateNavItemColors(VBox item, boolean selected, boolean hovered) {
         String textPrimary = currentThemeIsDark ? "#e0e0e0" : TEXT_PRIMARY;
         String textMuted = currentThemeIsDark ? "#909090" : TEXT_MUTED;
@@ -384,7 +349,6 @@ public class SettingsPanel extends BorderPane {
     private void showCategory(String categoryId) {
         contentArea.getChildren().clear();
 
-        // Animate content
         contentArea.setOpacity(0);
         FadeTransition fade = new FadeTransition(Duration.millis(200), contentArea);
         fade.setFromValue(0);
@@ -401,7 +365,6 @@ public class SettingsPanel extends BorderPane {
             case "advanced" -> showAdvancedSettings();
         }
 
-        // Add spacer to fill remaining space and eliminate bottom cutout
         Region bottomSpacer = new Region();
         bottomSpacer.setMinHeight(16);
         VBox.setVgrow(bottomSpacer, Priority.ALWAYS);
@@ -410,12 +373,9 @@ public class SettingsPanel extends BorderPane {
         updateSidebarSelection();
     }
 
-    // ==================== APPEARANCE SETTINGS ====================
-
     private void showAppearanceSettings() {
         addPageHeader("Appearance", "Customize how Nexus looks and feels", "mdi2p-palette");
 
-        // Theme Selection Card
         VBox themeCard = createSettingsCard("Theme", "mdi2w-weather-sunny");
 
         FlowPane themeOptions = new FlowPane();
@@ -434,7 +394,6 @@ public class SettingsPanel extends BorderPane {
         themeCard.getChildren().add(themeOptions);
         contentArea.getChildren().add(themeCard);
 
-        // Accent Color Card with modern color picker
         VBox colorCard = createSettingsCard("Accent Color", "mdi2p-palette");
 
         FlowPane colorOptions = new FlowPane();
@@ -449,7 +408,6 @@ public class SettingsPanel extends BorderPane {
             colorOptions.getChildren().add(createColorOption(color, color.equals(currentAccent)));
         }
 
-        // Add custom colors that were saved
         for (String customColor : customColors) {
             boolean isInPreset = false;
             for (String c : colors) {
@@ -463,14 +421,12 @@ public class SettingsPanel extends BorderPane {
             }
         }
 
-        // Modern custom color picker button
         StackPane customColorBtn = createCustomColorPicker();
         colorOptions.getChildren().add(customColorBtn);
 
         colorCard.getChildren().add(colorOptions);
         contentArea.getChildren().add(colorCard);
 
-        // Font Size Card with custom modern slider
         VBox fontCard = createSettingsCard("Font Size", "mdi2f-format-size");
 
         HBox fontSliderBox = new HBox(12);
@@ -482,7 +438,6 @@ public class SettingsPanel extends BorderPane {
         Label smallLabel = new Label("A");
         smallLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + TEXT_SECONDARY + ";");
 
-        // Create custom styled slider
         StackPane sliderContainer = createModernSlider(12, 20, settingsService.getFontSize(), (value) -> {
             settingsService.setFontSize(value.intValue());
         });
@@ -494,7 +449,6 @@ public class SettingsPanel extends BorderPane {
         Label sizeValue = new Label((int)settingsService.getFontSize() + "px");
         sizeValue.setStyle("-fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: " + PRIMARY_COLOR + "; -fx-min-width: 45;");
 
-        // Update label when slider changes
         Slider actualSlider = (Slider) sliderContainer.getChildren().get(3);
         actualSlider.valueProperty().addListener((obs, old, val) -> sizeValue.setText(val.intValue() + "px"));
 
@@ -502,7 +456,6 @@ public class SettingsPanel extends BorderPane {
         fontCard.getChildren().add(fontSliderBox);
         contentArea.getChildren().add(fontCard);
 
-        // Interface Options Card
         VBox interfaceCard = createSettingsCard("Interface", "mdi2m-monitor");
 
         interfaceCard.getChildren().addAll(
@@ -523,7 +476,6 @@ public class SettingsPanel extends BorderPane {
         option.setPadding(new Insets(16, 24, 16, 24));
         option.setCursor(javafx.scene.Cursor.HAND);
 
-        // Theme-aware colors
         String bgNormal = currentThemeIsDark ? "#2d2d2d" : BG_SECONDARY;
         String bgSelected = currentThemeIsDark ? "#3d3d3d" : "#eff6ff";
         String bgHover = currentThemeIsDark ? "#404040" : "#f1f5f9";
@@ -538,7 +490,6 @@ public class SettingsPanel extends BorderPane {
             "-fx-border-width: " + (selected ? "2" : "1") + ";"
         );
 
-        // Preview circle
         StackPane preview = new StackPane();
         Circle circle = new Circle(24);
         circle.setFill(Color.web(previewColor));
@@ -602,7 +553,6 @@ public class SettingsPanel extends BorderPane {
         circle.setStroke(selected ? Color.web(TEXT_PRIMARY) : Color.TRANSPARENT);
         circle.setStrokeWidth(2);
 
-        // Add subtle shadow effect
         circle.setEffect(new javafx.scene.effect.DropShadow(4, 0, 1, Color.rgb(0, 0, 0, 0.15)));
 
         if (selected) {
@@ -614,7 +564,6 @@ public class SettingsPanel extends BorderPane {
             option.getChildren().add(circle);
         }
 
-        // Hover effect
         option.setOnMouseEntered(e -> {
             circle.setScaleX(1.1);
             circle.setScaleY(1.1);
@@ -638,7 +587,6 @@ public class SettingsPanel extends BorderPane {
         addColorBtn.setMaxSize(36, 36);
         addColorBtn.setCursor(javafx.scene.Cursor.HAND);
 
-        // Dashed border circle for "add color" button
         Circle bgCircle = new Circle(16);
         bgCircle.setFill(Color.web(BG_TERTIARY));
         bgCircle.setStroke(Color.web(TEXT_MUTED));
@@ -651,7 +599,6 @@ public class SettingsPanel extends BorderPane {
 
         addColorBtn.getChildren().addAll(bgCircle, addIcon);
 
-        // Create popup for color picker
         addColorBtn.setOnMouseEntered(e -> {
             bgCircle.setFill(Color.web(BG_SECONDARY));
             addIcon.setIconColor(Color.web(TEXT_SECONDARY));
@@ -664,7 +611,6 @@ public class SettingsPanel extends BorderPane {
 
         addColorBtn.setOnMouseClicked(e -> showCustomColorDialog());
 
-        // Create tooltip
         Tooltip tooltip = new Tooltip("Add custom color");
         tooltip.setStyle("-fx-font-size: 11px;");
         Tooltip.install(addColorBtn, tooltip);
@@ -673,7 +619,7 @@ public class SettingsPanel extends BorderPane {
     }
 
     private void showCustomColorDialog() {
-        // Create a styled dialog for color selection
+
         Stage colorStage = new Stage();
         colorStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
         colorStage.initStyle(javafx.stage.StageStyle.UNDECORATED);
@@ -689,7 +635,6 @@ public class SettingsPanel extends BorderPane {
             "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 16, 0, 0, 4);"
         );
 
-        // Header
         HBox header = new HBox(10);
         header.setAlignment(Pos.CENTER_LEFT);
         FontIcon colorIcon = new FontIcon("mdi2p-palette");
@@ -699,7 +644,6 @@ public class SettingsPanel extends BorderPane {
         titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: 600; -fx-text-fill: " + TEXT_PRIMARY + ";");
         header.getChildren().addAll(colorIcon, titleLabel);
 
-        // Color picker with styled wrapper
         ColorPicker colorPicker = new ColorPicker(Color.web(PRIMARY_COLOR));
         colorPicker.setPrefWidth(200);
         colorPicker.setStyle(
@@ -709,7 +653,6 @@ public class SettingsPanel extends BorderPane {
             "-fx-border-radius: 8;"
         );
 
-        // Preview section
         HBox previewSection = new HBox(12);
         previewSection.setAlignment(Pos.CENTER_LEFT);
         Label previewLabel = new Label("Preview:");
@@ -724,7 +667,6 @@ public class SettingsPanel extends BorderPane {
 
         previewSection.getChildren().addAll(previewLabel, previewCircle, hexLabel);
 
-        // Update preview on color change
         colorPicker.valueProperty().addListener((obs, old, newColor) -> {
             previewCircle.setFill(newColor);
             String hex = String.format("#%02x%02x%02x",
@@ -732,7 +674,6 @@ public class SettingsPanel extends BorderPane {
             hexLabel.setText(hex);
         });
 
-        // Buttons
         HBox buttonBox = new HBox(10);
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
 
@@ -760,7 +701,6 @@ public class SettingsPanel extends BorderPane {
             String hex = String.format("#%02x%02x%02x",
                 (int)(selectedColor.getRed()*255), (int)(selectedColor.getGreen()*255), (int)(selectedColor.getBlue()*255));
 
-            // Add to custom colors list
             if (!customColors.contains(hex)) {
                 customColors.add(hex);
             }
@@ -779,7 +719,6 @@ public class SettingsPanel extends BorderPane {
         colorStage.setScene(scene);
         colorStage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
 
-        // Center on parent
         if (getScene() != null && getScene().getWindow() != null) {
             colorStage.initOwner(getScene().getWindow());
             colorStage.setX(getScene().getWindow().getX() + (getScene().getWindow().getWidth() - 280) / 2);
@@ -790,35 +729,28 @@ public class SettingsPanel extends BorderPane {
     }
 
     private void applyTheme(String theme) {
-        // Save theme to settings (this persists to database)
+
         settingsService.setTheme(theme);
 
-        // Notify the main controller to apply theme to the entire application
         if (themeChangeCallback != null) {
             themeChangeCallback.accept(theme);
         }
 
-        // Also apply theme directly to this settings panel
         applyThemeToSettingsPanel(theme);
 
-        // Refresh the appearance settings to show updated selection
         showCategory("appearance");
     }
 
-    /**
-     * Apply theme styling to the settings panel itself
-     */
     private void applyThemeToSettingsPanel(String theme) {
         String actualTheme = theme;
         if ("system".equals(theme)) {
-            // Detect system theme
+
             actualTheme = detectSystemTheme();
         }
 
         boolean isDark = "dark".equals(actualTheme);
-        currentThemeIsDark = isDark;  // Update tracked state
+        currentThemeIsDark = isDark;
 
-        // Define colors based on theme - matching dark.css
         String bgMain = isDark ? "#1e1e1e" : BG_PRIMARY;
         String bgSidebar = isDark ? "#252525" : NAV_BG;
         String borderColor = isDark ? "#404040" : BORDER_COLOR;
@@ -826,11 +758,9 @@ public class SettingsPanel extends BorderPane {
         String textSecondary = isDark ? "#b0b0b0" : TEXT_SECONDARY;
         String textMuted = isDark ? "#909090" : TEXT_MUTED;
 
-        // Apply to main panel
         setStyle("-fx-background-color: " + bgMain + ";");
         contentArea.setStyle("-fx-background-color: " + bgMain + ";");
 
-        // Apply to scroll pane - update background colors
         if (mainScrollPane != null) {
             mainScrollPane.setStyle(
                 "-fx-background-color: " + bgMain + ";" +
@@ -838,22 +768,19 @@ public class SettingsPanel extends BorderPane {
                 "-fx-border-width: 0;" +
                 "-fx-padding: 0;"
             );
-            // Re-style scrollbar with new theme colors
+
             Platform.runLater(() -> styleScrollBar(mainScrollPane));
         }
 
-        // Apply to sidebar
         sidebar.setStyle(
             "-fx-background-color: " + bgSidebar + ";" +
             "-fx-border-color: " + borderColor + ";" +
             "-fx-border-width: 0 1 0 0;"
         );
 
-        // Apply CSS stylesheet to scene if available
         if (getScene() != null) {
             getScene().getStylesheets().removeIf(s -> s.contains("dark.css") || s.contains("light.css") || s.contains("main.css"));
 
-            // Use main.css for light theme, dark.css for dark theme
             String cssPath;
             if ("light".equals(actualTheme)) {
                 cssPath = "/com/example/nexus/css/main.css";
@@ -866,30 +793,23 @@ public class SettingsPanel extends BorderPane {
                 getScene().getStylesheets().add(cssResource.toExternalForm());
             }
 
-            // Also add/update root style class
             getStyleClass().removeAll("light", "dark");
             getStyleClass().add(actualTheme);
         }
 
-        // Update sidebar labels and icons with proper colors
         updateSidebarTheme(isDark, textPrimary, textSecondary, textMuted);
 
-        // Update sidebar selection to use new theme colors
         updateSidebarSelection();
     }
 
-    /**
-     * Simple system theme detection
-     */
     private String detectSystemTheme() {
         try {
-            // Check GTK_THEME environment variable
+
             String gtkTheme = System.getenv("GTK_THEME");
             if (gtkTheme != null && gtkTheme.toLowerCase().contains("dark")) {
                 return "dark";
             }
 
-            // Try gsettings color-scheme
             try {
                 ProcessBuilder pb = new ProcessBuilder("gsettings", "get",
                     "org.gnome.desktop.interface", "color-scheme");
@@ -904,10 +824,9 @@ public class SettingsPanel extends BorderPane {
                 }
                 process.waitFor();
             } catch (Exception e) {
-                // Ignore
+
             }
 
-            // Try gsettings gtk-theme
             try {
                 ProcessBuilder pb = new ProcessBuilder("gsettings", "get",
                     "org.gnome.desktop.interface", "gtk-theme");
@@ -922,22 +841,19 @@ public class SettingsPanel extends BorderPane {
                 }
                 process.waitFor();
             } catch (Exception e) {
-                // Ignore
+
             }
         } catch (Exception e) {
-            // Ignore
+
         }
         return "light";
     }
 
-    /**
-     * Update sidebar elements for theme
-     */
     private void updateSidebarTheme(boolean isDark, String textPrimary, String textSecondary, String textMuted) {
-        // Update header
+
         for (Node node : sidebar.getChildren()) {
             if (node instanceof HBox header && !(node instanceof VBox)) {
-                // Header "Settings" label and icon
+
                 for (Node hChild : header.getChildren()) {
                     if (hChild instanceof Label label) {
                         label.setStyle("-fx-font-size: 18px; -fx-font-weight: 600; -fx-text-fill: " + textPrimary + ";");
@@ -946,36 +862,27 @@ public class SettingsPanel extends BorderPane {
                     }
                 }
             } else if (node instanceof Label versionLabel && node.getUserData() == null) {
-                // Version label at bottom
+
                 versionLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " + textMuted + ";");
             }
         }
 
-        // Nav items will be updated by updateSidebarSelection()
     }
 
-    /**
-     * Apply accent color to UI elements
-     */
     private void applyAccentColor(String color) {
         settingsService.setAccentColor(color);
 
-        // Notify callback if exists
         if (themeChangeCallback != null) {
-            // Re-apply current theme which will also apply accent
+
             themeChangeCallback.accept(settingsService.getTheme());
         }
 
-        // Refresh appearance settings
         showCategory("appearance");
     }
-
-    // ==================== STARTUP SETTINGS ====================
 
     private void showStartupSettings() {
         addPageHeader("On Startup", "Choose what happens when Nexus starts", "mdi2r-rocket-launch");
 
-        // Startup Behavior Card
         VBox startupCard = createSettingsCard("When Nexus Starts", "mdi2p-play-circle-outline");
 
         String currentBehavior = settingsService.getStartupBehavior();
@@ -999,7 +906,6 @@ public class SettingsPanel extends BorderPane {
         startupCard.getChildren().add(options);
         contentArea.getChildren().add(startupCard);
 
-        // Home Page Card
         VBox homeCard = createSettingsCard("Home Page", "mdi2h-home-outline");
 
         HBox homeInputBox = new HBox(12);
@@ -1022,7 +928,6 @@ public class SettingsPanel extends BorderPane {
         homeCard.getChildren().add(homeInputBox);
         contentArea.getChildren().add(homeCard);
 
-        // Session Restore Card
         VBox sessionCard = createSettingsCard("Session", "mdi2t-tab-plus");
         sessionCard.getChildren().add(
             createToggleRow("Restore previous session", "Automatically restore your tabs when you restart Nexus",
@@ -1061,12 +966,9 @@ public class SettingsPanel extends BorderPane {
         return option;
     }
 
-    // ==================== SEARCH SETTINGS ====================
-
     private void showSearchSettings() {
         addPageHeader("Search Engine", "Choose your default search engine", "mdi2m-magnify");
 
-        // Search Engine Card
         VBox searchCard = createSettingsCard("Default Search Engine", "mdi2e-earth");
 
         String currentEngine = settingsService.getSearchEngine();
@@ -1086,7 +988,6 @@ public class SettingsPanel extends BorderPane {
         searchCard.getChildren().add(engineOptions);
         contentArea.getChildren().add(searchCard);
 
-        // Search Features Card
         VBox featuresCard = createSettingsCard("Search Features", "mdi2t-tune");
         featuresCard.getChildren().addAll(
             createToggleRow("Show search suggestions", "Display suggestions as you type in the address bar",
@@ -1103,7 +1004,6 @@ public class SettingsPanel extends BorderPane {
 
         boolean selected = id.equals(currentEngine);
 
-        // Theme-aware colors
         String bgNormal = currentThemeIsDark ? "#2d2d2d" : BG_SECONDARY;
         String bgSelected = currentThemeIsDark ? "#3d3d3d" : "#eff6ff";
         String borderNormal = currentThemeIsDark ? "#404040" : "transparent";
@@ -1116,7 +1016,6 @@ public class SettingsPanel extends BorderPane {
             "-fx-border-width: 2;"
         );
 
-        // Engine icon/initial
         StackPane iconPane = new StackPane();
         iconPane.setPrefSize(40, 40);
         Circle bg = new Circle(20);
@@ -1162,12 +1061,9 @@ public class SettingsPanel extends BorderPane {
         };
     }
 
-    // ==================== PRIVACY SETTINGS ====================
-
     private void showPrivacySettings() {
         addPageHeader("Privacy & Security", "Control your privacy and security settings", "mdi2s-shield-lock");
 
-        // Browsing Data Card
         VBox browsingCard = createSettingsCard("Browsing Data", "mdi2d-database-outline");
         browsingCard.getChildren().addAll(
             createToggleRow("Save browsing history", "Keep track of websites you visit",
@@ -1177,7 +1073,6 @@ public class SettingsPanel extends BorderPane {
         );
         contentArea.getChildren().add(browsingCard);
 
-        // Clear on Exit Card
         VBox clearCard = createSettingsCard("Clear Data on Exit", "mdi2b-broom");
         clearCard.getChildren().addAll(
             createToggleRow("Clear browsing history", "Automatically clear history when you close Nexus",
@@ -1187,7 +1082,6 @@ public class SettingsPanel extends BorderPane {
         );
         contentArea.getChildren().add(clearCard);
 
-        // Security Card
         VBox securityCard = createSettingsCard("Security", "mdi2l-lock-outline");
         securityCard.getChildren().addAll(
             createToggleRow("Block pop-up windows", "Prevent websites from opening pop-ups",
@@ -1197,7 +1091,6 @@ public class SettingsPanel extends BorderPane {
         );
         contentArea.getChildren().add(securityCard);
 
-        // Clear Data Button
         Button clearDataBtn = createDangerButton("Clear Browsing Data", "mdi2d-delete-outline");
         clearDataBtn.setOnAction(e -> showClearDataDialog());
 
@@ -1206,12 +1099,9 @@ public class SettingsPanel extends BorderPane {
         contentArea.getChildren().add(btnBox);
     }
 
-    // ==================== DOWNLOAD SETTINGS ====================
-
     private void showDownloadSettings() {
         addPageHeader("Downloads", "Manage download settings", "mdi2d-download");
 
-        // Download Location Card
         VBox locationCard = createSettingsCard("Download Location", "mdi2f-folder-outline");
 
         HBox locationBox = new HBox(12);
@@ -1245,7 +1135,6 @@ public class SettingsPanel extends BorderPane {
         locationCard.getChildren().add(locationBox);
         contentArea.getChildren().add(locationCard);
 
-        // Download Behavior Card
         VBox behaviorCard = createSettingsCard("Behavior", "mdi2c-cog-outline");
         behaviorCard.getChildren().add(
             createToggleRow("Ask where to save each file", "Choose location for each download",
@@ -1254,12 +1143,9 @@ public class SettingsPanel extends BorderPane {
         contentArea.getChildren().add(behaviorCard);
     }
 
-    // ==================== PERFORMANCE SETTINGS ====================
-
     private void showPerformanceSettings() {
         addPageHeader("Performance", "Optimize browser performance", "mdi2s-speedometer");
 
-        // Speed Card
         VBox speedCard = createSettingsCard("Speed", "mdi2f-flash-outline");
         speedCard.getChildren().addAll(
             createToggleRow("Hardware acceleration", "Use GPU when available for better performance",
@@ -1269,7 +1155,6 @@ public class SettingsPanel extends BorderPane {
         );
         contentArea.getChildren().add(speedCard);
 
-        // Info Box
         VBox infoBox = new VBox(8);
         infoBox.setStyle(
             "-fx-background-color: #fef3c7;" +
@@ -1297,12 +1182,9 @@ public class SettingsPanel extends BorderPane {
         contentArea.getChildren().add(infoBox);
     }
 
-    // ==================== ADVANCED SETTINGS ====================
-
     private void showAdvancedSettings() {
         addPageHeader("Advanced", "Developer and experimental features", "mdi2c-code-tags");
 
-        // Content Card
         VBox contentCard = createSettingsCard("Content Settings", "mdi2w-web");
         contentCard.getChildren().add(
             createToggleRow("Enable JavaScript", "Allow websites to run JavaScript",
@@ -1310,7 +1192,6 @@ public class SettingsPanel extends BorderPane {
         );
         contentArea.getChildren().add(contentCard);
 
-        // Developer Card
         VBox devCard = createSettingsCard("Developer", "mdi2b-bug-outline");
         devCard.getChildren().add(
             createToggleRow("Developer Mode", "Enable developer tools and features",
@@ -1318,7 +1199,6 @@ public class SettingsPanel extends BorderPane {
         );
         contentArea.getChildren().add(devCard);
 
-        // Reset Card
         VBox resetCard = createSettingsCard("Reset Settings", "mdi2r-restore");
 
         Label resetDesc = new Label("Reset all settings to their default values. This cannot be undone.");
@@ -1332,8 +1212,6 @@ public class SettingsPanel extends BorderPane {
         resetCard.getChildren().addAll(resetDesc, resetBtn);
         contentArea.getChildren().add(resetCard);
     }
-
-    // ==================== HELPER METHODS ====================
 
     private void addPageHeader(String title, String subtitle, String iconCode) {
         VBox header = new VBox(4);
@@ -1415,7 +1293,6 @@ public class SettingsPanel extends BorderPane {
         textBox.getChildren().addAll(titleLabel, descLabel);
         HBox.setHgrow(textBox, Priority.ALWAYS);
 
-        // Custom toggle switch
         StackPane toggleSwitch = createToggleSwitch(value, onChange);
 
         row.getChildren().addAll(icon, textBox, toggleSwitch);
@@ -1429,7 +1306,6 @@ public class SettingsPanel extends BorderPane {
         toggle.setMaxSize(44, 24);
         toggle.setCursor(javafx.scene.Cursor.HAND);
 
-        // Track
         Region track = new Region();
         track.setPrefSize(44, 24);
         track.setStyle(
@@ -1437,7 +1313,6 @@ public class SettingsPanel extends BorderPane {
             "-fx-background-radius: 12;"
         );
 
-        // Thumb
         Circle thumb = new Circle(9);
         thumb.setFill(Color.WHITE);
         thumb.setEffect(new javafx.scene.effect.DropShadow(3, 0, 1, Color.rgb(0,0,0,0.2)));
@@ -1450,7 +1325,6 @@ public class SettingsPanel extends BorderPane {
         toggle.setOnMouseClicked(e -> {
             state[0] = !state[0];
 
-            // Animate
             TranslateTransition tt = new TranslateTransition(Duration.millis(150), thumb);
             tt.setToX(state[0] ? 10 : -10);
             tt.play();
@@ -1466,21 +1340,16 @@ public class SettingsPanel extends BorderPane {
         return toggle;
     }
 
-    /**
-     * Creates a modern styled slider matching the browser's zoom slider design
-     */
     private StackPane createModernSlider(double min, double max, double initialValue, Consumer<Double> onChange) {
         StackPane container = new StackPane();
         container.setMinHeight(32);
         container.setPrefHeight(32);
         container.setMaxWidth(Double.MAX_VALUE);
 
-        // Create the actual slider (hidden but functional)
         Slider slider = new Slider(min, max, initialValue);
         slider.setMaxWidth(Double.MAX_VALUE);
         slider.setBlockIncrement(1);
 
-        // Custom track
         Region track = new Region();
         track.setMaxWidth(Double.MAX_VALUE);
         track.setPrefHeight(6);
@@ -1491,7 +1360,6 @@ public class SettingsPanel extends BorderPane {
         );
         StackPane.setAlignment(track, Pos.CENTER);
 
-        // Progress fill (the colored part)
         Region progressFill = new Region();
         progressFill.setPrefHeight(6);
         progressFill.setMaxHeight(6);
@@ -1501,7 +1369,6 @@ public class SettingsPanel extends BorderPane {
         );
         StackPane.setAlignment(progressFill, Pos.CENTER_LEFT);
 
-        // Thumb
         Circle thumb = new Circle(8);
         thumb.setFill(Color.WHITE);
         thumb.setStroke(Color.web(PRIMARY_COLOR));
@@ -1509,29 +1376,24 @@ public class SettingsPanel extends BorderPane {
         thumb.setEffect(new javafx.scene.effect.DropShadow(4, 0, 1, Color.rgb(0, 0, 0, 0.2)));
         thumb.setCursor(javafx.scene.Cursor.HAND);
 
-        // Update progress and thumb position
         Runnable updateVisuals = () -> {
             double percentage = (slider.getValue() - min) / (max - min);
-            double trackWidth = container.getWidth() - 20; // Account for thumb size
+            double trackWidth = container.getWidth() - 20;
             double progressWidth = trackWidth * percentage;
             progressFill.setPrefWidth(Math.max(0, progressWidth + 10));
             thumb.setTranslateX(-trackWidth / 2 + progressWidth);
         };
 
-        // Listen for size changes
         container.widthProperty().addListener((obs, old, newVal) -> updateVisuals.run());
 
-        // Listen for value changes
         slider.valueProperty().addListener((obs, old, newVal) -> {
             updateVisuals.run();
             onChange.accept(newVal.doubleValue());
         });
 
-        // Make the slider invisible but keep it interactive
         slider.setOpacity(0);
         slider.setMaxWidth(Double.MAX_VALUE);
 
-        // Hover effects on thumb
         thumb.setOnMouseEntered(e -> {
             thumb.setRadius(10);
             thumb.setEffect(new javafx.scene.effect.DropShadow(6, 0, 2, Color.rgb(99, 102, 241, 0.4)));
@@ -1543,7 +1405,6 @@ public class SettingsPanel extends BorderPane {
 
         container.getChildren().addAll(track, progressFill, thumb, slider);
 
-        // Initial update after layout
         Platform.runLater(updateVisuals);
 
         return container;
@@ -1637,4 +1498,3 @@ public class SettingsPanel extends BorderPane {
         });
     }
 }
-

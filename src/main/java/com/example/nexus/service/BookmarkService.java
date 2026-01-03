@@ -23,8 +23,6 @@ public class BookmarkService implements IBookmarkService {
         this.folderRepository = container.getOrCreate(BookmarkFolderRepository.class);
     }
 
-    // ==================== Bookmark Operations ====================
-
     @Override
     public List<Bookmark> getAllBookmarks() {
         try {
@@ -59,9 +57,22 @@ public class BookmarkService implements IBookmarkService {
         }
 
         try {
-            bookmarkRepository.save(bookmark);
-            logger.info("Saved bookmark: " + bookmark.getTitle());
-            return bookmark;
+            Optional<Bookmark> existingBookmark = getBookmarkByUrl(bookmark.getUrl());
+            if (existingBookmark.isPresent()) {
+
+                Bookmark existing = existingBookmark.get();
+                existing.setTitle(bookmark.getTitle());
+                existing.setFolderId(bookmark.getFolderId());
+                existing.setFavorite(bookmark.isFavorite());
+                bookmarkRepository.update(existing);
+                logger.info("Updated existing bookmark: " + existing.getTitle());
+                return existing;
+            } else {
+
+                bookmarkRepository.save(bookmark);
+                logger.info("Saved new bookmark: " + bookmark.getTitle());
+                return bookmark;
+            }
         } catch (Exception e) {
             logger.error("Error saving bookmark", e);
             throw new BrowserException(BrowserException.ErrorCode.BOOKMARK_SAVE_ERROR,
@@ -69,7 +80,6 @@ public class BookmarkService implements IBookmarkService {
         }
     }
 
-    // Keep the old method signature for backward compatibility
     public void saveBookmark(Bookmark bookmark, boolean ignored) {
         saveBookmark(bookmark);
     }
@@ -91,28 +101,45 @@ public class BookmarkService implements IBookmarkService {
     public void updateBookmark(Bookmark bookmark) {
         if (bookmark == null) {
             throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT,
-                "Bookmark cannot be null");
+                    "Bookmark cannot be null");
         }
 
         try {
-            bookmarkRepository.update(bookmark);
-            logger.info("Updated bookmark: " + bookmark.getTitle());
+
+            Optional<Bookmark> existingBookmark = getBookmark(bookmark.getId());
+            if (existingBookmark.isPresent()) {
+                bookmarkRepository.update(bookmark);
+                logger.info("Updated bookmark: " + bookmark.getTitle());
+            } else {
+                throw new BrowserException(BrowserException.ErrorCode.BOOKMARK_NOT_FOUND,
+                        "Bookmark not found with ID: " + bookmark.getId());
+            }
+        } catch (BrowserException e) {
+            throw e;
         } catch (Exception e) {
             logger.error("Error updating bookmark", e);
             throw new BrowserException(BrowserException.ErrorCode.BOOKMARK_SAVE_ERROR,
-                "Failed to update bookmark", e);
+                    "Failed to update bookmark", e);
         }
     }
-
     @Override
     public void deleteBookmark(int id) {
         try {
-            bookmarkRepository.delete(id);
-            logger.info("Deleted bookmark with ID: " + id);
+
+            Optional<Bookmark> existingBookmark = getBookmark(id);
+            if (existingBookmark.isPresent()) {
+                bookmarkRepository.delete(id);
+                logger.info("Deleted bookmark with ID: " + id);
+            } else {
+                throw new BrowserException(BrowserException.ErrorCode.BOOKMARK_NOT_FOUND,
+                        "Bookmark not found with ID: " + id);
+            }
+        } catch (BrowserException e) {
+            throw e;
         } catch (Exception e) {
             logger.error("Error deleting bookmark with ID: " + id, e);
             throw new BrowserException(BrowserException.ErrorCode.BOOKMARK_DELETE_ERROR,
-                "Failed to delete bookmark", e);
+                    "Failed to delete bookmark", e);
         }
     }
 
@@ -250,8 +277,6 @@ public class BookmarkService implements IBookmarkService {
         }
     }
 
-    // ==================== Folder Operations ====================
-
     @Override
     public List<BookmarkFolder> getAllFolders() {
         try {
@@ -319,18 +344,18 @@ public class BookmarkService implements IBookmarkService {
     public void deleteFolder(int folderId, boolean deleteContents) {
         try {
             if (deleteContents) {
-                // Delete all bookmarks in the folder first
+
                 List<Bookmark> bookmarks = getBookmarksByFolderId(folderId);
                 for (Bookmark bookmark : bookmarks) {
                     deleteBookmark(bookmark.getId());
                 }
-                // Delete subfolders recursively
+
                 List<BookmarkFolder> subFolders = getSubFolders(folderId);
                 for (BookmarkFolder subFolder : subFolders) {
                     deleteFolder(subFolder.getId(), true);
                 }
             } else {
-                // Move contents to root
+
                 List<Bookmark> bookmarks = getBookmarksByFolderId(folderId);
                 for (Bookmark bookmark : bookmarks) {
                     moveBookmark(bookmark.getId(), null);

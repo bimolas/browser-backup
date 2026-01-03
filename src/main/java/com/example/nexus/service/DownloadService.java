@@ -1,6 +1,5 @@
 package com.example.nexus.service;
 
-
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.model.Download;
 import com.example.nexus.repository.DownloadRepository;
@@ -22,24 +21,20 @@ public class DownloadService {
 
     private final DownloadRepository downloadRepository;
 
-    // Executor for download tasks
     private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r);
         t.setDaemon(true);
         return t;
     });
 
-    // Track active tasks by download id
     private final ConcurrentMap<Integer, DownloadTask> activeTasks = new ConcurrentHashMap<>();
 
-    // Map external download tokens (from JCEF or other engines) to internal download IDs
     private final ConcurrentMap<String, Integer> externalMap = new ConcurrentHashMap<>();
 
     public DownloadService(DIContainer container) {
         this.downloadRepository = container.getOrCreate(DownloadRepository.class);
     }
 
-    // Download listeners
     private final CopyOnWriteArrayList<com.example.nexus.service.DownloadListener> listeners = new CopyOnWriteArrayList<>();
 
     public void addListener(com.example.nexus.service.DownloadListener l) {
@@ -58,12 +53,9 @@ public class DownloadService {
         return downloadRepository.findById(id);
     }
 
-    /**
-     * Start (or queue) a download. If file exists and partial size is present, resume will be used.
-     */
     public void startDownload(String url, String fileName, String filePath) {
         try {
-            // Ensure parent directories exist and avoid colliding with existing files
+
             File f = new File(filePath);
             File parent = f.getParentFile();
             if (parent != null && !parent.exists()) {
@@ -72,7 +64,6 @@ public class DownloadService {
                 else logger.info("DownloadService: created parent directories for {}", filePath);
             }
 
-            // If a file already exists at the target path, make a unique filename
             if (f.exists()) {
                 String dir = f.getParent();
                 String name = f.getName();
@@ -101,7 +92,7 @@ public class DownloadService {
             download.setStatus("pending");
             download.setStartTime(LocalDateTime.now());
             downloadRepository.save(download);
-            // notify listeners
+
             for (com.example.nexus.service.DownloadListener l : listeners) {
                 try { l.downloadAdded(download); } catch (Exception ignored) {}
             }
@@ -122,7 +113,7 @@ public class DownloadService {
         DownloadTask task = activeTasks.get(id);
         if (task != null) task.requestPause();
         else {
-            // if no active task but DB exists, mark paused
+
             Download d = downloadRepository.findById(id);
             if (d != null) {
                 d.setStatus("paused");
@@ -134,9 +125,9 @@ public class DownloadService {
     public void resumeDownload(int id) {
         Download d = downloadRepository.findById(id);
         if (d == null) return;
-        // If already running, ignore
+
         if (activeTasks.containsKey(id)) return;
-        // Create a new task that resumes from downloadedSize
+
         DownloadTask task = new DownloadTask(d);
         activeTasks.put(id, task);
         d.setStatus("downloading");
@@ -147,7 +138,7 @@ public class DownloadService {
     public void retryDownload(int id) {
         Download d = downloadRepository.findById(id);
         if (d == null) return;
-        // reset status and downloadedSize
+
         d.setDownloadedSize(0);
         d.setStatus("pending");
         d.setStartTime(LocalDateTime.now());
@@ -207,10 +198,10 @@ public class DownloadService {
     }
 
     public void deleteDownload(int id) {
-        // stop task if active
+
         DownloadTask task = activeTasks.remove(id);
         if (task != null) task.requestCancel();
-        // delete file
+
         Download d = downloadRepository.findById(id);
         if (d != null) {
             try {
@@ -230,7 +221,7 @@ public class DownloadService {
     }
 
     public void clearDownloads() {
-        // cancel all active
+
         for (Map.Entry<Integer, DownloadTask> en : activeTasks.entrySet()) {
             en.getValue().requestCancel();
         }
@@ -238,11 +229,6 @@ public class DownloadService {
         downloadRepository.clearAll();
     }
 
-    /**
-     * Register an externally-managed download (for example from JCEF's download handler).
-     * externalToken should be unique for the external download lifecycle (JCEF download id or generated UUID).
-     * Returns the internal download id saved in our DB, or -1 on failure.
-     */
     public int registerExternalDownload(String externalToken, String url, String fileName, String filePath) {
         try {
             if (externalToken == null || externalToken.isEmpty() || url == null || url.isEmpty()) {
@@ -250,11 +236,10 @@ public class DownloadService {
                 return -1;
             }
 
-            // Choose a filename if not provided
             String fn = fileName != null && !fileName.isEmpty() ? fileName : "download";
             String fp = filePath;
             if (fp == null || fp.isEmpty()) {
-                // fallback to user's Downloads directory
+
                 String userHome = System.getProperty("user.home", "");
                 fp = userHome + java.io.File.separator + "Downloads" + java.io.File.separator + fn;
             }
@@ -272,9 +257,6 @@ public class DownloadService {
         }
     }
 
-    /**
-     * Update progress reported by an external download engine.
-     */
     public void attachExternalProgress(String externalToken, long receivedBytes, long totalBytes) {
         try {
             Integer id = externalMap.get(externalToken);
@@ -342,7 +324,7 @@ public class DownloadService {
             boolean success = false;
             try {
                 boolean retriedAfter416 = false;
-                // Before attempting GET, do a lightweight HEAD probe to learn server capabilities
+
                 boolean serverAcceptsRanges = false;
                 long serverFileSize = -1L;
                 try {
@@ -371,7 +353,6 @@ public class DownloadService {
                         conn.setConnectTimeout(15000);
                         conn.setReadTimeout(15000);
 
-                        // Only set Range header if we have an existing partial file and server supports ranges.
                         if (existing > 0 && !retriedAfter416 && serverAcceptsRanges) {
                             conn.setRequestProperty("Range", "bytes=" + existing + "-");
                         }
@@ -380,15 +361,15 @@ public class DownloadService {
 
                         int responseCode = conn.getResponseCode();
 
-                        if (responseCode == 416) { // HTTP 416 Range Not Satisfiable
-                            // If we get 416 it usually means our 'existing' offset is invalid (maybe file changed on server)
+                        if (responseCode == 416) {
+
                             if (existing > 0 && !retriedAfter416) {
-                                // delete the partial file and retry without Range once
+
                                 try { outFile.delete(); } catch (Exception ignored) {}
                                 existing = 0L;
                                 retriedAfter416 = true;
                                 try { if (conn != null) conn.disconnect(); } catch (Exception ignored) {}
-                                continue; // retry without Range
+                                continue;
                             } else {
                                 logger.error("Server returned HTTP 416 for download id {}", id);
                                 download.setStatus("failed");
@@ -403,11 +384,11 @@ public class DownloadService {
                             if (cl != null) {
                                 try { total = Long.parseLong(cl); } catch (NumberFormatException ignored) {}
                             }
-                            // If server sent Content-Range (for partial) we can parse the total size from it
+
                             long fullSize = -1;
                             String cr = conn.getHeaderField("Content-Range");
                             if (cr != null) {
-                                // format: bytes start-end/total
+
                                 int slash = cr.indexOf('/');
                                 if (slash > 0) {
                                     String tot = cr.substring(slash + 1).trim();
@@ -418,7 +399,7 @@ public class DownloadService {
                             if (responseCode == HttpURLConnection.HTTP_PARTIAL) {
                                 if (fullSize > 0) fileSize = fullSize; else if (total > 0) fileSize = existing + total; else fileSize = -1;
                             } else {
-                                // 200 OK - content-length is the full file size
+
                                 fileSize = total > 0 ? total : serverFileSize;
                             }
                             if (fileSize > 0) download.setFileSize(fileSize);
@@ -443,7 +424,7 @@ public class DownloadService {
                                 if (cancelRequested) {
                                     download.setStatus("cancelled");
                                     downloadRepository.update(download);
-                                    // notify listeners about change
+
                                     for (com.example.nexus.service.DownloadListener l : listeners) {
                                         try { l.downloadUpdated(download); } catch (Exception ignored) {}
                                     }
@@ -454,11 +435,11 @@ public class DownloadService {
                                     download.setStatus("paused");
                                     try { download.setDownloadedSize(raf.length()); } catch (IOException ignore) {}
                                     downloadRepository.update(download);
-                                    // notify listeners about change
+
                                     for (com.example.nexus.service.DownloadListener l : listeners) {
                                         try { l.downloadUpdated(download); } catch (Exception ignored) {}
                                     }
-                                    // remove active task entry so resume can create a fresh task
+
                                     activeTasks.remove(id);
                                     return;
                                 }
@@ -468,7 +449,7 @@ public class DownloadService {
                                 long now = System.currentTimeMillis();
                                 if (now - lastPersist > 1000) {
                                     downloadRepository.update(download);
-                                    // notify listeners the download progressed
+
                                     for (com.example.nexus.service.DownloadListener l : listeners) {
                                         try { l.downloadUpdated(download); } catch (Exception ignored) {}
                                     }
@@ -476,12 +457,11 @@ public class DownloadService {
                                 }
                             }
 
-                            // finished successfully
                             download.setDownloadedSize(existing);
                             download.setStatus("completed");
                             download.setEndTime(LocalDateTime.now());
                             downloadRepository.update(download);
-                            // notify listeners of completion
+
                             for (com.example.nexus.service.DownloadListener l : listeners) {
                                 try { l.downloadUpdated(download); } catch (Exception ignored) {}
                             }
@@ -507,12 +487,11 @@ public class DownloadService {
                         try { if (in != null) in.close(); } catch (IOException ignored) {}
                         try { if (raf != null) raf.close(); } catch (IOException ignored) {}
                         if (conn != null) conn.disconnect();
-                        // reset stream handles for next attempt
+
                         in = null; raf = null; conn = null;
                     }
                 }
 
-                // Ensure that if we exit without success, activeTasks is cleared
                 if (!success) {
                     activeTasks.remove(id);
                 }
@@ -532,9 +511,6 @@ public class DownloadService {
         }
     }
 
-    /**
-     * Shutdown the download service and cancel active tasks. Safe to call on app exit.
-     */
     public void shutdown() {
         try {
             for (Map.Entry<Integer, DownloadTask> en : activeTasks.entrySet()) {

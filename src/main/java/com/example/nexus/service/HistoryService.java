@@ -28,7 +28,7 @@ public class HistoryService implements IHistoryService {
             return historyRepository.findAll();
         } catch (Exception e) {
             logger.error("Error retrieving all history", e);
-            throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR, 
+            throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR,
                 "Failed to retrieve history", e);
         }
     }
@@ -39,7 +39,7 @@ public class HistoryService implements IHistoryService {
             return Optional.ofNullable(historyRepository.findById(id));
         } catch (Exception e) {
             logger.error("Error retrieving history entry with ID: " + id, e);
-            throw new BrowserException(BrowserException.ErrorCode.HISTORY_NOT_FOUND, 
+            throw new BrowserException(BrowserException.ErrorCode.HISTORY_NOT_FOUND,
                 "Failed to retrieve history entry", e);
         }
     }
@@ -47,16 +47,16 @@ public class HistoryService implements IHistoryService {
     @Override
     public HistoryEntry addToHistory(String url, String title, String faviconUrl) {
         if (url == null || url.trim().isEmpty()) {
-            throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT, 
+            throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT,
                 "URL cannot be null or empty");
         }
 
         try {
-            // Check if the URL already exists in history
+
             HistoryEntry existingEntry = historyRepository.findByUrl(url);
 
             if (existingEntry != null) {
-                // Update the existing entry
+
                 existingEntry.incrementVisitCount();
                 if (title != null && !title.trim().isEmpty()) {
                     existingEntry.setTitle(title);
@@ -68,7 +68,7 @@ public class HistoryService implements IHistoryService {
                 logger.info("Updated history entry for URL: " + url);
                 return existingEntry;
             } else {
-                // Create a new entry
+
                 HistoryEntry entry = new HistoryEntry(title, url, faviconUrl);
                 historyRepository.save(entry);
                 logger.info("Added new history entry for URL: " + url);
@@ -78,7 +78,7 @@ public class HistoryService implements IHistoryService {
             throw e;
         } catch (Exception e) {
             logger.error("Error adding to history: " + url, e);
-            throw new BrowserException(BrowserException.ErrorCode.HISTORY_SAVE_ERROR, 
+            throw new BrowserException(BrowserException.ErrorCode.HISTORY_SAVE_ERROR,
                 "Failed to add to history", e);
         }
     }
@@ -88,7 +88,6 @@ public class HistoryService implements IHistoryService {
         return addToHistory(url, title, null);
     }
 
-    // Keep the old method signature for backward compatibility
     public void addToHistory(String url, String title, boolean ignored) {
         addToHistory(url, title);
     }
@@ -96,16 +95,16 @@ public class HistoryService implements IHistoryService {
     @Override
     public void updateHistoryEntry(HistoryEntry entry) {
         if (entry == null) {
-            throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT, 
+            throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT,
                 "History entry cannot be null");
         }
-        
+
         try {
             historyRepository.update(entry);
             logger.info("Updated history entry: " + entry.getUrl());
         } catch (Exception e) {
             logger.error("Error updating history entry", e);
-            throw new BrowserException(BrowserException.ErrorCode.HISTORY_SAVE_ERROR, 
+            throw new BrowserException(BrowserException.ErrorCode.HISTORY_SAVE_ERROR,
                 "Failed to update history entry", e);
         }
     }
@@ -117,7 +116,7 @@ public class HistoryService implements IHistoryService {
             logger.info("Deleted history entry with ID: " + id);
         } catch (Exception e) {
             logger.error("Error deleting history entry with ID: " + id, e);
-            throw new BrowserException(BrowserException.ErrorCode.HISTORY_DELETE_ERROR, 
+            throw new BrowserException(BrowserException.ErrorCode.HISTORY_DELETE_ERROR,
                 "Failed to delete history entry", e);
         }
     }
@@ -129,7 +128,7 @@ public class HistoryService implements IHistoryService {
             logger.info("Cleared all history");
         } catch (Exception e) {
             logger.error("Error clearing history", e);
-            throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR, 
+            throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR,
                 "Failed to clear history", e);
         }
     }
@@ -139,12 +138,12 @@ public class HistoryService implements IHistoryService {
         if (query == null || query.trim().isEmpty()) {
             return getAllHistory();
         }
-        
+
         try {
             return historyRepository.search(query.trim());
         } catch (Exception e) {
             logger.error("Error searching history with query: " + query, e);
-            throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR, 
+            throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR,
                 "Failed to search history", e);
         }
     }
@@ -152,15 +151,15 @@ public class HistoryService implements IHistoryService {
     @Override
     public List<HistoryEntry> getHistoryByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         if (startDate == null || endDate == null) {
-            throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT, 
+            throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT,
                 "Start date and end date cannot be null");
         }
-        
+
         try {
             return historyRepository.findByDateRange(startDate, endDate);
         } catch (Exception e) {
             logger.error("Error retrieving history by date range", e);
-            throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR, 
+            throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR,
                 "Failed to retrieve history by date range", e);
         }
     }
@@ -208,12 +207,12 @@ public class HistoryService implements IHistoryService {
         if (limit <= 0) {
             limit = 10;
         }
-        
+
         try {
             return historyRepository.findMostVisited(limit);
         } catch (Exception e) {
             logger.error("Error retrieving most visited history entries", e);
-            throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR, 
+            throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR,
                 "Failed to retrieve most visited sites", e);
         }
     }
@@ -223,7 +222,7 @@ public class HistoryService implements IHistoryService {
         if (url == null || url.trim().isEmpty()) {
             return false;
         }
-        
+
         try {
             return historyRepository.existsByUrl(url);
         } catch (Exception e) {

@@ -22,23 +22,18 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Small dropdown UI that shows the latest downloads (up to 3) with progress.
- */
 public class DownloadDropdown implements DownloadListener {
     private static final Logger logger = LoggerFactory.getLogger(DownloadDropdown.class);
     private final DownloadService downloadService;
     private final Popup popup = new Popup();
     private final VBox content = new VBox(8);
-    private BorderPane popupRoot;
     private final boolean dark;
     private final DownloadController downloadController;
     private final Runnable openPanelAction;
 
-    private final String openIconLiteral = "mdi2f-folder-open-outline"; // use materialdesign2 literal
+    private final String openIconLiteral = "mdi2f-folder-open-outline";
     private final String openIconLiteralAlt = "mdi2f-folder-open";
 
-    // Expose popup visible state for toggling from controller
     public boolean isShowing() {
         try { return popup.isShowing(); } catch (Exception ignored) { return false; }
     }
@@ -49,30 +44,39 @@ public class DownloadDropdown implements DownloadListener {
         this.dark = dark;
         this.openPanelAction = openPanelAction;
         initPopup();
-        // register as listener
+
         this.downloadService.addListener(this);
     }
 
     private void initPopup() {
-        content.setPadding(new Insets(8));
-        content.getStyleClass().addAll("download-dropdown","card");
+        content.setPadding(new Insets(12));
+        content.getStyleClass().add("download-dropdown");
         content.setPrefWidth(420);
+        content.setMaxWidth(420);
 
-        popupRoot = new BorderPane(content);
-        popupRoot.getStyleClass().add("download-dropdown-root");
-        // Add stylesheet directly to the root so Popup content uses it
-        var res = getClass().getResource(this.dark ? "/com/example/nexus/css/dark.css" : "/com/example/nexus/css/main.css");
-        if (res != null) {
-            try { popupRoot.getStylesheets().add(res.toExternalForm()); } catch (Exception ignored) {}
+        if (this.dark) {
+            content.setStyle("-fx-background-color: #0e0f11; -fx-background-radius: 12; -fx-border-color: rgba(255,255,255,0.06); -fx-border-width: 1; -fx-border-radius: 12;");
+            content.setEffect(new javafx.scene.effect.DropShadow(24, 0, 12, javafx.scene.paint.Color.rgb(0, 0, 0, 0.8)));
+        } else {
+            content.setStyle("-fx-background-color: #ffffff; -fx-background-radius: 12; -fx-border-color: #e6e6e6; -fx-border-width: 1; -fx-border-radius: 12;");
+            content.setEffect(new javafx.scene.effect.DropShadow(20, 0, 8, javafx.scene.paint.Color.rgb(0, 0, 0, 0.1)));
         }
 
-        // Apply theme class to popup root so .root.dark rules in CSS apply
-        if (this.dark) popupRoot.getStyleClass().addAll("root", "dark");
+        javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
+        clip.setArcWidth(12);
+        clip.setArcHeight(12);
+        clip.widthProperty().bind(content.widthProperty());
+        clip.heightProperty().bind(content.heightProperty());
+        content.setClip(clip);
 
-        // ensure transparent wrapper so shadow from inner card shows
-        popupRoot.setStyle("-fx-background-color: transparent;");
+        var res = getClass().getResource(this.dark ? "/com/example/nexus/css/dark.css" : "/com/example/nexus/css/main.css");
+        if (res != null) {
+            try { content.getStylesheets().add(res.toExternalForm()); } catch (Exception ignored) {}
+        }
 
-        popup.getContent().add(popupRoot);
+        if (this.dark) content.getStyleClass().add("dark");
+
+        popup.getContent().add(content);
         popup.setAutoHide(true);
         popup.setAutoFix(true);
     }
@@ -83,18 +87,30 @@ public class DownloadDropdown implements DownloadListener {
         double x = owner.getX() + anchorBounds.getMinX();
         double y = owner.getY() + anchorBounds.getMaxY() + 6;
         popup.show(owner, x, y);
+
+        Platform.runLater(() -> {
+            try {
+                if (popup.getScene() != null && popup.getScene().getRoot() != null) {
+                    popup.getScene().setFill(javafx.scene.paint.Color.TRANSPARENT);
+                    popup.getScene().getRoot().setStyle("-fx-background-color: transparent;");
+                }
+            } catch (Exception e) {
+                logger.debug("Could not set popup transparency", e);
+            }
+        });
+
         refreshContent();
-        // Mark as showing so CSS transition rules apply
-        try { if (!popupRoot.getStyleClass().contains("showing")) popupRoot.getStyleClass().add("showing"); } catch (Exception ignored) {}
-        // animate popup root (fade + translate) to have a smooth entrance
+
+        try { if (!content.getStyleClass().contains("showing")) content.getStyleClass().add("showing"); } catch (Exception ignored) {}
+
         try {
-            if (popupRoot != null) {
-                popupRoot.setOpacity(0);
-                popupRoot.setTranslateY(-6);
-                javafx.animation.FadeTransition ft = new javafx.animation.FadeTransition(javafx.util.Duration.millis(160), popupRoot);
+            if (content != null) {
+                content.setOpacity(0);
+                content.setTranslateY(-6);
+                javafx.animation.FadeTransition ft = new javafx.animation.FadeTransition(javafx.util.Duration.millis(160), content);
                 ft.setFromValue(0);
                 ft.setToValue(1);
-                javafx.animation.TranslateTransition tt = new javafx.animation.TranslateTransition(javafx.util.Duration.millis(160), popupRoot);
+                javafx.animation.TranslateTransition tt = new javafx.animation.TranslateTransition(javafx.util.Duration.millis(160), content);
                 tt.setFromY(-6);
                 tt.setToY(0);
                 ft.play(); tt.play();
@@ -104,13 +120,12 @@ public class DownloadDropdown implements DownloadListener {
 
     public void hide() {
         if (popup.isShowing()) popup.hide();
-        try { popupRoot.getStyleClass().remove("showing"); } catch (Exception ignored) {}
+        try { content.getStyleClass().remove("showing"); } catch (Exception ignored) {}
     }
 
-    // Ensure when popup is hidden by external clicks we remove the showing class
     {
         popup.setOnHidden(e -> {
-            try { popupRoot.getStyleClass().remove("showing"); } catch (Exception ignored) {}
+            try { content.getStyleClass().remove("showing"); } catch (Exception ignored) {}
         });
     }
 
@@ -132,9 +147,13 @@ public class DownloadDropdown implements DownloadListener {
                     card.getStyleClass().add("download-card-row");
                     card.setPadding(new Insets(8));
 
+                    if (this.dark) {
+                        card.setStyle("-fx-background-color: transparent; -fx-border-color: rgba(255,255,255,0.02); -fx-border-width: 1; -fx-background-radius: 8; -fx-border-radius: 8; -fx-padding: 10;");
+                    }
+
                     HBox top = new HBox(8);
                     top.setAlignment(Pos.CENTER_LEFT);
-                    // Use a safe icon creator to avoid IllegalArgumentException for invalid literals
+
                     javafx.scene.Node fileIcon = createSafeIcon("mdi-file-outline", 18, "#6b7280");
                     Label name = new Label(d.getFileName());
                     name.getStyleClass().addAll("download-dropdown-name");
@@ -148,22 +167,25 @@ public class DownloadDropdown implements DownloadListener {
                     pb.getStyleClass().addAll("download-progress","progress-bar");
                     pb.setPrefWidth(400);
                     pb.setPrefHeight(10);
-                    if (d.getFileSize() > 0) animateProgress(pb, d.getProgress()); else pb.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+                    if (d.getFileSize() > 0) {
+                        pb.setProgress(d.getProgress());
+                    } else {
+                        pb.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+                    }
 
                     HBox metaRow = new HBox(8);
                     metaRow.setAlignment(Pos.CENTER_LEFT);
                     Label meta = new Label(); meta.getStyleClass().add("download-dropdown-percent");
                     if (d.getFileSize() > 0) meta.setText(String.format("%.0f%% • %s", d.getProgress() * 100, formatShortSize(d))); else meta.setText(formatShortSize(d));
-                    // if completed, show timestamp
+
                     if ("completed".equalsIgnoreCase(d.getStatus()) && d.getEndTime() != null) {
                         meta.setText(meta.getText() + " • " + formatDateTime(d.getEndTime()));
                     }
                     Region metaSpacer = new Region(); HBox.setHgrow(metaSpacer, Priority.ALWAYS);
 
-                    // actions (small text buttons to mirror Settings look)
                     HBox actions = new HBox(6);
                     actions.setAlignment(Pos.CENTER_RIGHT);
-                    // Use iconButton helper which silently fails to a fallback if literal invalid
+
                     Button openBtn = iconButton(openIconLiteral, "Open", "small");
                     openBtn.getStyleClass().add("icon-button");
                     openBtn.setOnAction(e -> { try { downloadController.openDownloadFile(d); } catch (Exception ex) { logger.debug("Failed to open download file {}", d.getId(), ex); } });
@@ -176,7 +198,7 @@ public class DownloadDropdown implements DownloadListener {
                     card.getChildren().addAll(top, pb, metaRow);
                     content.getChildren().add(card);
                 }
-                // footer
+
                 HBox footer = new HBox(8);
                 footer.setAlignment(Pos.CENTER_RIGHT);
                 Button openPanel = new Button("Open downloads");
@@ -188,7 +210,6 @@ public class DownloadDropdown implements DownloadListener {
         });
     }
 
-    // Safe icon creation: try to create a FontIcon, fall back to a small label glyph if invalid
     private javafx.scene.Node createSafeIcon(String iconLiteral, int size, String colorHex) {
         try {
             FontIcon fi = new FontIcon(iconLiteral);
@@ -196,37 +217,22 @@ public class DownloadDropdown implements DownloadListener {
             if (colorHex != null && !colorHex.isBlank()) fi.setIconColor(javafx.scene.paint.Color.web(colorHex));
             return fi;
         } catch (Throwable t) {
-            // Fallback: use a small label with a simple emoji/glyph to avoid throwing
-            Label fallback = new Label("\uD83D\uDCC4"); // page emoji as generic file icon
+
+            Label fallback = new Label("\uD83D\uDCC4");
             fallback.setStyle("-fx-font-size: " + Math.max(10, size-4) + "px; -fx-text-fill: " + (colorHex != null ? colorHex : "#6b7280") + ";");
             return fallback;
         }
     }
 
-    // Smoothly animate a ProgressBar to a new value on the FX thread
-    private void animateProgress(ProgressBar pb, double target) {
-        Platform.runLater(() -> {
-            try {
-                double from = pb.getProgress();
-                javafx.animation.Timeline t = new javafx.animation.Timeline(
-                    new javafx.animation.KeyFrame(javafx.util.Duration.ZERO, new javafx.animation.KeyValue(pb.progressProperty(), from)),
-                    new javafx.animation.KeyFrame(javafx.util.Duration.millis(360), new javafx.animation.KeyValue(pb.progressProperty(), target, javafx.animation.Interpolator.EASE_BOTH))
-                );
-                t.play();
-            } catch (Exception ignored) {}
-        });
-    }
-
-    // DownloadListener callbacks
     @Override
     public void downloadAdded(Download download) {
-        // Refresh dropdown content when a download is added. Anchoring/showing is handled by caller (MainController).
+
         Platform.runLater(this::refreshContent);
     }
 
     @Override
     public void downloadUpdated(Download download) {
-        // ensure UI refresh runs on FX thread
+
         Platform.runLater(this::refreshContent);
     }
 
@@ -240,14 +246,13 @@ public class DownloadDropdown implements DownloadListener {
         hide();
     }
 
-    // small helper to create icon-only buttons with consistent style
     private Button iconButton(String iconLiteral, String tooltip, String styleClass) {
         Button b = new Button();
         b.getStyleClass().addAll("download-action-button", styleClass);
         try {
             FontIcon fi = new FontIcon(iconLiteral);
             fi.setIconSize(14);
-            // Do not set icon color here; let CSS control .ikonli-font-icon color based on button classes
+
             b.setGraphic(fi);
         } catch (Exception ignored) {}
         if (tooltip != null) b.setTooltip(new javafx.scene.control.Tooltip(tooltip));

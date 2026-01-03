@@ -16,7 +16,6 @@ public class Bookmark {
     private String description;
     private String tags;
 
-    // Constructors, getters, and setters
     public Bookmark() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
@@ -40,7 +39,6 @@ public class Bookmark {
         this.folderId = folderId;
     }
 
-    // Getters and setters
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
@@ -48,37 +46,37 @@ public class Bookmark {
     public void setUserId(int userId) { this.userId = userId; }
 
     public String getTitle() { return title; }
-    public void setTitle(String title) { 
+    public void setTitle(String title) {
         this.title = title;
         this.updatedAt = LocalDateTime.now();
     }
 
     public String getUrl() { return url; }
-    public void setUrl(String url) { 
+    public void setUrl(String url) {
         this.url = url;
         this.updatedAt = LocalDateTime.now();
     }
 
     public String getFaviconUrl() { return faviconUrl; }
-    public void setFaviconUrl(String faviconUrl) { 
+    public void setFaviconUrl(String faviconUrl) {
         this.faviconUrl = faviconUrl;
         this.updatedAt = LocalDateTime.now();
     }
 
     public Integer getFolderId() { return folderId; }
-    public void setFolderId(Integer folderId) { 
+    public void setFolderId(Integer folderId) {
         this.folderId = folderId;
         this.updatedAt = LocalDateTime.now();
     }
 
     public int getPosition() { return position; }
-    public void setPosition(int position) { 
+    public void setPosition(int position) {
         this.position = position;
         this.updatedAt = LocalDateTime.now();
     }
 
     public boolean isFavorite() { return isFavorite; }
-    public void setFavorite(boolean favorite) { 
+    public void setFavorite(boolean favorite) {
         this.isFavorite = favorite;
         this.updatedAt = LocalDateTime.now();
     }
@@ -90,20 +88,17 @@ public class Bookmark {
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
     public String getDescription() { return description; }
-    public void setDescription(String description) { 
+    public void setDescription(String description) {
         this.description = description;
         this.updatedAt = LocalDateTime.now();
     }
 
     public String getTags() { return tags; }
-    public void setTags(String tags) { 
+    public void setTags(String tags) {
         this.tags = tags;
         this.updatedAt = LocalDateTime.now();
     }
 
-    /**
-     * Get the domain from the URL.
-     */
     public String getDomain() {
         if (url == null || url.isEmpty()) return "";
         try {

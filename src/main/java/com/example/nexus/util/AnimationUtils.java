@@ -8,9 +8,7 @@ import javafx.scene.Node;
 import javafx.util.Duration;
 
 public class AnimationUtils {
-    /**
-     * Create a fade in animation
-     */
+
     public static FadeTransition fadeIn(Node node, Duration duration) {
         FadeTransition fadeTransition = new FadeTransition(duration, node);
         fadeTransition.setFromValue(0.0);
@@ -18,9 +16,6 @@ public class AnimationUtils {
         return fadeTransition;
     }
 
-    /**
-     * Create a fade out animation
-     */
     public static FadeTransition fadeOut(Node node, Duration duration) {
         FadeTransition fadeTransition = new FadeTransition(duration, node);
         fadeTransition.setFromValue(1.0);
@@ -28,9 +23,6 @@ public class AnimationUtils {
         return fadeTransition;
     }
 
-    /**
-     * Create a slide in animation from the top
-     */
     public static Timeline slideInFromTop(Node node, Duration duration) {
         double startY = -node.getBoundsInParent().getHeight();
         node.setTranslateY(startY);
@@ -43,9 +35,6 @@ public class AnimationUtils {
         return timeline;
     }
 
-    /**
-     * Create a slide in animation from the bottom
-     */
     public static Timeline slideInFromBottom(Node node, Duration duration) {
         double endY = node.getLayoutY();
         double startY = endY + node.getBoundsInParent().getHeight();
@@ -59,9 +48,6 @@ public class AnimationUtils {
         return timeline;
     }
 
-    /**
-     * Create a slide in animation from the left
-     */
     public static Timeline slideInFromLeft(Node node, Duration duration) {
         double startX = -node.getBoundsInParent().getWidth();
         node.setTranslateX(startX);
@@ -74,9 +60,6 @@ public class AnimationUtils {
         return timeline;
     }
 
-    /**
-     * Create a slide in animation from the right
-     */
     public static Timeline slideInFromRight(Node node, Duration duration) {
         double endX = node.getLayoutX();
         double startX = endX + node.getBoundsInParent().getWidth();
@@ -90,9 +73,6 @@ public class AnimationUtils {
         return timeline;
     }
 
-    /**
-     * Create a scale in animation
-     */
     public static Timeline scaleIn(Node node, Duration duration) {
         node.setScaleX(0.0);
         node.setScaleY(0.0);
@@ -106,9 +86,6 @@ public class AnimationUtils {
         return timeline;
     }
 
-    /**
-     * Create a scale out animation
-     */
     public static Timeline scaleOut(Node node, Duration duration) {
         Timeline timeline = new Timeline();
         KeyValue keyValueX = new KeyValue(node.scaleXProperty(), 0.0);

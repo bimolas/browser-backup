@@ -1,6 +1,5 @@
 package com.example.nexus.view;
 
-
 import com.example.nexus.controller.MainController;
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.util.ThemeManager;
@@ -18,10 +17,9 @@ public class MainView extends BorderPane {
 
     public MainView(DIContainer container) {
         try {
-            // Load the FXML
+
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/example/nexus/fxml/main.fxml"));
 
-            // Use a controller factory to inject the container before initialize() is called
             loader.setControllerFactory(clazz -> {
                 if (clazz == MainController.class) {
                     controller = new MainController();
@@ -35,10 +33,8 @@ public class MainView extends BorderPane {
                 }
             });
 
-            // Load the FXML - this will inject @FXML fields and call initialize()
             BorderPane root = loader.load();
 
-            // Copy content from loaded FXML to this BorderPane
             this.setTop(root.getTop());
             this.setCenter(root.getCenter());
             this.setBottom(root.getBottom());
@@ -47,24 +43,40 @@ public class MainView extends BorderPane {
 
             logger.info("Main view initialized");
 
-            // Re-apply theme as soon as this view is attached to a Scene to avoid FOUC
             try {
                 ThemeManager themeManager = container.getOrCreate(ThemeManager.class);
-                // If scene is already available apply immediately
+
                 Scene current = this.getScene();
                 if (current != null) {
-                    themeManager.applyTheme(current, themeManager.getCurrentTheme());
+                    themeManager.setScene(current);
+                    themeManager.applyTheme(themeManager.getCurrentTheme());
                 }
-                // Also apply when scene becomes available
+
                 this.sceneProperty().addListener((obs, oldScene, newScene) -> {
                     if (newScene != null) {
                         try {
-                            themeManager.applyTheme(newScene, themeManager.getCurrentTheme());
+                            themeManager.setScene(newScene);
+                            themeManager.applyTheme(themeManager.getCurrentTheme());
+
+                            try {
+                                if (controller != null && controller.getShortcutManager() != null) {
+                                    controller.getShortcutManager().setupForScene(newScene);
+                                    controller.getShortcutManager().dumpRegisteredShortcuts();
+                                }
+                            } catch (Exception ignored) {}
                         } catch (Exception e) {
                             logger.debug("Failed to reapply theme on scene attach", e);
                         }
                     }
                 });
+
+                try {
+                    Scene currentScene = this.getScene();
+                    if (currentScene != null && controller != null && controller.getShortcutManager() != null) {
+                        controller.getShortcutManager().setupForScene(currentScene);
+                        controller.getShortcutManager().dumpRegisteredShortcuts();
+                    }
+                } catch (Exception ignored) {}
             } catch (Exception e) {
                 logger.debug("ThemeManager not available to MainView", e);
             }
@@ -77,11 +89,5 @@ public class MainView extends BorderPane {
 
     public MainController getController() {
         return controller;
-    }
-
-    public void setupKeyboardShortcuts() {
-        if (getScene() != null && controller != null) {
-            controller.setupKeyboardShortcuts(getScene());
-        }
     }
 }

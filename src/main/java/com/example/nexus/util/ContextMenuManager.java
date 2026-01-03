@@ -1,6 +1,5 @@
 package com.example.nexus.util;
 
-
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.view.components.BrowserTab;
 import com.example.nexus.view.dialogs.PrintDialog;
@@ -20,7 +19,6 @@ public class ContextMenuManager {
     public ContextMenu createTabContextMenu(BrowserTab browserTab) {
         ContextMenu contextMenu = new ContextMenu();
 
-        // Navigation items
         MenuItem backItem = new MenuItem("Back");
         backItem.setGraphic(new FontIcon("mdi-arrow-left"));
         backItem.setOnAction(e -> browserTab.goBack());
@@ -33,7 +31,6 @@ public class ContextMenuManager {
         reloadItem.setGraphic(new FontIcon("mdi-refresh"));
         reloadItem.setOnAction(e -> browserTab.reload());
 
-        // Page items
         MenuItem printItem = new MenuItem("Print...");
         printItem.setGraphic(new FontIcon("mdi-printer"));
         printItem.setOnAction(e -> {
@@ -51,7 +48,7 @@ public class ContextMenuManager {
         MenuItem findItem = new MenuItem("Find...");
         findItem.setGraphic(new FontIcon("mdi-magnify"));
         findItem.setOnAction(e -> {
-            // Show find dialog
+
         });
 
         MenuItem viewSourceItem = new MenuItem("View Page Source");
@@ -62,7 +59,6 @@ public class ContextMenuManager {
         inspectItem.setGraphic(new FontIcon("mdi-bug"));
         inspectItem.setOnAction(e -> browserTab.showDevTools());
 
-        // Add items to context menu
         contextMenu.getItems().addAll(
                 backItem, forwardItem, reloadItem,
                 new SeparatorMenuItem(),
@@ -79,25 +75,24 @@ public class ContextMenuManager {
 
         MenuItem openItem = new MenuItem("Open Link");
         openItem.setOnAction(e -> {
-            // Open the link in the current tab
+
         });
 
         MenuItem openNewTabItem = new MenuItem("Open Link in New Tab");
         openNewTabItem.setOnAction(e -> {
-            // Open the link in a new tab
+
         });
 
         MenuItem openNewWindowItem = new MenuItem("Open Link in New Window");
         openNewWindowItem.setOnAction(e -> {
-            // Open the link in a new window
+
         });
 
         MenuItem copyLinkItem = new MenuItem("Copy Link Address");
         copyLinkItem.setOnAction(e -> {
-            // Copy the link to clipboard
+
         });
 
-        // Add items to context menu
         contextMenu.getItems().addAll(
                 openItem, openNewTabItem, openNewWindowItem,
                 new SeparatorMenuItem(),

@@ -8,7 +8,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.List;
-
+import com.example.nexus.view.components.DownloadDropdown;
+import javafx.scene.control.Button;
+import com.example.nexus.core.DIContainer;
+import com.example.nexus.service.SettingsService;
+import com.example.nexus.controller.SettingsController;
+import com.example.nexus.view.components.DownloadManagerPanel;
 
 public class DownloadController {
     private static final Logger logger = LoggerFactory.getLogger(DownloadController.class);
@@ -21,9 +26,6 @@ public class DownloadController {
         this.settingsService = settingsService;
     }
 
-    /**
-     * Start a new download (choose path via settings)
-     */
     public void startDownload(String url, String filename) {
         try {
             String downloadPath = settingsService.getDownloadPath();
@@ -44,7 +46,6 @@ public class DownloadController {
 
             File targetFile = new File(targetDir, filename);
 
-            // Defensive: if file's parent doesn't exist, try to create it
             File parent = targetFile.getParentFile();
             if (parent != null && !parent.exists()) {
                 boolean ok = parent.mkdirs();
@@ -58,9 +59,6 @@ public class DownloadController {
         }
     }
 
-    /**
-     * Start a download to a specific path (used by Save As flows)
-     */
     public void startDownload(String url, String filename, String absolutePath) {
         try {
             downloadService.startDownload(url, filename, absolutePath);
@@ -106,11 +104,9 @@ public class DownloadController {
         }
     }
 
-
     public List<Download> getAllDownloads() {
         return downloadService.getAllDownloads();
     }
-
 
     public void deleteDownload(int downloadId) {
         try {
@@ -121,7 +117,6 @@ public class DownloadController {
         }
     }
 
-
     public void clearAllDownloads() {
         try {
             downloadService.clearDownloads();
@@ -130,7 +125,6 @@ public class DownloadController {
             logger.error("Error clearing downloads", e);
         }
     }
-
 
     public void openDownloadLocation(Download download) {
         if (download != null && download.getFilePath() != null) {
@@ -146,9 +140,6 @@ public class DownloadController {
         }
     }
 
-    /**
-     * Open the downloaded file directly (if it exists). Falls back to folder when file missing.
-     */
     public void openDownloadFile(Download download) {
         if (download != null && download.getFilePath() != null) {
             try {
@@ -157,7 +148,7 @@ public class DownloadController {
                     ProcessBuilder pb = new ProcessBuilder("xdg-open", file.getAbsolutePath());
                     pb.start();
                 } else {
-                    // fallback to folder
+
                     openDownloadLocation(download);
                 }
             } catch (Exception e) {
@@ -166,23 +157,18 @@ public class DownloadController {
         }
     }
 
-
     public String getDownloadPath() {
         return settingsService.getDownloadPath();
     }
-
 
     public boolean shouldAskDownloadLocation() {
         return settingsService.isAskDownloadLocation();
     }
 
-    /**
-     * Request a download initiated from the UI/JS bridge. This respects the "ask where to save" setting.
-     */
     public void requestDownloadFromUI(String url, String suggestedFileName) {
         try {
             if (shouldAskDownloadLocation()) {
-                // Show Save dialog on JavaFX thread and wait for result
+
                 final java.util.concurrent.atomic.AtomicReference<java.io.File> chosen = new java.util.concurrent.atomic.AtomicReference<>();
                 if (javafx.application.Platform.isFxApplicationThread()) {
                     javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
@@ -213,11 +199,95 @@ public class DownloadController {
                 }
                 startDownload(url, pick.getName(), pick.getAbsolutePath());
             } else {
-                // Use settings path
+
                 startDownload(url, suggestedFileName);
             }
         } catch (Exception e) {
             logger.error("Error requesting download from UI: {}", url, e);
         }
+    }
+
+    public DownloadDropdown createDownloadDropdown(DownloadService ds, boolean isDarkTheme, Button downloadsButton) {
+        DownloadDropdown downloadDropdown = new DownloadDropdown(ds, this, isDarkTheme, () -> {
+            try { showDownloadManagerPanel(null, null, null); } catch (Exception ex) { logger.warn("Failed to open downloads panel", ex); }
+        });
+        ds.addListener(new com.example.nexus.service.DownloadListener() {
+            @Override
+            public void downloadAdded(com.example.nexus.model.Download download) {
+                javafx.application.Platform.runLater(() -> {
+                    try {
+                        updateDownloadsBadge(null, downloadsButton);
+                        if (downloadsButton != null && downloadsButton.getScene() != null) {
+                            var bounds = downloadsButton.localToScene(downloadsButton.getBoundsInLocal());
+                            javafx.stage.Window w = downloadsButton.getScene().getWindow();
+                            downloadDropdown.showNear(w, bounds);
+                        }
+                    } catch (Exception ignored) {}
+                });
+            }
+            @Override
+            public void downloadUpdated(com.example.nexus.model.Download download) {
+                javafx.application.Platform.runLater(() -> { try { downloadDropdown.refreshContent(); } catch (Exception ignored) {} });
+                javafx.application.Platform.runLater(() -> updateDownloadsBadge(null, downloadsButton));
+            }
+        });
+        return downloadDropdown;
+    }
+
+    public void showDownloadManagerPanel(DIContainer container, SettingsService settingsService, SettingsController settingsController) {
+        boolean isDarkTheme = false;
+        if (settingsService != null && settingsController != null) {
+            isDarkTheme = "dark".equals(settingsService.getTheme()) || ("system".equals(settingsService.getTheme()) && settingsController.isSystemDark());
+        }
+        DownloadManagerPanel panel = new DownloadManagerPanel(container, this, isDarkTheme);
+        panel.show();
+    }
+
+    public void showDownloadManagerPanel(DIContainer container, SettingsService settingsService, SettingsController settingsController, com.example.nexus.util.KeyboardShortcutManager shortcutManager) {
+        boolean isDarkTheme = false;
+        if (settingsService != null && settingsController != null) {
+            isDarkTheme = "dark".equals(settingsService.getTheme()) || ("system".equals(settingsService.getTheme()) && settingsController.isSystemDark());
+        }
+        DownloadManagerPanel panel = new DownloadManagerPanel(container, this, isDarkTheme);
+        panel.show();
+        try {
+            if (shortcutManager != null && panel.getScene() != null) {
+                shortcutManager.setupForScene(panel.getScene());
+            }
+        } catch (Exception ignored) {}
+    }
+
+    public void toggleDownloadDropdown(DownloadDropdown downloadDropdown, Button downloadsButton) {
+        if (downloadDropdown != null && downloadsButton != null && downloadsButton.getScene() != null) {
+            javafx.geometry.Bounds b = downloadsButton.localToScene(downloadsButton.getBoundsInLocal());
+            javafx.stage.Window w = downloadsButton.getScene().getWindow();
+            if (downloadDropdown.isShowing()) {
+                downloadDropdown.hide();
+            } else {
+                downloadDropdown.showNear(w, b);
+            }
+        } else {
+            showDownloadManagerPanel(null, null, null);
+        }
+    }
+
+    public void updateDownloadsBadge(DIContainer container, Button downloadsButton) {
+        try {
+            DownloadService ds = (container != null) ? container.getOrCreate(DownloadService.class) : this.downloadService;
+            long active = ds.getAllDownloads().stream().filter(d -> "downloading".equals(d.getStatus())).count();
+            javafx.application.Platform.runLater(() -> {
+                if (downloadsButton != null) {
+                    if (active > 0) {
+                        downloadsButton.setText(String.valueOf(active));
+                        downloadsButton.getStyleClass().remove("badge-hidden");
+                        downloadsButton.getStyleClass().add("badge-visible");
+                    } else {
+                        downloadsButton.setText("");
+                        downloadsButton.getStyleClass().remove("badge-visible");
+                        downloadsButton.getStyleClass().add("badge-hidden");
+                    }
+                }
+            });
+        } catch (Exception ignored) {}
     }
 }

@@ -1,167 +1,126 @@
 package com.example.nexus.controller;
 
-import com.example.nexus.service.HistoryService;
 import com.example.nexus.service.SettingsService;
+import com.example.nexus.service.TabService;
+import com.example.nexus.service.ZoomService;
 import com.example.nexus.view.components.BrowserTab;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TextField;
+import javafx.scene.web.WebView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.function.Consumer;
-
 
 public class NavigationController {
     private static final Logger logger = LoggerFactory.getLogger(NavigationController.class);
 
+    private final TabController tabController;
     private final SettingsService settingsService;
-    private final HistoryService historyService;
-    private Consumer<String> onNavigate;
 
-    public NavigationController(SettingsService settingsService, HistoryService historyService) {
+    public NavigationController(TabController tabController, SettingsService settingsService, ZoomService zoomService) {
+        this.tabController = tabController;
         this.settingsService = settingsService;
-        this.historyService = historyService;
     }
 
-
-    public void setOnNavigate(Consumer<String> callback) {
-        this.onNavigate = callback;
-    }
-
-
-    public void navigateTo(BrowserTab browserTab, String input) {
-        if (browserTab == null || input == null) return;
-
-        String processedUrl = processInput(input);
-        browserTab.loadUrl(processedUrl);
-
-        recordNavigation(processedUrl, browserTab.getTitle());
-
-        if (onNavigate != null) {
-            onNavigate.accept(processedUrl);
+    public void goBack() {
+        BrowserTab currentTab = tabController.getCurrentBrowserTab();
+        if (currentTab != null) {
+            logger.debug("Navigating back");
+            currentTab.goBack();
         }
-
-        logger.debug("Navigating to: {}", processedUrl);
     }
 
-    public String processInput(String input) {
-        if (input == null || input.trim().isEmpty()) {
+    public void goForward() {
+        BrowserTab currentTab = tabController.getCurrentBrowserTab();
+        if (currentTab != null) {
+            logger.debug("Navigating forward");
+            currentTab.goForward();
+        }
+    }
+
+    public void reload() {
+        BrowserTab currentTab = tabController.getCurrentBrowserTab();
+        if (currentTab != null) {
+            logger.debug("Reloading current page");
+            currentTab.reload();
+        }
+    }
+
+    public void goHome() {
+        logger.debug("Navigating to home page");
+        String homePage = settingsService.getHomePage();
+        navigateToUrl(homePage);
+    }
+
+    public void navigateToUrl(String url) {
+        BrowserTab currentTab = tabController.getCurrentBrowserTab();
+        if (currentTab != null) {
+            String processedUrl = processUrl(url);
+            logger.debug("Navigating to URL: {}", processedUrl);
+            currentTab.loadUrl(processedUrl);
+        }
+    }
+
+    public String processUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
             return settingsService.getHomePage();
         }
 
-        String trimmed = input.trim();
+        url = url.trim();
 
-        // Check if it's a search query (no dots or protocol)
-        if (!trimmed.contains("://") && !trimmed.contains(".")) {
-            return getSearchUrl(trimmed);
+        if (!url.contains("://") && !url.contains(".")) {
+            String searchEngine = settingsService.getSearchEngine();
+            return getSearchEngineUrl(searchEngine) + url;
         }
 
-        // Add https:// if no protocol specified
-        if (!trimmed.contains("://")) {
-            return "https://" + trimmed;
+        if (!url.contains("://")) {
+            return "https://" + url;
         }
 
-        return trimmed;
+        return url;
     }
 
-
-    public String getSearchUrl(String query) {
-        String searchEngine = settingsService.getSearchEngine();
-        String baseUrl = getSearchEngineBaseUrl(searchEngine);
-        return baseUrl + query.replace(" ", "+");
-    }
-
-
-    private String getSearchEngineBaseUrl(String searchEngine) {
-        if (searchEngine == null) {
-            return "https://www.google.com/search?q=";
-        }
-
+    public static String getSearchEngineUrl(String searchEngine) {
         return switch (searchEngine.toLowerCase()) {
             case "bing" -> "https://www.bing.com/search?q=";
             case "duckduckgo" -> "https://www.duckduckgo.com/?q=";
-            case "yahoo" -> "https://search.yahoo.com/search?p=";
-            case "ecosia" -> "https://www.ecosia.org/search?q=";
             default -> "https://www.google.com/search?q=";
         };
     }
 
-
-    private void recordNavigation(String url, String title) {
-        if (settingsService.isSaveBrowsingHistory() && historyService != null) {
-            try {
-                historyService.addToHistory(url, title);
-            } catch (Exception e) {
-                logger.error("Error recording history", e);
-            }
+    public void closeCurrentTab() {
+        Tab selectedTab = tabController.getTabPane().getSelectionModel().getSelectedItem();
+        if (selectedTab != null) {
+            logger.debug("Closing current tab");
+            tabController.handleTabClose(selectedTab);
         }
     }
 
-
-    public void goHome(BrowserTab browserTab) {
-        if (browserTab != null) {
-            String homePage = settingsService.getHomePage();
-            browserTab.loadUrl(homePage);
+    public void nextTab() {
+        int currentIndex = tabController.getTabPane().getSelectionModel().getSelectedIndex();
+        if (currentIndex >= 0 && currentIndex < tabController.getTabPane().getTabs().size() - 1) {
+            logger.debug("Switching to next tab");
+            tabController.getTabPane().getSelectionModel().select(currentIndex + 1);
         }
     }
 
-
-    public void goBack(BrowserTab browserTab) {
-        if (browserTab != null) {
-            browserTab.goBack();
+    public void previousTab() {
+        int currentIndex = tabController.getTabPane().getSelectionModel().getSelectedIndex();
+        if (currentIndex > 0) {
+            logger.debug("Switching to previous tab");
+            tabController.getTabPane().getSelectionModel().select(currentIndex - 1);
         }
     }
 
-
-    public void goForward(BrowserTab browserTab) {
-        if (browserTab != null) {
-            browserTab.goForward();
+    public void duplicateCurrentTab() {
+        BrowserTab currentTab = tabController.getCurrentBrowserTab();
+        if (currentTab != null) {
+            logger.debug("Duplicating current tab with URL: {}", currentTab.getUrl());
+            tabController.createNewTab(currentTab.getUrl());
         }
     }
 
-
-    public void reload(BrowserTab browserTab) {
-        if (browserTab != null) {
-            browserTab.reload();
-        }
-    }
-
-
-    public void stop(BrowserTab browserTab) {
-        if (browserTab != null) {
-            browserTab.stop();
-        }
-    }
-
-
-    public boolean isValidUrl(String url) {
-        if (url == null || url.trim().isEmpty()) {
-            return false;
-        }
-
-        try {
-            new java.net.URI(url);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-
-    public String extractDomain(String url) {
-        if (url == null || url.isEmpty()) {
-            return "";
-        }
-
-        try {
-            java.net.URI uri = new java.net.URI(url);
-            String host = uri.getHost();
-            return host != null ? host : "";
-        } catch (Exception e) {
-            return "";
-        }
-    }
-
-    public boolean isSecure(String url) {
-        return url != null && url.toLowerCase().startsWith("https://");
+    public void focusAddressBar(TextField addressBar) {
+        logger.debug("Focusing address bar");
+        addressBar.requestFocus();
     }
 }
-

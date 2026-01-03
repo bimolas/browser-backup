@@ -146,7 +146,7 @@ public class BookmarkFolderRepository extends BaseRepository<BookmarkFolder> {
     @Override
     public void update(BookmarkFolder folder) {
         String sql = """
-            UPDATE bookmark_folders 
+            UPDATE bookmark_folders
             SET name = ?, parent_folder_id = ?, position = ?, is_favorite = ?, updated_at = ?
             WHERE id = ?
             """;

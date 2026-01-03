@@ -12,13 +12,8 @@ import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.function.Consumer;
 
-/**
- * Factory class for creating common UI components with consistent styling.
- * Centralizes UI component creation to maintain consistency across the application.
- */
 public class UIComponentFactory {
 
-    // Default colors - can be overridden
     private String primaryColor = "#6366f1";
     private String textPrimary = "#212529";
     private String textSecondary = "#495057";
@@ -28,9 +23,6 @@ public class UIComponentFactory {
     private String bgTertiary = "#e9ecef";
     private String borderColor = "#dee2e6";
 
-    /**
-     * Set colors for dark theme
-     */
     public void setDarkTheme() {
         this.primaryColor = "#818cf8";
         this.textPrimary = "#e0e0e0";
@@ -42,9 +34,6 @@ public class UIComponentFactory {
         this.borderColor = "#333333";
     }
 
-    /**
-     * Set colors for light theme
-     */
     public void setLightTheme() {
         this.primaryColor = "#6366f1";
         this.textPrimary = "#212529";
@@ -56,15 +45,12 @@ public class UIComponentFactory {
         this.borderColor = "#dee2e6";
     }
 
-    /**
-     * Create a styled card container
-     */
     public VBox createCard(String title, String iconCode) {
         VBox card = new VBox(6);
         card.setMaxWidth(Double.MAX_VALUE);
         card.setFillWidth(true);
         card.getStyleClass().add("card");
-        // Provide CSS variables for colors where needed
+
         card.setStyle(String.format("--bg-primary: %s; --border-color: %s; --text-primary: %s;", bgPrimary, borderColor, textPrimary));
 
         HBox header = new HBox(8);
@@ -84,9 +70,6 @@ public class UIComponentFactory {
         return card;
     }
 
-    /**
-     * Create a toggle switch row with title and description
-     */
     public HBox createToggleRow(String title, String description, String iconCode,
                                  boolean initialValue, Consumer<Boolean> onChange) {
         HBox row = new HBox(12);
@@ -119,9 +102,6 @@ public class UIComponentFactory {
         return row;
     }
 
-    /**
-     * Create a toggle switch component
-     */
     public StackPane createToggleSwitch(boolean initialValue, Consumer<Boolean> onChange) {
         StackPane toggle = new StackPane();
         toggle.setPrefSize(44, 24);
@@ -132,7 +112,7 @@ public class UIComponentFactory {
         Region track = new Region();
         track.setPrefSize(44, 24);
         track.getStyleClass().add("toggle-track");
-        // Keep dynamic color for primary and off colors
+
         String offColor = bgTertiary.equals("#2d2d2d") ? "#4a4a4a" : "#adb5bd";
         track.setStyle(String.format("-fx-background-color: %s; -fx-background-radius: 12;", (initialValue ? primaryColor : offColor)));
 
@@ -163,9 +143,6 @@ public class UIComponentFactory {
         return toggle;
     }
 
-    /**
-     * Create a page header
-     */
     public VBox createPageHeader(String title, String subtitle, String iconCode) {
         VBox header = new VBox(4);
         header.setPadding(new Insets(0, 0, 16, 0));
@@ -196,9 +173,6 @@ public class UIComponentFactory {
         return header;
     }
 
-    /**
-     * Create a styled button
-     */
     public Button createButton(String text, String iconCode, String style) {
         Button button = new Button(text);
         if (iconCode != null && !iconCode.isEmpty()) {
@@ -206,16 +180,13 @@ public class UIComponentFactory {
             icon.setIconSize(14);
             button.setGraphic(icon);
         }
-        // Prefer using style classes whenever possible, but accept a style string for custom buttons
+
         if (style != null && !style.isEmpty()) {
             button.setStyle(style);
         }
         return button;
     }
 
-    /**
-     * Create a primary styled button
-     */
     public Button createPrimaryButton(String text, String iconCode) {
         return createButton(text, iconCode,
             "-fx-background-color: " + primaryColor + ";" +
@@ -226,9 +197,6 @@ public class UIComponentFactory {
         );
     }
 
-    /**
-     * Create a secondary styled button
-     */
     public Button createSecondaryButton(String text, String iconCode) {
         return createButton(text, iconCode,
             "-fx-background-color: " + bgSecondary + ";" +
@@ -241,9 +209,6 @@ public class UIComponentFactory {
         );
     }
 
-    /**
-     * Create a danger styled button
-     */
     public Button createDangerButton(String text, String iconCode) {
         return createButton(text, iconCode,
             "-fx-background-color: #ef4444;" +
@@ -254,9 +219,6 @@ public class UIComponentFactory {
         );
     }
 
-    /**
-     * Create a styled text field
-     */
     public TextField createTextField(String promptText) {
         TextField field = new TextField();
         field.setPromptText(promptText);
@@ -265,9 +227,6 @@ public class UIComponentFactory {
         return field;
     }
 
-    /**
-     * Create a styled combo box
-     */
     public <T> ComboBox<T> createComboBox(String promptText) {
         ComboBox<T> combo = new ComboBox<>();
         combo.setPromptText(promptText);
@@ -276,7 +235,6 @@ public class UIComponentFactory {
         return combo;
     }
 
-    // Getters for colors (useful for custom styling)
     public String getPrimaryColor() { return primaryColor; }
     public String getTextPrimary() { return textPrimary; }
     public String getTextSecondary() { return textSecondary; }
@@ -286,4 +244,3 @@ public class UIComponentFactory {
     public String getBgTertiary() { return bgTertiary; }
     public String getBorderColor() { return borderColor; }
 }
-

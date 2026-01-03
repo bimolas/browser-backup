@@ -42,7 +42,7 @@ public class HistoryManager extends BorderPane {
     }
 
     private void initializeUI() {
-        // Set up the header
+
         Label titleLabel = new Label("History");
         titleLabel.setFont(Font.font("System", FontWeight.BOLD, 18));
 
@@ -63,14 +63,11 @@ public class HistoryManager extends BorderPane {
         headerBox.setAlignment(Pos.CENTER_LEFT);
         headerBox.setPadding(new Insets(10));
 
-        // Set up the history list
         historyListView.setCellFactory(param -> new HistoryEntryCell());
 
-        // Set up the layout
         setTop(headerBox);
         setCenter(new MFXScrollPane(historyListView));
 
-        // Set up the bottom
         Button closeButton = new Button("Close");
         closeButton.setOnAction(e -> close());
 

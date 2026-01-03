@@ -4,40 +4,17 @@ import com.example.nexus.model.Settings;
 
 import java.util.function.Consumer;
 
-/**
- * Interface for Settings Service operations.
- * Provides methods for managing browser settings.
- */
 public interface ISettingsService {
 
-    // ===== CORE =====
-
-    /**
-     * Get the current settings object
-     */
     Settings getSettings();
 
-    /**
-     * Save all current settings
-     */
     void saveSettings();
 
-    /**
-     * Reset all settings to defaults
-     */
     void resetToDefaults();
 
-    /**
-     * Add a listener for settings changes
-     */
     void addSettingsChangeListener(Consumer<Settings> listener);
 
-    /**
-     * Remove a settings change listener
-     */
     void removeSettingsChangeListener(Consumer<Settings> listener);
-
-    // ===== APPEARANCE =====
 
     String getTheme();
     void setTheme(String theme);
@@ -60,8 +37,6 @@ public interface ISettingsService {
     boolean isCompactMode();
     void setCompactMode(boolean compact);
 
-    // ===== STARTUP & HOME =====
-
     String getHomePage();
     void setHomePage(String homePage);
 
@@ -74,8 +49,6 @@ public interface ISettingsService {
     String getNewTabPage();
     void setNewTabPage(String newTabPage);
 
-    // ===== SEARCH =====
-
     String getSearchEngine();
     void setSearchEngine(String searchEngine);
 
@@ -83,8 +56,6 @@ public interface ISettingsService {
 
     boolean isShowSearchSuggestions();
     void setShowSearchSuggestions(boolean show);
-
-    // ===== PRIVACY & SECURITY =====
 
     boolean isClearHistoryOnExit();
     void setClearHistoryOnExit(boolean clear);
@@ -104,15 +75,11 @@ public interface ISettingsService {
     boolean isSavePasswords();
     void setSavePasswords(boolean save);
 
-    // ===== DOWNLOADS =====
-
     String getDownloadPath();
     void setDownloadPath(String path);
 
     boolean isAskDownloadLocation();
     void setAskDownloadLocation(boolean ask);
-
-    // ===== PERFORMANCE =====
 
     boolean isHardwareAcceleration();
     void setHardwareAcceleration(boolean enabled);
@@ -120,15 +87,11 @@ public interface ISettingsService {
     boolean isSmoothScrolling();
     void setSmoothScrolling(boolean enabled);
 
-    // ===== ACCESSIBILITY =====
-
     boolean isHighContrast();
     void setHighContrast(boolean enabled);
 
     boolean isReduceMotion();
     void setReduceMotion(boolean reduce);
-
-    // ===== ADVANCED =====
 
     boolean isEnableJavaScript();
     void setEnableJavaScript(boolean enabled);
@@ -139,4 +102,3 @@ public interface ISettingsService {
     String getProxyMode();
     void setProxyMode(String mode);
 }
-

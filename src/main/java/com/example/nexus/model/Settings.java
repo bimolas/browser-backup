@@ -1,100 +1,78 @@
 package com.example.nexus.model;
 
-/**
- * Settings model containing all browser configuration options.
- * Organized into logical categories for better maintainability.
- */
 public class Settings {
     private int id;
     private int userId;
 
-    // ===== APPEARANCE =====
-    private String theme;                    // light, dark, system
-    private String accentColor;              // hex color
-    private int fontSize;                    // base font size (9-24)
-    private double pageZoom;                 // default page zoom (0.25-5.0)
-    private boolean showBookmarksBar;        // show bookmarks bar below address bar
-    private boolean showStatusBar;           // show status bar at bottom
-    private boolean compactMode;             // compact UI mode
+    private String theme;
+    private String accentColor;
+    private int fontSize;
+    private double pageZoom;
+    private boolean showBookmarksBar;
+    private boolean showStatusBar;
+    private boolean compactMode;
 
-    // ===== STARTUP & HOME =====
-    private String homePage;                 // home page URL
-    private String startupBehavior;          // show_home, restore_session, show_blank, show_new_tab
-    private boolean restoreSession;          // restore tabs on startup
-    private String newTabPage;               // new_tab, home, blank, custom
-    private String customNewTabUrl;          // custom new tab URL
+    private String homePage;
+    private String startupBehavior;
+    private boolean restoreSession;
+    private String newTabPage;
+    private String customNewTabUrl;
 
-    // ===== SEARCH =====
-    private String searchEngine;             // google, bing, duckduckgo, yahoo, custom
-    private String customSearchUrl;          // custom search engine URL (use %s for query)
-    private boolean showSearchSuggestions;   // show search suggestions
-    private boolean searchInAddressBar;      // enable search from address bar
+    private String searchEngine;
+    private String customSearchUrl;
+    private boolean showSearchSuggestions;
+    private boolean searchInAddressBar;
 
-    // ===== PRIVACY & SECURITY =====
     private boolean clearHistoryOnExit;
     private boolean clearCookiesOnExit;
     private boolean clearCacheOnExit;
-    private boolean blockPopups;             // block popup windows
-    private boolean doNotTrack;              // send DNT header
+    private boolean blockPopups;
+    private boolean doNotTrack;
     private boolean blockThirdPartyCookies;
-    private boolean httpsOnlyMode;           // prefer HTTPS
-    private boolean saveBrowsingHistory;     // save browsing history
-    private boolean saveFormData;            // save form autofill data
-    private boolean savePasswords;           // offer to save passwords
+    private boolean httpsOnlyMode;
+    private boolean saveBrowsingHistory;
+    private boolean saveFormData;
+    private boolean savePasswords;
 
-    // ===== DOWNLOADS =====
-    private String downloadPath;             // default download location
-    private boolean askDownloadLocation;     // ask where to save each file
-    private boolean openPdfInBrowser;        // open PDF files in browser
-    private boolean showDownloadNotification; // show notification when download completes
+    private String downloadPath;
+    private boolean askDownloadLocation;
+    private boolean openPdfInBrowser;
+    private boolean showDownloadNotification;
 
-    // ===== PERFORMANCE =====
-    private boolean hardwareAcceleration;    // use hardware acceleration
-    private boolean smoothScrolling;         // enable smooth scrolling
-    private boolean preloadPages;            // preload pages for faster loading
-    private boolean lazyLoadImages;          // lazy load images
-    private int maxTabsInMemory;             // max tabs to keep in memory (0 = unlimited)
+    private boolean hardwareAcceleration;
+    private boolean smoothScrolling;
+    private boolean preloadPages;
+    private boolean lazyLoadImages;
+    private int maxTabsInMemory;
 
-    // ===== ACCESSIBILITY =====
-    private boolean highContrast;            // high contrast mode
-    private boolean reduceMotion;            // reduce animations
-    private boolean forceZoom;               // allow zoom on all pages
-    private String defaultEncoding;          // default text encoding (UTF-8)
+    private boolean highContrast;
+    private boolean reduceMotion;
+    private boolean forceZoom;
+    private String defaultEncoding;
 
-    // ===== ADVANCED =====
-    private boolean enableJavaScript;        // enable JavaScript
-    private boolean enableImages;            // load images
-    private boolean enableWebGL;             // enable WebGL
-    private boolean developerMode;           // enable developer features
-    private String proxyMode;                // none, system, manual
+    private boolean enableJavaScript;
+    private boolean enableImages;
+    private boolean enableWebGL;
+    private boolean developerMode;
+    private String proxyMode;
     private String proxyHost;
     private int proxyPort;
-    private String userAgent;                // custom user agent (empty = default)
+    private String userAgent;
 
-    // ===== NOTIFICATIONS =====
-    private boolean enableNotifications;     // allow site notifications
-    private boolean soundEnabled;            // enable sound effects
+    private boolean enableNotifications;
+    private boolean soundEnabled;
 
-    /**
-     * Default constructor with sensible defaults
-     */
     public Settings() {
         setDefaults();
     }
 
-    /**
-     * Constructor with user ID
-     */
     public Settings(int userId) {
         this.userId = userId;
         setDefaults();
     }
 
-    /**
-     * Set all settings to sensible defaults
-     */
     private void setDefaults() {
-        // Appearance
+
         this.theme = "light";
         this.accentColor = "#3b82f6";
         this.fontSize = 14;
@@ -103,20 +81,17 @@ public class Settings {
         this.showStatusBar = true;
         this.compactMode = false;
 
-        // Startup & Home
         this.homePage = "https://www.google.com";
         this.startupBehavior = "show_home";
         this.restoreSession = true;
         this.newTabPage = "new_tab";
         this.customNewTabUrl = "";
 
-        // Search
         this.searchEngine = "google";
         this.customSearchUrl = "";
         this.showSearchSuggestions = true;
         this.searchInAddressBar = true;
 
-        // Privacy & Security
         this.clearHistoryOnExit = false;
         this.clearCookiesOnExit = false;
         this.clearCacheOnExit = false;
@@ -128,26 +103,22 @@ public class Settings {
         this.saveFormData = true;
         this.savePasswords = true;
 
-        // Downloads
         this.downloadPath = System.getProperty("user.home") + "/Downloads";
         this.askDownloadLocation = false;
         this.openPdfInBrowser = true;
         this.showDownloadNotification = true;
 
-        // Performance
         this.hardwareAcceleration = true;
         this.smoothScrolling = true;
         this.preloadPages = true;
         this.lazyLoadImages = true;
         this.maxTabsInMemory = 0;
 
-        // Accessibility
         this.highContrast = false;
         this.reduceMotion = false;
         this.forceZoom = false;
         this.defaultEncoding = "UTF-8";
 
-        // Advanced
         this.enableJavaScript = true;
         this.enableImages = true;
         this.enableWebGL = true;
@@ -157,12 +128,9 @@ public class Settings {
         this.proxyPort = 8080;
         this.userAgent = "";
 
-        // Notifications
         this.enableNotifications = true;
         this.soundEnabled = true;
     }
-
-    // ==================== GETTERS AND SETTERS ====================
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
@@ -170,7 +138,6 @@ public class Settings {
     public int getUserId() { return userId; }
     public void setUserId(int userId) { this.userId = userId; }
 
-    // Appearance
     public String getTheme() { return theme; }
     public void setTheme(String theme) { this.theme = theme; }
 
@@ -192,7 +159,6 @@ public class Settings {
     public boolean isCompactMode() { return compactMode; }
     public void setCompactMode(boolean compactMode) { this.compactMode = compactMode; }
 
-    // Startup & Home
     public String getHomePage() { return homePage; }
     public void setHomePage(String homePage) { this.homePage = homePage; }
 
@@ -208,7 +174,6 @@ public class Settings {
     public String getCustomNewTabUrl() { return customNewTabUrl; }
     public void setCustomNewTabUrl(String customNewTabUrl) { this.customNewTabUrl = customNewTabUrl; }
 
-    // Search
     public String getSearchEngine() { return searchEngine; }
     public void setSearchEngine(String searchEngine) { this.searchEngine = searchEngine; }
 
@@ -221,7 +186,6 @@ public class Settings {
     public boolean isSearchInAddressBar() { return searchInAddressBar; }
     public void setSearchInAddressBar(boolean searchInAddressBar) { this.searchInAddressBar = searchInAddressBar; }
 
-    // Privacy & Security
     public boolean isClearHistoryOnExit() { return clearHistoryOnExit; }
     public void setClearHistoryOnExit(boolean clearHistoryOnExit) { this.clearHistoryOnExit = clearHistoryOnExit; }
 
@@ -252,7 +216,6 @@ public class Settings {
     public boolean isSavePasswords() { return savePasswords; }
     public void setSavePasswords(boolean savePasswords) { this.savePasswords = savePasswords; }
 
-    // Downloads
     public String getDownloadPath() { return downloadPath; }
     public void setDownloadPath(String downloadPath) { this.downloadPath = downloadPath; }
 
@@ -265,7 +228,6 @@ public class Settings {
     public boolean isShowDownloadNotification() { return showDownloadNotification; }
     public void setShowDownloadNotification(boolean showDownloadNotification) { this.showDownloadNotification = showDownloadNotification; }
 
-    // Performance
     public boolean isHardwareAcceleration() { return hardwareAcceleration; }
     public void setHardwareAcceleration(boolean hardwareAcceleration) { this.hardwareAcceleration = hardwareAcceleration; }
 
@@ -281,7 +243,6 @@ public class Settings {
     public int getMaxTabsInMemory() { return maxTabsInMemory; }
     public void setMaxTabsInMemory(int maxTabsInMemory) { this.maxTabsInMemory = Math.max(0, maxTabsInMemory); }
 
-    // Accessibility
     public boolean isHighContrast() { return highContrast; }
     public void setHighContrast(boolean highContrast) { this.highContrast = highContrast; }
 
@@ -294,7 +255,6 @@ public class Settings {
     public String getDefaultEncoding() { return defaultEncoding; }
     public void setDefaultEncoding(String defaultEncoding) { this.defaultEncoding = defaultEncoding; }
 
-    // Advanced
     public boolean isEnableJavaScript() { return enableJavaScript; }
     public void setEnableJavaScript(boolean enableJavaScript) { this.enableJavaScript = enableJavaScript; }
 
@@ -319,16 +279,12 @@ public class Settings {
     public String getUserAgent() { return userAgent; }
     public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
 
-    // Notifications
     public boolean isEnableNotifications() { return enableNotifications; }
     public void setEnableNotifications(boolean enableNotifications) { this.enableNotifications = enableNotifications; }
 
     public boolean isSoundEnabled() { return soundEnabled; }
     public void setSoundEnabled(boolean soundEnabled) { this.soundEnabled = soundEnabled; }
 
-    /**
-     * Get search URL for the configured search engine
-     */
     public String getSearchUrl(String query) {
         String encodedQuery;
         try {
@@ -349,9 +305,6 @@ public class Settings {
         };
     }
 
-    /**
-     * Reset all settings to defaults
-     */
     public void resetToDefaults() {
         int savedId = this.id;
         int savedUserId = this.userId;

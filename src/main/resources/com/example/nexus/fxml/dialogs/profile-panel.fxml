@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.shape.Circle?>
+
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.example.nexus.controller.ProfileController"
+      styleClass="profile-panel-root" alignment="CENTER" spacing="20" prefWidth="380" prefHeight="500">
+
+    <!-- Profile Card Container -->
+    <VBox alignment="CENTER" spacing="0">
+        <padding><Insets top="30" right="30" bottom="10" left="30"/></padding>
+
+        <!-- Main Profile Card - Larger size -->
+        <VBox styleClass="profile-tile-card" alignment="CENTER" spacing="12" prefWidth="260" maxWidth="260">
+            <padding><Insets top="30" right="30" bottom="30" left="30"/></padding>
+
+            <!-- Profile Avatar - Larger circle (60 radius = 120px diameter) -->
+            <StackPane fx:id="avatarContainer" styleClass="profile-avatar" onMouseClicked="#handleChangeProfileImage" style="-fx-cursor: hand;">
+                <Circle fx:id="avatarCircle" radius="60"/>
+            </StackPane>
+
+            <!-- Username -->
+            <Label fx:id="usernameLabel" styleClass="profile-name-label" text="Guest" wrapText="true" textAlignment="CENTER" maxWidth="220"/>
+
+            <!-- Email -->
+            <Label fx:id="emailDisplayLabel" styleClass="profile-email-label" text="No email" wrapText="false" textAlignment="CENTER" maxWidth="220" textOverrun="ELLIPSIS"/>
+
+        </VBox>
+    </VBox>
+
+    <!-- Spacer -->
+    <Region VBox.vgrow="SOMETIMES" minHeight="10" maxHeight="15"/>
+
+    <!-- Action Buttons -->
+    <VBox alignment="CENTER" spacing="12" styleClass="profile-actions-container">
+        <padding><Insets top="0" right="32" bottom="25" left="32"/></padding>
+
+        <!-- Logout Button -->
+        <Button fx:id="signOutButton" text="Sign out" styleClass="profile-action-button" maxWidth="Infinity" onAction="#handleSignOut"/>
+
+        <!-- Switch Account Button -->
+        <Button fx:id="switchAccountButton" text="Switch account" styleClass="profile-action-button-secondary" maxWidth="Infinity" onAction="#handleSwitchToChooser"/>
+    </VBox>
+
+    <!-- Hidden fields for controller -->
+    <TextField fx:id="usernameField" visible="false" managed="false"/>
+    <TextField fx:id="emailField" visible="false" managed="false"/>
+    <Button fx:id="editButton" visible="false" managed="false"/>
+    <Button fx:id="saveButton" visible="false" managed="false"/>
+    <Button fx:id="cancelButton" visible="false" managed="false"/>
+    <Button fx:id="changeImageButton" visible="false" managed="false"/>
+    <Button fx:id="signInButton" visible="false" managed="false"/>
+    <Button fx:id="addAccountButton" visible="false" managed="false"/>
+    <Button fx:id="guestModeButton" visible="false" managed="false"/>
+    <Button fx:id="removeAccountButton" visible="false" managed="false"/>
+    <ListView fx:id="accountsListView" visible="false" managed="false"/>
+</VBox>
+

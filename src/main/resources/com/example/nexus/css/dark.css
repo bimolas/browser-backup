@@ -1017,25 +1017,65 @@
     -fx-padding: 4 2 0 2;
 }
 
-.search-field {
-    -fx-background-color: #2a2a2a;
-    -fx-border-color: #3a3a3a;
-    -fx-border-radius: 8;
-    -fx-background-radius: 8;
-    -fx-padding: 8 10;
-    -fx-text-fill: #e6eef8;
+/* Download dropdown dark style improvements */
+.download-dropdown-root {
+    -fx-padding: 0 !important;
+    -fx-background-color: transparent !important;
+    -fx-border-color: transparent !important;
+    -fx-border-width: 0 !important;
+    -fx-background-insets: 0 !important;
+    -fx-background-radius: 0 !important;
 }
-.search-field:focused {
-    -fx-border-color: #3b82f6;
-    -fx-border-width: 2;
+
+
+.download-dropdown {
+    -fx-background-color: #0e0f11;
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(255,255,255,0.06);
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.8), 24, 0, 0, 12);
+}
+
+.download-dropdown .download-card-row {
+    -fx-background-color: transparent;
+    -fx-border-color: rgba(37, 37, 37, 0.85);
+    -fx-border-width: 1;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 10;
+}
+
+/* Make download names more prominent */
+.download-dropdown-name {
+    -fx-font-size: 13px;
+    -fx-text-fill: #000000; /* use pure black as requested */
+    -fx-font-weight: 700; /* make bold */
 }
 
 .download-item-title {
     -fx-font-size: 14px;
-    -fx-font-weight: 600;
-    -fx-text-fill: #e6eef8;
+    -fx-font-weight: 700; /* make bold */
+    -fx-text-fill: #000000; /* use pure black as requested */
 }
 
+/* Tone down hover backgrounds for icon/action buttons (subtle highlight only) */
+.icon-button:hover, .download-action-button:hover {
+    -fx-background-color: rgba(255,255,255,0.015); /* very subtle */
+    -fx-background-radius: 8;
+}
+
+/* Keep icon colors neutral on hover for 'open' action (avoid strong color shift) */
+.icon-button.open .ikonli-font-icon,
+.download-action-button.open .ikonli-font-icon {
+    -fx-icon-color: #cbd5e1; /* neutral light */
+}
+.icon-button.open:hover .ikonli-font-icon,
+.download-action-button.open:hover .ikonli-font-icon {
+    -fx-icon-color: #e6eef8; /* only slightly lighter on hover */
+}
+
+/* Danger/clear/close buttons: make hover less aggressive */
 .danger-button {
     -fx-background-color: rgba(220,53,69,0.06);
     -fx-text-fill: #ff8a9a;
@@ -1045,7 +1085,7 @@
     -fx-padding: 6 10;
 }
 .danger-button:hover {
-    -fx-background-color: rgba(220,53,69,0.12);
+    -fx-background-color: rgba(250, 28, 48, 0.82); /* slightly darker but not strong */
 }
 
 .secondary-button {
@@ -1057,181 +1097,591 @@
     -fx-padding: 6 10;
 }
 .secondary-button:hover {
-    -fx-background-color: rgba(255,255,255,0.04);
+    -fx-background-color: rgba(255,255,255,0.02); /* more subtle */
 }
 
-/* File type icon / action icon in dark mode */
-.file-type-icon {
-    -fx-font-size: 18px;
-    -fx-padding: 0 8 0 0;
-    -fx-text-fill: #9ca3af;
-}
-
-.action-icon {
-    -fx-font-size: 14px;
-}
-
-/* Icon button neutral style override for dark theme */
-.icon-button {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-padding: 6;
-    -fx-background-radius: 8;
-    -fx-cursor: hand;
-}
-.icon-button .action-icon {
-    -fx-text-fill: #e6eef8;
-}
-.icon-button:hover {
-    -fx-background-color: rgba(255,255,255,0.03);
-    -fx-background-radius: 8;
-}
-.icon-button.danger-button .action-icon {
-    -fx-text-fill: #ff8a9a;
-}
-.icon-button.danger-button:hover {
-    -fx-background-color: rgba(220,53,69,0.08);
-}
-
-/* Download dropdown dark style improvements */
-.download-dropdown-root {
-    -fx-background-color: transparent;
-    -fx-padding: 8;
-}
-
-.download-dropdown {
-    -fx-background-color: #111318; /* deeper, near-black card */
-    -fx-background-radius: 12;
-    -fx-border-color: rgba(255,255,255,0.03);
-    -fx-border-radius: 12;
-    -fx-padding: 8;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 12, 0, 0, 8);
-}
-
-.download-dropdown .download-card-row {
-    -fx-background-color: transparent;
-    -fx-border-color: rgba(255,255,255,0.03);
-    -fx-border-width: 1;
-    -fx-background-radius: 8;
-    -fx-border-radius: 8;
-    -fx-padding: 10;
-}
-
-.download-dropdown-empty {
-    -fx-text-fill: #9ca3af;
-    -fx-padding: 12;
-}
-
-.download-dropdown-name {
+/* Expand the search field length and add a label style for it */
+.search-label {
     -fx-font-size: 13px;
-    -fx-text-fill: #e6eef8;
-    -fx-font-weight: 500;
-}
-
-.download-dropdown-percent {
-    -fx-font-size: 12px;
-    -fx-text-fill: #9ca3af;
-}
-
-/* Icon / action buttons in dropdown - remove default borders/backgrounds but keep hover rounded effect */
-.icon-button, .download-action-button {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-padding: 6;
-    -fx-cursor: hand;
-    -fx-background-radius: 8;
-}
-
-.icon-button.open, .icon-button.delete,
-.download-action-button.open, .download-action-button.delete {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-padding: 6;
-    -fx-background-radius: 8;
-}
-
-.icon-button:hover, .download-action-button:hover {
-    -fx-background-color: rgba(255,255,255,0.03);
-    -fx-background-radius: 8;
-}
-
-/* Icon colors to match settings dark icons */
-.icon-button .ikonli-font-icon,
-.download-action-button .ikonli-font-icon {
-    -fx-icon-size: 14;
-    -fx-icon-color: #cbd5e1;
-}
-
-/* Update progress bar visuals for dark theme: blue inner bar with smooth transition */
-.progress-bar.download-progress {
-    -fx-background-color: transparent;
-    -fx-pref-height: 12;
-}
-
-.progress-bar.download-progress .bar {
-    -fx-background-color: #2563eb; /* solid blue */
-    -fx-background-radius: 999px;
-    -fx-effect: dropshadow(gaussian, rgba(37,99,235,0.18), 6, 0, 0, 2);
-    -fx-transition: all 280ms ease-in-out;
-}
-
-.progress-bar.download-progress .track {
-    -fx-background-color: #1f2326;
-    -fx-background-radius: 999px;
-}
-
-/* Smooth entry animation for dropdown children */
-.download-dropdown-root > * {
-    -fx-opacity: 0;
-    -fx-translate-y: -6;
-}
-.download-dropdown-root.showing > * {
-    -fx-opacity: 1;
-    -fx-translate-y: 0;
-    -fx-transition: all 260ms cubic-bezier(.22,.9,.32,1);
-}
-
-/* file-type icon color */
-.file-type-icon {
-    -fx-font-size: 14px;
-    -fx-text-fill: #9ca3af;
-}
-
-/* Ensure action icons have neutral look and rounded hover */
-.icon-button.action-icon {
-    -fx-background-color: transparent;
-    -fx-background-radius: 6;
-    -fx-padding: 6;
-}
-.icon-button.action-icon:hover {
-    -fx-background-color: rgba(96,165,250,0.06);
-}
-
-/* danger look for delete */
-.icon-button.delete .ikonli-font-icon {
-    -fx-icon-color: #ff8a9a;
-}
-.icon-button.delete:hover {
-    -fx-background-color: rgba(220,53,69,0.08);
-}
-
-/* Keep primary footer button style */
-.download-dropdown .primary-button {
     -fx-font-weight: 600;
+    -fx-text-fill: #e6eef8;
+    -fx-padding: 0 8 0 0;
 }
 
-/* Icon color overrides for open/delete in dark theme */
-.icon-button.open .ikonli-font-icon {
-    -fx-icon-color: #cbd5e1; /* neutral light */
+.search-field {
+    -fx-background-color: #2a2a2a;
+    -fx-border-color: #3a3a3a;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8 10;
+    -fx-text-fill: #e6eef8;
+    -fx-pref-width: 360; /* expanded width */
 }
-.icon-button.open:hover .ikonli-font-icon {
-    -fx-icon-color: #3b82f6; /* accent on hover */
-}
-.icon-button.delete .ikonli-font-icon {
-    -fx-icon-color: #ff8a9a; /* soft danger */
-}
-.icon-button.delete:hover .ikonli-font-icon {
-    -fx-icon-color: #ff6b7a;
+.search-field:focused {
+    -fx-border-color: #3b82f6;
+    -fx-border-width: 2;
 }
 
 /* End of dark dropdown styles */
+
+/* Profile Styles - Dark Theme */
+.profile-container {
+    -fx-padding: 20;
+    -fx-spacing: 20;
+    -fx-background-color: #1f2937;
+}
+
+.profile-header {
+    -fx-spacing: 15;
+    -fx-padding: 15;
+    -fx-border-color: #374151;
+    -fx-border-width: 0 0 1 0;
+}
+
+.profile-image {
+    -fx-fit-width: 80;
+    -fx-fit-height: 80;
+    -fx-border-radius: 40;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 5, 0, 0, 2);
+}
+
+.profile-username {
+    -fx-font-size: 18;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f3f4f6;
+}
+
+.profile-subtitle {
+    -fx-font-size: 12;
+    -fx-text-fill: #9ca3af;
+}
+
+.profile-info-section {
+    -fx-spacing: 10;
+    -fx-padding: 15;
+    -fx-border-color: #374151;
+    -fx-border-width: 1;
+    -fx-border-radius: 8;
+    -fx-background-color: #111827;
+}
+
+.section-title {
+    -fx-font-size: 14;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f3f4f6;
+}
+
+.field-label {
+    -fx-font-size: 12;
+    -fx-text-fill: #d1d5db;
+    -fx-font-weight: 500;
+}
+
+.form-field {
+    -fx-padding: 8 12;
+    -fx-border-color: #4b5563;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-font-size: 13;
+    -fx-text-fill: #f3f4f6;
+    -fx-background-color: #374151;
+}
+
+.form-field:focused {
+    -fx-border-color: #60a5fa;
+    -fx-border-width: 2;
+}
+
+.button-group {
+    -fx-spacing: 10;
+    -fx-padding: 15 0 0 0;
+}
+
+.btn-primary {
+    -fx-padding: 10 20;
+    -fx-font-size: 13;
+    -fx-font-weight: 500;
+    -fx-background-color: #3b82f6;
+    -fx-text-fill: #ffffff;
+    -fx-border-radius: 6;
+    -fx-cursor: hand;
+}
+
+.btn-primary:hover {
+    -fx-background-color: #2563eb;
+}
+
+.btn-success {
+    -fx-padding: 10 20;
+    -fx-font-size: 13;
+    -fx-font-weight: 500;
+    -fx-background-color: #10b981;
+    -fx-text-fill: #ffffff;
+    -fx-border-radius: 6;
+    -fx-cursor: hand;
+}
+
+.btn-success:hover {
+    -fx-background-color: #059669;
+}
+
+.btn-secondary {
+    -fx-padding: 10 20;
+    -fx-font-size: 13;
+    -fx-font-weight: 500;
+    -fx-background-color: #4b5563;
+    -fx-text-fill: #f3f4f6;
+    -fx-border-radius: 6;
+    -fx-cursor: hand;
+}
+
+.btn-secondary:hover {
+    -fx-background-color: #6b7280;
+}
+
+/* ==================== Dark Theme Profile Panel ==================== */
+.profile-panel-root {
+    -fx-background-color: #202124;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 12, 0, 0, 3);
+}
+
+/* Profile Info Container (outside card) - Dark Mode */
+.profile-info-container {
+    -fx-background-color: transparent;
+}
+
+/* Name outside card - Dark Mode */
+.profile-name-outside {
+    -fx-text-fill: #e8eaed;
+    -fx-font-weight: 600;
+}
+
+/* Email outside card - Dark Mode */
+.profile-email-outside {
+    -fx-text-fill: #bdc1c6;
+    -fx-font-weight: 400;
+}
+
+/* Profile Card Container - Dark Mode */
+.profile-card-container {
+    -fx-background-color: transparent;
+}
+
+/* Avatar Card Solo - Dark Mode */
+.profile-avatar-card-solo {
+    -fx-background-color: #292a2d;
+    -fx-border-color: #3c4043;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 10, 0, 0, 3);
+}
+
+.profile-avatar-card-solo:hover {
+    -fx-background-color: #35363a;
+    -fx-effect: dropshadow(gaussian, rgba(138, 180, 248, 0.3), 16, 0, 0, 4);
+    -fx-border-color: #5f6368;
+}
+
+/* Legacy styles - Dark Mode */
+.profile-name-top {
+    -fx-text-fill: #e8eaed;
+    -fx-font-weight: 600;
+}
+
+.profile-email-top {
+    -fx-text-fill: #bdc1c6;
+    -fx-font-weight: 400;
+}
+
+.profile-avatar-card {
+    -fx-background-color: #292a2d;
+    -fx-border-color: #3c4043;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 10, 0, 0, 3);
+}
+
+.profile-avatar-card:hover {
+    -fx-background-color: #35363a;
+    -fx-effect: dropshadow(gaussian, rgba(138, 180, 248, 0.3), 16, 0, 0, 4);
+    -fx-border-color: #5f6368;
+}
+
+/* Profile Avatar Container */
+.avatar-circle-bg {
+    -fx-fill: linear-gradient(to bottom right, #667eea 0%, #764ba2 100%);
+}
+
+/* Username below image (kept for compatibility) - Dark Mode */
+.profile-username-below {
+    -fx-text-fill: #e8eaed;
+    -fx-font-weight: 500;
+}
+
+/* Primary Action Button (Sign Out) - Dark Mode */
+.profile-action-button {
+    -fx-background-color: #8ab4f8;
+    -fx-text-fill: #202124;
+    -fx-effect: dropshadow(gaussian, rgba(138, 180, 248, 0.4), 10, 0, 0, 3);
+}
+
+.profile-action-button:hover {
+    -fx-background-color: #aecbfa;
+    -fx-text-fill: #000000;
+    -fx-effect: dropshadow(gaussian, rgba(138, 180, 248, 0.5), 14, 0, 0, 4);
+}
+
+.profile-action-button:pressed {
+    -fx-background-color: #669df6;
+    -fx-text-fill: #000000;
+}
+
+/* Secondary Action Button (Switch Account) - Dark Mode */
+.profile-action-button-secondary {
+    -fx-background-color: transparent;
+    -fx-text-fill: #aecbfa;
+    -fx-border-color: #5f6368;
+}
+
+.profile-action-button-secondary:hover {
+    -fx-background-color: #2d2d2d;
+    -fx-border-color: #8ab4f8;
+    -fx-text-fill: #d2e3fc;
+}
+
+.profile-action-button-secondary:pressed {
+    -fx-background-color: #3c4043;
+    -fx-text-fill: #aecbfa;
+}
+
+/* ==================== Dark Theme Profile Chooser ==================== */
+.profile-chooser-root {
+    -fx-background-color: #202124;
+}
+
+.chooser-header {
+    -fx-background-color: #202124;
+}
+
+.chooser-title {
+    -fx-text-fill: #e8eaed;
+    -fx-font-weight: 500;
+}
+
+.chooser-subtitle {
+    -fx-text-fill: #9aa0a6;
+}
+
+/* Profile Tile Card - Dark Mode with better contrast */
+.profile-tile-card {
+    -fx-background-color: #292a2d;
+    -fx-border-color: #5f6368;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 6, 0, 0, 2);
+}
+
+.profile-tile-card:hover {
+    -fx-background-color: #35363a;
+    -fx-border-color: #8ab4f8;
+    -fx-effect: dropshadow(gaussian, rgba(138, 180, 248, 0.4), 14, 0, 0, 5);
+}
+
+.profile-tile-card-logged-out {
+    -fx-opacity: 0.7;
+    -fx-border-color: #5f6368;
+    -fx-border-style: solid;
+}
+
+.profile-tile-card-logged-out:hover {
+    -fx-opacity: 1.0;
+    -fx-background-color: #35363a;
+    -fx-border-color: #8ab4f8;
+}
+
+.profile-status-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: 400;
+    -fx-text-fill: #f28b82;
+    -fx-text-alignment: center;
+}
+
+/* Add Profile Card - Dark Mode */
+.add-profile-card {
+    -fx-border-color: #5f6368;
+    -fx-border-style: dashed;
+}
+
+.add-profile-card:hover {
+    -fx-background-color: #2d2d2d;
+    -fx-border-color: #8ab4f8;
+    -fx-border-style: solid;
+}
+
+/* Profile Menu Button - Dark Mode */
+.profile-menu-btn {
+    -fx-text-fill: #9aa0a6;
+}
+
+.profile-menu-btn:hover {
+    -fx-background-color: #3c4043;
+}
+
+.profile-menu-btn .ikonli-font-icon {
+    -fx-icon-color: #9aa0a6;
+}
+
+/* Profile Name Label - Dark Mode */
+.profile-name-label {
+    -fx-text-fill: #e8eaed;
+    -fx-font-weight: 500;
+}
+
+/* Profile Email Label (in chooser cards) - Dark Mode */
+.profile-email-label {
+    -fx-text-fill: #9aa0a6;
+    -fx-font-weight: 400;
+}
+
+/* Add Avatar Circle - Dark Mode */
+.add-avatar-circle {
+    -fx-fill: #5f6368;
+}
+
+/* Chooser Footer - Dark Mode */
+.chooser-footer {
+    -fx-background-color: #292a2d;
+    -fx-border-color: #3c4043;
+}
+
+.guest-mode-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #aecbfa;
+    -fx-border-color: #5f6368;
+}
+
+.guest-mode-button:hover {
+    -fx-background-color: #2d2d2d;
+    -fx-border-color: #8ab4f8;
+    -fx-text-fill: #d2e3fc;
+}
+
+.guest-mode-button .ikonli-font-icon {
+    -fx-icon-color: #aecbfa;
+}
+
+.startup-checkbox {
+    -fx-text-fill: #9aa0a6;
+}
+
+.startup-checkbox .box {
+    -fx-background-color: #292a2d;
+    -fx-border-color: #9aa0a6;
+}
+
+.startup-checkbox:selected .box {
+    -fx-background-color: #8ab4f8;
+    -fx-border-color: #8ab4f8;
+}
+
+.startup-checkbox:selected .mark {
+    -fx-background-color: #202124;
+}
+
+.startup-checkbox:hover .box {
+    -fx-border-color: #e8eaed;
+}
+
+.startup-checkbox:selected:hover .box {
+    -fx-background-color: #aecbfa;
+    -fx-border-color: #aecbfa;
+}
+
+/* ==================== Dark Mode Separate Auth Dialogs ==================== */
+.auth-dialog-root {
+    -fx-background-color: #202124;
+}
+
+.auth-header {
+    -fx-background-color: #292a2d;
+    -fx-border-color: #3c4043;
+}
+
+.auth-title {
+    -fx-text-fill: #e8eaed;
+}
+
+.auth-subtitle {
+    -fx-text-fill: #9aa0a6;
+}
+
+.auth-form-container {
+    -fx-background-color: #202124;
+}
+
+.auth-label {
+    -fx-text-fill: #e8eaed;
+}
+
+.auth-field {
+    -fx-background-color: #292a2d;
+    -fx-border-color: #5f6368;
+    -fx-text-fill: #e8eaed;
+}
+
+.auth-field:focused {
+    -fx-border-color: #8ab4f8;
+    -fx-effect: dropshadow(gaussian, rgba(138, 180, 248, 0.3), 10, 0, 0, 2);
+}
+
+.auth-primary-button {
+    -fx-background-color: #8ab4f8;
+    -fx-text-fill: #202124;
+    -fx-effect: dropshadow(gaussian, rgba(138, 180, 248, 0.4), 10, 0, 0, 3);
+}
+
+.auth-primary-button:hover {
+    -fx-background-color: #aecbfa;
+    -fx-text-fill: #000000;
+    -fx-effect: dropshadow(gaussian, rgba(138, 180, 248, 0.5), 14, 0, 0, 4);
+}
+
+.auth-primary-button:pressed {
+    -fx-background-color: #669df6;
+    -fx-text-fill: #000000;
+}
+
+.auth-divider .separator {
+    -fx-background-color: #3c4043;
+}
+
+.auth-divider-text {
+    -fx-text-fill: #9aa0a6;
+}
+
+.auth-link-label {
+    -fx-text-fill: #9aa0a6;
+}
+
+.auth-link-button {
+    -fx-text-fill: #aecbfa;
+}
+
+.auth-link-button:hover {
+    -fx-text-fill: #d2e3fc;
+}
+
+.error-label {
+    -fx-text-fill: #f28b82;
+}
+
+/* ==================== Dark Mode Authentication Forms (Legacy Tab-based) ==================== */
+.auth-tab-pane {
+    -fx-background-color: #202124;
+}
+
+.auth-tab-pane .tab-header-area {
+    -fx-background-color: #292a2d;
+}
+
+.auth-tab-pane .tab {
+    -fx-background-color: transparent;
+}
+
+.auth-tab-pane .tab:selected {
+    -fx-background-color: #202124;
+    -fx-border-color: #8ab4f8;
+}
+
+.auth-tab-pane .tab .tab-label {
+    -fx-text-fill: #9aa0a6;
+}
+
+.auth-tab-pane .tab:selected .tab-label {
+    -fx-text-fill: #8ab4f8;
+}
+
+.auth-form {
+    -fx-background-color: #202124;
+}
+
+.auth-label {
+    -fx-text-fill: #9aa0a6;
+}
+
+.auth-field {
+    -fx-background-color: #292a2d;
+    -fx-border-color: #5f6368;
+    -fx-text-fill: #e8eaed;
+}
+
+.auth-field:focused {
+    -fx-border-color: #8ab4f8;
+    -fx-effect: dropshadow(gaussian, rgba(138, 180, 248, 0.3), 6, 0, 0, 0);
+}
+
+/* ==================== Dark Mode Signup/Login Form Styles (Legacy) ==================== */
+.signup-form {
+    -fx-background-color: #202124;
+}
+
+.signup-field {
+    -fx-background-color: #292a2d;
+    -fx-border-color: #5f6368;
+    -fx-text-fill: #e8eaed;
+}
+
+.signup-field:focused {
+    -fx-border-color: #8ab4f8;
+}
+
+.error-label {
+    -fx-text-fill: #f28b82;
+}
+
+.dialog-pane {
+    -fx-background-color: #202124;
+}
+
+.dialog-pane > .header-panel {
+    -fx-background-color: #292a2d;
+    -fx-border-color: #3c4043;
+}
+
+.dialog-pane > .content {
+    -fx-background-color: #202124;
+}
+
+.dialog-pane > .button-bar > .button {
+    -fx-background-color: #8ab4f8;
+    -fx-text-fill: #202124;
+}
+
+.dialog-pane > .button-bar > .button:hover {
+    -fx-background-color: #aecbfa;
+}
+
+.dialog-pane > .button-bar > .button:default {
+    -fx-background-color: #8ab4f8;
+}
+
+.dialog-pane > .button-bar > .button:cancel {
+    -fx-background-color: transparent;
+    -fx-text-fill: #9aa0a6;
+    -fx-border-color: #5f6368;
+}
+
+.dialog-pane > .button-bar > .button:cancel:hover {
+    -fx-background-color: #2d2d2d;
+}
+
+.dialog-pane .label {
+    -fx-text-fill: #e8eaed;
+}
+
+.list-action-btn-danger {
+    -fx-background-color: #2d2d2d;
+    -fx-text-fill: #f28b82;
+    -fx-border-color: #5f6368;
+}
+
+.list-action-btn-danger:hover {
+    -fx-background-color: #5f2120;
+    -fx-border-color: #f28b82;
+}
+
+

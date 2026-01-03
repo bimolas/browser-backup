@@ -17,7 +17,6 @@ public class HistoryEntry {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM dd, yyyy");
     private static final DateTimeFormatter FULL_FORMATTER = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm");
 
-    // Constructors, getters, and setters
     public HistoryEntry() {
         this.firstVisit = LocalDateTime.now();
         this.lastVisit = LocalDateTime.now();
@@ -35,7 +34,6 @@ public class HistoryEntry {
         this.faviconUrl = faviconUrl;
     }
 
-    // Getters and setters
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
@@ -60,9 +58,6 @@ public class HistoryEntry {
     public LocalDateTime getFirstVisit() { return firstVisit; }
     public void setFirstVisit(LocalDateTime firstVisit) { this.firstVisit = firstVisit; }
 
-    /**
-     * Get the domain from the URL.
-     */
     public String getDomain() {
         if (url == null || url.isEmpty()) return "";
         try {
@@ -75,30 +70,18 @@ public class HistoryEntry {
         }
     }
 
-    /**
-     * Get formatted time string.
-     */
     public String getFormattedTime() {
         return lastVisit != null ? lastVisit.format(TIME_FORMATTER) : "";
     }
 
-    /**
-     * Get formatted date string.
-     */
     public String getFormattedDate() {
         return lastVisit != null ? lastVisit.format(DATE_FORMATTER) : "";
     }
 
-    /**
-     * Get full formatted date-time string.
-     */
     public String getFormattedDateTime() {
         return lastVisit != null ? lastVisit.format(FULL_FORMATTER) : "";
     }
 
-    /**
-     * Get display title (falls back to domain if title is empty).
-     */
     public String getDisplayTitle() {
         if (title != null && !title.trim().isEmpty()) {
             return title;
@@ -106,9 +89,6 @@ public class HistoryEntry {
         return getDomain();
     }
 
-    /**
-     * Increment visit count.
-     */
     public void incrementVisitCount() {
         this.visitCount++;
         this.lastVisit = LocalDateTime.now();

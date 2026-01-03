@@ -1,6 +1,5 @@
 package com.example.nexus.util;
 
-
 import javafx.scene.image.Image;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,12 +14,11 @@ public class IconManager {
     private static final Map<String, Image> iconCache = new HashMap<>();
 
     public static Image getIcon(String iconName) {
-        // Check if the icon is already cached
+
         if (iconCache.containsKey(iconName)) {
             return iconCache.get(iconName);
         }
 
-        // Load the icon from resources
         String iconPath = "/icons/" + iconName + ".png";
         InputStream iconStream = IconManager.class.getResourceAsStream(iconPath);
 
@@ -35,22 +33,18 @@ public class IconManager {
     }
 
     public static Image getFavicon(String url) {
-        // Extract the domain from the URL
+
         String domain = extractDomain(url);
 
-        // Try to get a cached favicon
         String cacheKey = "favicon_" + domain;
         if (iconCache.containsKey(cacheKey)) {
             return iconCache.get(cacheKey);
         }
 
-        // Try to load the favicon from the website
-        // This is a simplified implementation
         String faviconUrl = "https://" + domain + "/favicon.ico";
 
         try {
-            // In a real implementation, you would download the favicon from the URL
-            // For now, we'll just return a default favicon
+
             Image defaultFavicon = getIcon("default-favicon");
             iconCache.put(cacheKey, defaultFavicon);
             return defaultFavicon;
@@ -64,16 +58,14 @@ public class IconManager {
 
     private static String extractDomain(String url) {
         try {
-            // Remove protocol
+
             String domain = url.replaceFirst("^https?://", "");
 
-            // Remove path
             int slashIndex = domain.indexOf('/');
             if (slashIndex != -1) {
                 domain = domain.substring(0, slashIndex);
             }
 
-            // Remove port
             int portIndex = domain.indexOf(':');
             if (portIndex != -1) {
                 domain = domain.substring(0, portIndex);

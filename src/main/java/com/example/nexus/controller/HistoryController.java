@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.function.Consumer;
-
+import com.example.nexus.core.DIContainer;
 
 public class HistoryController {
     private static final Logger logger = LoggerFactory.getLogger(HistoryController.class);
@@ -19,11 +19,9 @@ public class HistoryController {
         this.historyService = historyService;
     }
 
-
     public void setOnOpenUrl(Consumer<String> callback) {
         this.onOpenUrl = callback;
     }
-
 
     public void recordVisit(String url, String title) {
         if (url == null || url.isEmpty()) {
@@ -38,7 +36,6 @@ public class HistoryController {
         }
     }
 
-
     public List<HistoryEntry> getAllHistory() {
         return historyService.getAllHistory();
     }
@@ -51,11 +48,9 @@ public class HistoryController {
         return historyService.getThisWeekHistory();
     }
 
-
     public List<HistoryEntry> getMonthHistory() {
         return historyService.getThisMonthHistory();
     }
-
 
     public List<HistoryEntry> searchHistory(String query) {
         if (query == null || query.trim().isEmpty()) {
@@ -63,7 +58,6 @@ public class HistoryController {
         }
         return historyService.searchHistory(query.trim());
     }
-
 
     public void deleteEntry(int id) {
         try {
@@ -74,7 +68,6 @@ public class HistoryController {
         }
     }
 
-
     public void clearAllHistory() {
         try {
             historyService.clearHistory();
@@ -84,10 +77,40 @@ public class HistoryController {
         }
     }
 
-
     public void openHistoryEntry(HistoryEntry entry) {
         if (entry != null && onOpenUrl != null) {
             onOpenUrl.accept(entry.getUrl());
+        }
+    }
+
+    public void showHistoryPanel(DIContainer container, Consumer<String> onOpenUrl) {
+        showHistoryPanel(container, onOpenUrl, null);
+    }
+
+    public void showHistoryPanel(DIContainer container, Consumer<String> onOpenUrl, com.example.nexus.util.KeyboardShortcutManager shortcutManager) {
+        try {
+            com.example.nexus.view.dialogs.HistoryPanel historyPanel = new com.example.nexus.view.dialogs.HistoryPanel(container);
+            historyPanel.setOnOpenUrl(url -> {
+                onOpenUrl.accept(url);
+                historyPanel.close();
+            });
+            historyPanel.show();
+
+            try {
+                if (shortcutManager != null && historyPanel.getScene() != null) {
+                    shortcutManager.pushScene(historyPanel.getScene());
+                    historyPanel.setOnHidden(ev -> {
+                        try { shortcutManager.popScene(); } catch (Exception ignored) {}
+                    });
+                }
+            } catch (Exception ignored) {}
+        } catch (Exception e) {
+            logger.error("Error opening history panel", e);
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setHeaderText("Failed to open history");
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
         }
     }
 }

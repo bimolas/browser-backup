@@ -3,6 +3,8 @@ package com.example.nexus.controller;
 import com.example.nexus.model.Bookmark;
 import com.example.nexus.model.BookmarkFolder;
 import com.example.nexus.service.BookmarkService;
+import com.example.nexus.core.DIContainer;
+import com.example.nexus.service.SettingsService;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -13,32 +15,66 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
-
 
 public class BookmarkController {
     private static final Logger logger = LoggerFactory.getLogger(BookmarkController.class);
 
     private final BookmarkService bookmarkService;
     private Consumer<String> onOpenUrl;
+    private final SettingsService settingsService;
+    private final List<Runnable> bookmarkChangeListeners = new ArrayList<>();
 
-    public BookmarkController(BookmarkService bookmarkService) {
+    public BookmarkController(BookmarkService bookmarkService,SettingsService settingsService) {
         this.bookmarkService = bookmarkService;
+        this.settingsService = settingsService;
     }
 
+    public void removeBookmarkChangeListener(Runnable listener) {
+        bookmarkChangeListeners.remove(listener);
+    }
+
+    public void addBookmarkChangeListener(Runnable listener) {
+        if (listener != null && !bookmarkChangeListeners.contains(listener)) {
+            bookmarkChangeListeners.add(listener);
+        }
+    }
+
+    private void notifyBookmarkChanged() {
+        for (Runnable listener : bookmarkChangeListeners) {
+            try {
+                listener.run();
+            } catch (Exception e) {
+                logger.error("Error notifying bookmark change listener", e);
+            }
+        }
+    }
+
+    public BookmarkFolder createFolder(String name, Integer parentId) {
+        try {
+            BookmarkFolder folder = bookmarkService.createFolder(name, parentId);
+
+            settingsService.saveSettings();
+
+            notifyBookmarkChanged();
+            return folder;
+        } catch (Exception e) {
+            logger.error("Error creating folder", e);
+            showErrorAlert("Error", "Failed to create folder: " + e.getMessage());
+            return null;
+        }
+    }
 
     public void setOnOpenUrl(Consumer<String> callback) {
         this.onOpenUrl = callback;
     }
 
-    /**
-     * Check if a URL is bookmarked
-     */
     public boolean isBookmarked(String url) {
         return url != null && bookmarkService.isBookmarked(url);
     }
-
 
     public Optional<Bookmark> getBookmarkByUrl(String url) {
         return bookmarkService.getBookmarkByUrl(url);
@@ -51,7 +87,6 @@ public class BookmarkController {
             showAddBookmarkDialog(url, title, bookmarkButton);
         }
     }
-
 
     public void showAddBookmarkDialog(String url, String title, Button bookmarkButton) {
         Dialog<Bookmark> dialog = new Dialog<>();
@@ -77,7 +112,6 @@ public class BookmarkController {
         folderCombo.setPromptText("Select folder");
         folderCombo.setPrefWidth(200);
 
-        // Load folders
         try {
             folderCombo.getItems().addAll(bookmarkService.getAllFolders());
             if (!folderCombo.getItems().isEmpty()) {
@@ -101,6 +135,7 @@ public class BookmarkController {
                         folderCombo.getSelectionModel().select(folder);
                     } catch (Exception ex) {
                         logger.error("Error creating folder", ex);
+                        showErrorAlert("Error", "Failed to create folder: " + ex.getMessage());
                     }
                 }
             });
@@ -123,7 +158,6 @@ public class BookmarkController {
 
         dialog.getDialogPane().setContent(grid);
 
-        // Style the save button via CSS class
         var saveBtn = dialog.getDialogPane().lookupButton(saveButtonType);
         if (saveBtn != null) {
             saveBtn.getStyleClass().add("dialog-save-button");
@@ -148,6 +182,10 @@ public class BookmarkController {
             try {
                 bookmarkService.saveBookmark(bookmark);
                 updateBookmarkButtonState(bookmarkButton, true);
+
+                settingsService.saveSettings();
+
+                notifyBookmarkChanged();
                 logger.info("Bookmark saved: {}", bookmark.getTitle());
             } catch (Exception e) {
                 logger.error("Error saving bookmark", e);
@@ -155,7 +193,6 @@ public class BookmarkController {
             }
         });
     }
-
 
     public void showBookmarkEditDialog(String url, String title, Button bookmarkButton) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
@@ -173,20 +210,23 @@ public class BookmarkController {
             if (response == removeButton) {
                 removeBookmark(url, bookmarkButton);
             } else if (response == editButton) {
-                // Open bookmarks panel for editing
+
                 if (onOpenUrl != null) {
-                    // This would typically open the bookmark panel
+
                 }
             }
         });
     }
-
 
     public void removeBookmark(String url, Button bookmarkButton) {
         try {
             bookmarkService.getBookmarkByUrl(url).ifPresent(bookmark -> {
                 bookmarkService.deleteBookmark(bookmark.getId());
                 updateBookmarkButtonState(bookmarkButton, false);
+
+                settingsService.saveSettings();
+
+                notifyBookmarkChanged();
                 logger.info("Bookmark removed for URL: {}", url);
             });
         } catch (Exception e) {
@@ -194,7 +234,6 @@ public class BookmarkController {
             showErrorAlert("Error", "Failed to remove bookmark: " + e.getMessage());
         }
     }
-
 
     public void updateBookmarkButtonState(Button bookmarkButton, boolean isBookmarked) {
         if (bookmarkButton != null && bookmarkButton.getGraphic() instanceof FontIcon icon) {
@@ -210,9 +249,62 @@ public class BookmarkController {
         }
     }
 
+    public void deleteBookmark(int id) {
+        try {
+            bookmarkService.deleteBookmark(id);
+
+            settingsService.saveSettings();
+
+            notifyBookmarkChanged();
+            logger.info("Deleted bookmark with ID: " + id);
+        } catch (Exception e) {
+            logger.error("Error deleting bookmark", e);
+            showErrorAlert("Error", "Failed to delete bookmark: " + e.getMessage());
+        }
+    }
 
     public void updateBookmarkButtonForUrl(Button bookmarkButton, String url) {
         updateBookmarkButtonState(bookmarkButton, isBookmarked(url));
+    }
+
+    public void showBookmarkPanel(DIContainer container, Consumer<String> onOpenUrl) {
+        try {
+            com.example.nexus.view.dialogs.BookmarkPanel bookmarkPanel = new com.example.nexus.view.dialogs.BookmarkPanel(container);
+
+            bookmarkPanel.setOnOpenUrl(onOpenUrl);
+
+            bookmarkPanel.reloadBookmarksFromService(bookmarkService);
+            bookmarkPanel.show();
+        } catch (Exception e) {
+            logger.error("Error opening bookmark panel", e);
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setHeaderText("Failed to open bookmarks");
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
+        }
+    }
+
+    public void showBookmarkPanel(DIContainer container, Consumer<String> onOpenUrl, com.example.nexus.util.KeyboardShortcutManager shortcutManager) {
+        try {
+            com.example.nexus.view.dialogs.BookmarkPanel bookmarkPanel = new com.example.nexus.view.dialogs.BookmarkPanel(container);
+            bookmarkPanel.setOnOpenUrl(onOpenUrl);
+            bookmarkPanel.reloadBookmarksFromService(bookmarkService);
+            bookmarkPanel.show();
+            try {
+                if (shortcutManager != null && bookmarkPanel.getScene() != null) {
+                    shortcutManager.pushScene(bookmarkPanel.getScene());
+                    bookmarkPanel.setOnHidden(ev -> { try { shortcutManager.popScene(); } catch (Exception ignored) {} });
+                }
+            } catch (Exception ignored) {}
+        } catch (Exception e) {
+            logger.error("Error opening bookmark panel", e);
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setHeaderText("Failed to open bookmarks");
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
+        }
     }
 
     private void showErrorAlert(String title, String message) {

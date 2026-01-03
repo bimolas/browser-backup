@@ -43,7 +43,7 @@ public class DownloadManager extends BorderPane {
     }
 
     private void initializeUI() {
-        // Set up the header
+
         Label titleLabel = new Label("Downloads");
         titleLabel.setFont(Font.font("System", FontWeight.BOLD, 18));
 
@@ -55,14 +55,11 @@ public class DownloadManager extends BorderPane {
         headerBox.setAlignment(Pos.CENTER_LEFT);
         headerBox.setPadding(new Insets(10));
 
-        // Set up the download list
         downloadListView.setCellFactory(param -> new DownloadCell());
 
-        // Set up the layout
         setTop(headerBox);
         setCenter(new MFXScrollPane(downloadListView));
 
-        // Set up the bottom
         Button closeButton = new Button("Close");
         closeButton.setOnAction(e -> close());
 
@@ -134,7 +131,6 @@ public class DownloadManager extends BorderPane {
                 Label dateLabel = new Label(item.getStartTime().format(formatter));
                 dateLabel.setStyle("-fx-text-fill: #999;");
 
-                // Action buttons
                 HBox buttonBox = new HBox(5);
 
                 Button openButton = new Button("Open");
@@ -144,7 +140,7 @@ public class DownloadManager extends BorderPane {
                         if (f.exists()) {
                             new ProcessBuilder("xdg-open", f.getAbsolutePath()).start();
                         } else {
-                            // open folder if file missing
+
                             new ProcessBuilder("xdg-open", new java.io.File(item.getFilePath()).getParent()).start();
                         }
                     } catch (Exception ex) {

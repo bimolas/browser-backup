@@ -4,9 +4,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Represents a bookmark folder that can contain bookmarks and other folders.
- */
 public class BookmarkFolder {
     private int id;
     private int userId;
@@ -36,7 +33,6 @@ public class BookmarkFolder {
         this.parentFolderId = parentFolderId;
     }
 
-    // Getters and setters
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
@@ -102,4 +98,3 @@ public class BookmarkFolder {
         return name;
     }
 }
-

@@ -17,8 +17,7 @@ public class JCEFFactory {
         }
 
         try {
-            // Create a new browser instance
-            // Parameters: url, useOSR (off-screen rendering), isTransparent
+
             CefBrowser browser = client.createBrowser(url, false, false);
             logger.info("Created browser for URL: {}", url);
             return browser;

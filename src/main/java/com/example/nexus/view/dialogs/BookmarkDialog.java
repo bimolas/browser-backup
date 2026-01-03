@@ -1,6 +1,5 @@
 package com.example.nexus.view.dialogs;
 
-
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.model.Bookmark;
 import javafx.geometry.Insets;
@@ -17,11 +16,9 @@ public class BookmarkDialog extends Dialog<Bookmark> {
     public BookmarkDialog(DIContainer container, String title, String url) {
         setTitle("Add Bookmark");
 
-        // Set the button types
         ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
 
-        // Create the labels and fields
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
@@ -37,7 +34,6 @@ public class BookmarkDialog extends Dialog<Bookmark> {
 
         getDialogPane().setContent(grid);
 
-        // Convert the result to a bookmark when the save button is clicked
         setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
                 Bookmark bookmark = new Bookmark();

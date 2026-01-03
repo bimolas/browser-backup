@@ -10,11 +10,10 @@ public class Download {
     private String filePath;
     private long fileSize;
     private long downloadedSize;
-    private String status; // pending, downloading, completed, failed, cancelled
+    private String status;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
 
-    // Constructors, getters, and setters
     public Download() {}
 
     public Download(String url, String fileName, String filePath) {
@@ -25,7 +24,6 @@ public class Download {
         this.startTime = LocalDateTime.now();
     }
 
-    // Getters and setters
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 

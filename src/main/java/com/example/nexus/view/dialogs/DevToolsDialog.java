@@ -1,6 +1,5 @@
 package com.example.nexus.view.dialogs;
 
-
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.view.components.BrowserTab;
 import javafx.geometry.Insets;
@@ -27,18 +26,15 @@ public class DevToolsDialog extends Dialog<Void> {
 
         setTitle("Developer Tools");
 
-        // Set the button types
         ButtonType openButtonType = new ButtonType("Open", ButtonBar.ButtonData.OK_DONE);
         ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
         getDialogPane().getButtonTypes().addAll(openButtonType, cancelButtonType);
 
-        // Create the content
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
         grid.setPadding(new Insets(20, 150, 10, 10));
 
-        // Mode
         Label modeLabel = new Label("Dock Mode:");
         undockedRadioButton.setToggleGroup(modeGroup);
         undockedRadioButton.setSelected(true);
@@ -52,7 +48,6 @@ public class DevToolsDialog extends Dialog<Void> {
 
         getDialogPane().setContent(grid);
 
-        // Handle the open button
         setResultConverter(dialogButton -> {
             if (dialogButton == openButtonType) {
                 openDevTools();

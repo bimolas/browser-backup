@@ -1,6 +1,5 @@
 package com.example.nexus.repository;
 
-
 import com.example.nexus.model.HistoryEntry;
 import com.example.nexus.util.DatabaseManager;
 
@@ -131,7 +130,7 @@ public class HistoryRepository extends BaseRepository<HistoryEntry> {
                 "VALUES (?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement stmt = getConnection().prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
-            stmt.setInt(1, 1); // Default user ID
+            stmt.setInt(1, 1);
             stmt.setString(2, entry.getTitle());
             stmt.setString(3, entry.getUrl());
             stmt.setString(4, entry.getFaviconUrl());
@@ -250,8 +249,7 @@ public class HistoryRepository extends BaseRepository<HistoryEntry> {
         if (timestamp != null) {
             entry.setLastVisit(timestamp.toLocalDateTime());
         }
-        
-        // Handle first_visit if it exists
+
         try {
             Timestamp firstVisit = rs.getTimestamp("first_visit");
             if (firstVisit != null) {
@@ -264,5 +262,3 @@ public class HistoryRepository extends BaseRepository<HistoryEntry> {
         return entry;
     }
 }
-
-

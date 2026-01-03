@@ -1,6 +1,5 @@
 package com.example.nexus.view.dialogs;
 
-
 import javafx.geometry.Insets;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -14,11 +13,9 @@ public class AboutDialog extends Dialog<Void> {
     public AboutDialog() {
         setTitle("About Modern Browser");
 
-        // Set the button type
         ButtonType closeButton = new ButtonType("Close", ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().add(closeButton);
 
-        // Create the content
         VBox vbox = new VBox(10);
         vbox.setPadding(new Insets(20));
 

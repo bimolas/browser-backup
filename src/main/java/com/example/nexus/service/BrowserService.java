@@ -1,16 +1,16 @@
 package com.example.nexus.service;
 
 import com.example.nexus.core.DIContainer;
-import org.cef.CefApp;
-import org.cef.CefClient;
-import org.cef.browser.CefBrowser;
-import org.cef.browser.CefFrame;
-import org.cef.handler.CefDisplayHandlerAdapter;
-import org.cef.handler.CefLoadHandlerAdapter;
+import com.example.nexus.model.Tab;
+import com.example.nexus.view.components.BrowserTab;
+import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.StackPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,117 +18,134 @@ public class BrowserService {
     private static final Logger logger = LoggerFactory.getLogger(BrowserService.class);
 
     private final DIContainer container;
-    private final Map<String, CefBrowser> browsers = new HashMap<>();
+    private final TabService tabService;
+    private final Map<javafx.scene.control.Tab, BrowserTab> tabBrowserMap = new HashMap<>();
+    private final Map<javafx.scene.control.Tab, Runnable> tabCleanupMap = new HashMap<>();
+    private TabPane tabPane;
+    private StackPane browserContainer;
+    private TextField addressBar;
 
-    public BrowserService(DIContainer container) {
+    public BrowserService(DIContainer container, TabService tabService) {
         this.container = container;
+        this.tabService = tabService;
     }
 
-    public CefBrowser createBrowser(String url) {
-        CefApp cefApp = container.get(CefApp.class);
-        CefClient client = container.get(CefClient.class);
-
-        if (cefApp == null || client == null) {
-            logger.error("JCEF not initialized");
-            return null;
-        }
-
-        // Create a new browser instance
-        CefBrowser browser = client.createBrowser(url, false, false);
-
-        // Store the browser
-        String browserId = generateBrowserId();
-        browsers.put(browserId, browser);
-
-        // Attempt to attach an optional JCEF download integrator (reflective, no hard dependency)
-        try {
-            Class<?> integrator = Class.forName("com.example.nexus.integration.JcefDownloadIntegrator");
-            Method attach = integrator.getMethod("attachToBrowser", Object.class, Class.forName("com.example.nexus.service.DownloadService"));
-            // obtain DownloadService from DI container if present
-            Object ds = null;
-            try { ds = container.get(com.example.nexus.service.DownloadService.class); } catch (Throwable ignore) {}
-            attach.invoke(null, browser, ds);
-        } catch (Throwable t) {
-            logger.debug("JCEF integrator not attached or unavailable", t);
-        }
-
-        // Add handlers
-        setupBrowserHandlers(browser);
-
-        logger.info("Created browser with ID: {}", browserId);
-        return browser;
+    public void setUIComponents(TabPane tabPane, StackPane browserContainer, TextField addressBar) {
+        this.tabPane = tabPane;
+        this.browserContainer = browserContainer;
+        this.addressBar = addressBar;
     }
 
-    private void setupBrowserHandlers(CefBrowser browser) {
-        // Add display handler
-        browser.getClient().addDisplayHandler(new CefDisplayHandlerAdapter() {
-            public boolean onConsoleMessage(CefBrowser browser, String message, String source, int line) {
-                logger.info("Console: {} [{}:{}]", message, source, line);
-                return false;
-            }
+    public BrowserTab openTab(String url) {
 
-            @Override
-            public void onTitleChange(CefBrowser browser, String title) {
-                // Update tab title
-                logger.debug("Title changed: {}", title);
-            }
+        BrowserTab browserTab = new BrowserTab(container, url);
 
-            @Override
-            public void onAddressChange(CefBrowser browser, CefFrame frame, String url) {
-                // Update address bar
-                logger.debug("Address changed: {}", url);
-            }
+        javafx.scene.control.Tab tab = new javafx.scene.control.Tab();
+        tab.setText("New Tab");
+        tab.setClosable(false);
+
+        tabBrowserMap.put(tab, browserTab);
+
+        final ChangeListener<String> titleListener = (obs, oldTitle, newTitle) -> Platform.runLater(() -> {
+
+        });
+        final ChangeListener<String> urlListener = (obs, oldUrl, newUrl) -> Platform.runLater(() -> {
+
+        });
+        browserTab.titleProperty().addListener(titleListener);
+        browserTab.urlProperty().addListener(urlListener);
+        tabCleanupMap.put(tab, () -> {
+            try { browserTab.titleProperty().removeListener(titleListener); } catch (Exception ignored) {}
+            try { browserTab.urlProperty().removeListener(urlListener); } catch (Exception ignored) {}
         });
 
-        // Add load handler
-        browser.getClient().addLoadHandler(new CefLoadHandlerAdapter() {
+        tabPane.getTabs().add(tab);
+        tabPane.getSelectionModel().select(tab);
 
-            public void onLoadStart(CefBrowser browser, CefFrame frame) {
-                // Show loading indicator
-                logger.debug("Loading started: {}", frame.getURL());
-            }
-
-            @Override
-            public void onLoadEnd(CefBrowser browser, CefFrame frame, int httpStatusCode) {
-                // Hide loading indicator
-                logger.debug("Loading completed: {} (status: {})", frame.getURL(), httpStatusCode);
-            }
-
-            @Override
-            public void onLoadError(CefBrowser browser, CefFrame frame, ErrorCode errorCode, String errorText, String failedUrl) {
-                // Show error page
-                logger.error("Loading error: {} - {}", failedUrl, errorText);
-            }
-        });
-
-        // Note: download handling for JCEF was previously attempted via a reflective proxy.
-        // Reverted to a simpler approach: leave JCEF download handler registration to the
-        // platform-specific integration or explicit implementations elsewhere to avoid
-        // fragile runtime reflection and accidental breakage.
-        // (No-op here.)
+        Tab tabModel = new Tab(url);
+        tabService.saveTab(tabModel);
+        browserTab.setTabModel(tabModel);
+        return browserTab;
     }
 
-    private String generateBrowserId() {
-        return "browser_" + System.currentTimeMillis();
-    }
-
-    public CefBrowser getBrowser(String browserId) {
-        return browsers.get(browserId);
-    }
-
-    public void closeBrowser(String browserId) {
-        CefBrowser browser = browsers.remove(browserId);
-        if (browser != null) {
-            browser.close(true);  // true to force close
-            logger.info("Closed browser with ID: {}", browserId);
+    public void closeTab(javafx.scene.control.Tab tab) {
+        BrowserTab browserTab = tabBrowserMap.get(tab);
+        Runnable cleanup = tabCleanupMap.remove(tab);
+        if (cleanup != null) {
+            try { cleanup.run(); } catch (Exception e) { logger.debug("Error running tab cleanup", e); }
+        }
+        tabBrowserMap.remove(tab);
+        tabPane.getTabs().remove(tab);
+        if (browserTab != null && browserTab.getTabModel() != null) {
+            tabService.deleteTab(browserTab.getTabModel().getId());
+        }
+        if (browserTab != null) {
+            browserTab.dispose();
         }
     }
 
-    public void closeAllBrowsers() {
-        for (Map.Entry<String, CefBrowser> entry : browsers.entrySet()) {
-            entry.getValue().close(true);  // true to force close
+    public BrowserTab getCurrentBrowserTab() {
+        javafx.scene.control.Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+        if (selectedTab != null) {
+            return tabBrowserMap.get(selectedTab);
         }
-        browsers.clear();
-        logger.info("Closed all browsers");
+        return null;
     }
+
+    public void navigateToUrl(String url, String homePage, String searchEngine) {
+        BrowserTab currentTab = getCurrentBrowserTab();
+        if (currentTab != null) {
+            String processedUrl = processUrl(url, homePage, searchEngine);
+            currentTab.loadUrl(processedUrl);
+        }
+    }
+
+    public String processUrl(String url, String homePage, String searchEngine) {
+        if (url == null || url.trim().isEmpty()) {
+            return homePage;
+        }
+        url = url.trim();
+        if (!url.contains("://") && !url.contains(".")) {
+            return getSearchEngineUrl(searchEngine) + url;
+        }
+        if (!url.contains("://")) {
+            return "https://" + url;
+        }
+        return url;
+    }
+
+    public String getSearchEngineUrl(String searchEngine) {
+        if (searchEngine == null) return "https://www.google.com/search?q=";
+        switch (searchEngine.toLowerCase()) {
+            case "bing": return "https://www.bing.com/search?q=";
+            case "duckduckgo": return "https://www.duckduckgo.com/?q=";
+            default: return "https://www.google.com/search?q=";
+        }
+    }
+
+    public void handleBack() {
+        BrowserTab currentTab = getCurrentBrowserTab();
+        if (currentTab != null) {
+            currentTab.goBack();
+        }
+    }
+
+    public void handleForward() {
+        BrowserTab currentTab = getCurrentBrowserTab();
+        if (currentTab != null) {
+            currentTab.goForward();
+        }
+    }
+
+    public void handleReload() {
+        BrowserTab currentTab = getCurrentBrowserTab();
+        if (currentTab != null) {
+            currentTab.reload();
+        }
+    }
+
+    public void handleHome(String homePage, String searchEngine) {
+        navigateToUrl(homePage, homePage, searchEngine);
+    }
+
 }

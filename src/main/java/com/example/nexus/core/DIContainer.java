@@ -1,6 +1,5 @@
 package com.example.nexus.core;
 
-
 import com.example.nexus.controller.DownloadController;
 import com.example.nexus.service.DownloadService;
 import com.example.nexus.service.SettingsService;
@@ -25,12 +24,12 @@ public class DIContainer {
         T service = get(serviceClass);
         if (service == null) {
             try {
-                // Try constructor with DIContainer parameter first
+
                 try {
                     var constructor = serviceClass.getDeclaredConstructor(DIContainer.class);
                     service = constructor.newInstance(this);
                 } catch (NoSuchMethodException e1) {
-                    // Try constructor with DatabaseManager parameter
+
                     try {
                         var constructor = serviceClass.getDeclaredConstructor(DatabaseManager.class);
                         DatabaseManager dbManager = get(DatabaseManager.class);
@@ -39,7 +38,7 @@ public class DIContainer {
                         }
                         service = constructor.newInstance(dbManager);
                     } catch (NoSuchMethodException e2) {
-                        // Fall back to no-arg constructor
+
                         service = serviceClass.getDeclaredConstructor().newInstance();
                     }
                 }
@@ -51,14 +50,14 @@ public class DIContainer {
         return service;
     }
 
-    // Register DownloadController with its dependencies
     public void registerDefaultControllers() {
-        // Only register if not already present
+
         if (get(DownloadController.class) == null) {
             DownloadService downloadService = getOrCreate(DownloadService.class);
             SettingsService settingsService = getOrCreate(SettingsService.class);
             DownloadController downloadController = new DownloadController(downloadService, settingsService);
             register(DownloadController.class, downloadController);
+
         }
     }
 }

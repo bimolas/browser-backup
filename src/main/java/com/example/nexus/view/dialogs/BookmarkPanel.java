@@ -1,5 +1,6 @@
 package com.example.nexus.view.dialogs;
 
+import com.example.nexus.controller.BookmarkController;
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.exception.BrowserException;
 import com.example.nexus.model.Bookmark;
@@ -31,17 +32,16 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import java.util.*;
 import java.util.function.Consumer;
 
-/**
- * Modern Bookmark Manager with folder support, favorites, and drag-drop organization.
- */
+import static com.example.nexus.controller.TabController.logger;
+
 public class BookmarkPanel extends Stage {
     private final DIContainer container;
     private final BookmarkService bookmarkService;
     private final SettingsService settingsService;
-    private final ObservableList<Object> bookmarkList; // Can contain Bookmark or BookmarkFolder
+    private final ObservableList<Object> bookmarkList;
     private final FilteredList<Object> filteredList;
     private final Map<String, Image> faviconCache;
-    private final Stack<Integer> navigationStack; // For folder navigation
+    private final Stack<Integer> navigationStack;
     private final boolean isDarkTheme;
 
     private Consumer<String> onOpenUrl;
@@ -52,8 +52,8 @@ public class BookmarkPanel extends Stage {
     private Label breadcrumbLabel;
     private Integer currentFolderId = null;
     private SplitPane splitPane;
+    private final BookmarkController bookmarkController;
 
-    // View modes
     private enum ViewMode { LIST, GRID }
     private ViewMode currentViewMode = ViewMode.LIST;
 
@@ -65,8 +65,8 @@ public class BookmarkPanel extends Stage {
         this.filteredList = new FilteredList<>(bookmarkList, p -> true);
         this.faviconCache = new HashMap<>();
         this.navigationStack = new Stack<>();
+        this.bookmarkController = new BookmarkController(bookmarkService, settingsService);
 
-        // Detect current theme
         String theme = settingsService.getTheme();
         this.isDarkTheme = "dark".equals(theme) || ("system".equals(theme) && isSystemDark());
 
@@ -82,12 +82,11 @@ public class BookmarkPanel extends Stage {
                 return true;
             }
         } catch (Exception e) {
-            // Ignore
+
         }
         return false;
     }
 
-    // Theme-aware color getters
     private String getBgPrimary() { return isDarkTheme ? "#1e1e1e" : "#ffffff"; }
     private String getBgSecondary() { return isDarkTheme ? "#252525" : "#f8f9fa"; }
     private String getBgTertiary() { return isDarkTheme ? "#2d2d2d" : "#e9ecef"; }
@@ -109,37 +108,31 @@ public class BookmarkPanel extends Stage {
     private void initializeUI() {
         BorderPane root = new BorderPane();
         root.getStyleClass().add("bookmark-panel");
-        // theme colors handled by CSS; provide CSS variables for dynamic colors
+
         root.setStyle(String.format("--bg-primary: %s; --bg-secondary: %s; --bg-tertiary: %s; --border-color: %s; --text-primary: %s; --text-secondary: %s;",
             getBgPrimary(), getBgSecondary(), getBgTertiary(), getBorderColor(), getTextPrimary(), getTextSecondary()));
 
-        // Header
         root.setTop(createHeader());
 
-        // Main content with sidebar
         splitPane = new SplitPane();
         splitPane.setDividerPositions(0.25);
 
-        // Sidebar with folder tree
         VBox sidebar = createSidebar();
         sidebar.setMinWidth(200);
         sidebar.setMaxWidth(300);
 
-        // Main content area
         VBox mainContent = createMainContent();
 
         splitPane.getItems().addAll(sidebar, mainContent);
         root.setCenter(splitPane);
 
-        // Footer
         root.setBottom(createFooter());
 
         Scene scene = new Scene(root);
-        // Load appropriate theme CSS
+
         String cssPath = isDarkTheme ? "/com/example/nexus/css/dark.css" : "/com/example/nexus/css/main.css";
         scene.getStylesheets().add(getClass().getResource(cssPath).toExternalForm());
 
-        // Keyboard shortcuts
         scene.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
                 close();
@@ -160,7 +153,6 @@ public class BookmarkPanel extends Stage {
         header.setPadding(new Insets(20, 20, 15, 20));
         header.getStyleClass().add("bookmark-header");
 
-        // Title row
         HBox titleRow = new HBox(15);
         titleRow.setAlignment(Pos.CENTER_LEFT);
 
@@ -175,13 +167,14 @@ public class BookmarkPanel extends Stage {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // Action buttons
         Button addBookmarkBtn = new Button("Add Bookmark");
         FontIcon addIcon = new FontIcon("mdi2p-plus");
         addIcon.setIconSize(16);
         addIcon.setIconColor(Color.WHITE);
         addBookmarkBtn.setGraphic(addIcon);
         addBookmarkBtn.getStyleClass().addAll("primary-button","bookmark-add-btn");
+
+        addBookmarkBtn.setOnAction(e -> showAddBookmarkDialog());
 
         String folderBtnBg = isDarkTheme ? "#4a4a4a" : "#6c757d";
         Button addFolderBtn = new Button("New Folder");
@@ -191,13 +184,13 @@ public class BookmarkPanel extends Stage {
         addFolderBtn.setGraphic(folderIcon);
         addFolderBtn.getStyleClass().addAll("secondary-button","bookmark-new-folder-btn");
 
+        addFolderBtn.setOnAction(e -> showAddFolderDialog());
+
         titleRow.getChildren().addAll(bookmarkIcon, titleLabel, spacer, addBookmarkBtn, addFolderBtn);
 
-        // Search and breadcrumb row
         HBox searchRow = new HBox(15);
         searchRow.setAlignment(Pos.CENTER_LEFT);
 
-        // Breadcrumb
         breadcrumbLabel = new Label("All Bookmarks");
         breadcrumbLabel.setFont(Font.font("System", FontWeight.MEDIUM, 14));
         breadcrumbLabel.setTextFill(Color.valueOf(getTextMuted()));
@@ -209,6 +202,8 @@ public class BookmarkPanel extends Stage {
         backBtn.setGraphic(backIcon);
         backBtn.getStyleClass().add("bookmark-back-btn");
 
+        backBtn.setOnAction(e -> navigateBack());
+
         HBox breadcrumbBox = new HBox(8);
         breadcrumbBox.setAlignment(Pos.CENTER_LEFT);
         breadcrumbBox.getChildren().addAll(backBtn, breadcrumbLabel);
@@ -216,7 +211,6 @@ public class BookmarkPanel extends Stage {
         Region spacer2 = new Region();
         HBox.setHgrow(spacer2, Priority.ALWAYS);
 
-        // Search field - theme aware
         String searchBg = isDarkTheme ? "#2d2d2d" : "#ffffff";
         String searchBorder = isDarkTheme ? "#404040" : "#ced4da";
         searchField = new TextField();
@@ -240,7 +234,6 @@ public class BookmarkPanel extends Stage {
         sidebarTitle.setFont(Font.font("System", FontWeight.BOLD, 14));
         sidebarTitle.setTextFill(Color.valueOf(getTextSecondary()));
 
-        // Quick access items
         VBox quickAccess = new VBox(5);
         quickAccess.setPadding(new Insets(0, 0, 15, 0));
 
@@ -251,7 +244,6 @@ public class BookmarkPanel extends Stage {
 
         Separator separator = new Separator();
 
-        // Folder tree
         folderTreeView = createFolderTree();
         VBox.setVgrow(folderTreeView, Priority.ALWAYS);
 
@@ -268,7 +260,15 @@ public class BookmarkPanel extends Stage {
         btn.setMaxWidth(Double.MAX_VALUE);
         btn.setAlignment(Pos.CENTER_LEFT);
         btn.getStyleClass().add("sidebar-btn");
-        btn.setOnAction(e -> action.run());
+
+        btn.setFocusTraversable(false);
+        btn.setOnAction(e -> {
+            try {
+                action.run();
+            } catch (Exception ex) {
+                logger.error("Error handling button click", ex);
+            }
+        });
 
         return btn;
     }
@@ -328,7 +328,6 @@ public class BookmarkPanel extends Stage {
         listView.setPlaceholder(createEmptyPlaceholder());
         listView.setCellFactory(lv -> new BookmarkCell());
 
-        // Double-click to open
         listView.setOnMouseClicked(event -> {
             if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
                 Object selected = listView.getSelectionModel().getSelectedItem();
@@ -340,7 +339,6 @@ public class BookmarkPanel extends Stage {
             }
         });
 
-        // Context menu
         ContextMenu contextMenu = createContextMenu();
         listView.setContextMenu(contextMenu);
 
@@ -374,52 +372,72 @@ public class BookmarkPanel extends Stage {
         MenuItem openItem = new MenuItem("Open in New Tab");
         openItem.setGraphic(new FontIcon("mdi2t-tab-plus"));
         openItem.setOnAction(e -> {
-            Object selected = bookmarkListView.getSelectionModel().getSelectedItem();
-            if (selected instanceof Bookmark bookmark && onOpenUrl != null) {
-                onOpenUrl.accept(bookmark.getUrl());
+            try {
+                Object selected = bookmarkListView.getSelectionModel().getSelectedItem();
+                if (selected instanceof Bookmark bookmark && onOpenUrl != null) {
+                    onOpenUrl.accept(bookmark.getUrl());
+                }
+            } catch (Exception ex) {
+                logger.error("Error opening bookmark", ex);
             }
         });
 
         MenuItem editItem = new MenuItem("Edit");
         editItem.setGraphic(new FontIcon("mdi2p-pencil"));
         editItem.setOnAction(e -> {
-            Object selected = bookmarkListView.getSelectionModel().getSelectedItem();
-            if (selected instanceof Bookmark bookmark) {
-                showEditBookmarkDialog(bookmark);
-            } else if (selected instanceof BookmarkFolder folder) {
-                showEditFolderDialog(folder);
+            try {
+                Object selected = bookmarkListView.getSelectionModel().getSelectedItem();
+                if (selected instanceof Bookmark bookmark) {
+                    showEditBookmarkDialog(bookmark);
+                } else if (selected instanceof BookmarkFolder folder) {
+                    showEditFolderDialog(folder);
+                }
+            } catch (Exception ex) {
+                logger.error("Error editing item", ex);
             }
         });
 
         MenuItem favoriteItem = new MenuItem("Toggle Favorite");
         favoriteItem.setGraphic(new FontIcon("mdi2s-star"));
         favoriteItem.setOnAction(e -> {
-            Object selected = bookmarkListView.getSelectionModel().getSelectedItem();
-            if (selected instanceof Bookmark bookmark) {
-                toggleFavorite(bookmark);
+            try {
+                Object selected = bookmarkListView.getSelectionModel().getSelectedItem();
+                if (selected instanceof Bookmark bookmark) {
+                    toggleFavorite(bookmark);
+                }
+            } catch (Exception ex) {
+                logger.error("Error toggling favorite", ex);
             }
         });
 
         MenuItem copyUrlItem = new MenuItem("Copy URL");
         copyUrlItem.setGraphic(new FontIcon("mdi2c-content-copy"));
         copyUrlItem.setOnAction(e -> {
-            Object selected = bookmarkListView.getSelectionModel().getSelectedItem();
-            if (selected instanceof Bookmark bookmark) {
-                javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
-                javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
-                content.putString(bookmark.getUrl());
-                clipboard.setContent(content);
+            try {
+                Object selected = bookmarkListView.getSelectionModel().getSelectedItem();
+                if (selected instanceof Bookmark bookmark) {
+                    javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
+                    javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+                    content.putString(bookmark.getUrl());
+                    clipboard.setContent(content);
+                }
+            } catch (Exception ex) {
+                logger.error("Error copying URL", ex);
             }
         });
 
         MenuItem deleteItem = new MenuItem("Delete");
         deleteItem.setGraphic(new FontIcon("mdi2d-delete"));
         deleteItem.setOnAction(e -> {
-            Object selected = bookmarkListView.getSelectionModel().getSelectedItem();
-            if (selected instanceof Bookmark bookmark) {
-                deleteBookmark(bookmark);
-            } else if (selected instanceof BookmarkFolder folder) {
-                deleteFolder(folder);
+            try {
+                Object selected = bookmarkListView.getSelectionModel().getSelectedItem();
+                if (selected instanceof Bookmark bookmark) {
+                    deleteBookmark(bookmark);
+                } else if (selected instanceof BookmarkFolder folder) {
+                    deleteFolder(folder);
+                }
+            } catch (Exception ex) {
+                logger.error("Error deleting item", ex);
             }
         });
 
@@ -484,11 +502,9 @@ public class BookmarkPanel extends Stage {
         try {
             bookmarkList.clear();
 
-            // Load folders in current location
             List<BookmarkFolder> folders = bookmarkService.getSubFolders(currentFolderId);
             bookmarkList.addAll(folders);
 
-            // Load bookmarks in current location
             List<Bookmark> bookmarks = bookmarkService.getBookmarksByFolderId(currentFolderId);
             bookmarkList.addAll(bookmarks);
 
@@ -579,95 +595,41 @@ public class BookmarkPanel extends Stage {
     }
 
     private void showAddBookmarkDialog() {
-        Dialog<Bookmark> dialog = new Dialog<>();
-        dialog.setTitle("Add Bookmark");
-        dialog.initOwner(this);
+        logger.info("Add Bookmark button clicked!");
+        try {
+            bookmarkController.showAddBookmarkDialog("", "", null);
+            loadCurrentFolder();
+        } catch (Exception e) {
+            logger.error("Error in showAddBookmarkDialog", e);
+        }
+    }
 
-        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
-
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20));
-
-        TextField titleField = new TextField();
-        titleField.setPromptText("Bookmark title");
-        titleField.setPrefWidth(300);
-
-        TextField urlField = new TextField();
-        urlField.setPromptText("https://example.com");
-
-        ComboBox<BookmarkFolder> folderCombo = new ComboBox<>();
-        folderCombo.getItems().add(null); // Root folder option
-        folderCombo.getItems().addAll(bookmarkService.getAllFolders());
-        folderCombo.setPromptText("Select folder (optional)");
-        folderCombo.setConverter(new javafx.util.StringConverter<>() {
-            @Override
-            public String toString(BookmarkFolder folder) {
-                return folder == null ? "No Folder (Root)" : folder.getName();
-            }
-            @Override
-            public BookmarkFolder fromString(String string) { return null; }
-        });
-
-        CheckBox favoriteCheck = new CheckBox("Add to favorites");
-
-        grid.add(new Label("Title:"), 0, 0);
-        grid.add(titleField, 1, 0);
-        grid.add(new Label("URL:"), 0, 1);
-        grid.add(urlField, 1, 1);
-        grid.add(new Label("Folder:"), 0, 2);
-        grid.add(folderCombo, 1, 2);
-        grid.add(favoriteCheck, 1, 3);
-
-        dialog.getDialogPane().setContent(grid);
-
-        dialog.setResultConverter(buttonType -> {
-            if (buttonType == saveButtonType) {
-                String title = titleField.getText().trim();
-                String url = urlField.getText().trim();
-                if (!title.isEmpty() && !url.isEmpty()) {
-                    Bookmark bookmark = new Bookmark(title, url);
-                    BookmarkFolder selectedFolder = folderCombo.getValue();
-                    if (selectedFolder != null) {
-                        bookmark.setFolderId(selectedFolder.getId());
-                    }
-                    bookmark.setFavorite(favoriteCheck.isSelected());
-                    return bookmark;
-                }
-            }
-            return null;
-        });
-
-        dialog.showAndWait().ifPresent(bookmark -> {
+        private void showAddFolderDialog() {
+            logger.info("Add Folder button clicked!");
             try {
-                bookmarkService.saveBookmark(bookmark);
-                loadCurrentFolder();
-            } catch (BrowserException e) {
-                showError("Error Saving Bookmark", e.getMessage());
-            }
-        });
-    }
+                TextInputDialog dialog = new TextInputDialog();
+                dialog.setTitle("New Folder");
+                dialog.setHeaderText("Create a new bookmark folder");
+                dialog.setContentText("Folder name:");
+                dialog.initOwner(this);
 
-    private void showAddFolderDialog() {
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("New Folder");
-        dialog.setHeaderText("Create a new bookmark folder");
-        dialog.setContentText("Folder name:");
-        dialog.initOwner(this);
-
-        dialog.showAndWait().ifPresent(name -> {
-            if (!name.trim().isEmpty()) {
-                try {
-                    bookmarkService.createFolder(name.trim(), currentFolderId);
-                    loadBookmarks();
-                } catch (BrowserException e) {
-                    showError("Error Creating Folder", e.getMessage());
-                }
+                dialog.showAndWait().ifPresent(name -> {
+                    logger.info("Folder name entered: {}", name);
+                    if (!name.trim().isEmpty()) {
+                        try {
+                            bookmarkController.createFolder(name.trim(), currentFolderId);
+                            loadBookmarks();
+                            loadCurrentFolder();
+                        } catch (Exception e) {
+                            logger.error("Error creating folder", e);
+                            showError("Error Creating Folder", e.getMessage());
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                logger.error("Error in showAddFolderDialog", e);
             }
-        });
-    }
+        }
 
     private void showEditBookmarkDialog(Bookmark bookmark) {
         Dialog<Bookmark> dialog = new Dialog<>();
@@ -711,6 +673,8 @@ public class BookmarkPanel extends Stage {
         dialog.showAndWait().ifPresent(updated -> {
             try {
                 bookmarkService.updateBookmark(updated);
+
+                settingsService.saveSettings();
                 loadCurrentFolder();
             } catch (BrowserException e) {
                 showError("Error Updating Bookmark", e.getMessage());
@@ -730,6 +694,8 @@ public class BookmarkPanel extends Stage {
                 try {
                     folder.setName(name.trim());
                     bookmarkService.updateFolder(folder);
+
+                    settingsService.saveSettings();
                     loadBookmarks();
                 } catch (BrowserException e) {
                     showError("Error Updating Folder", e.getMessage());
@@ -741,6 +707,8 @@ public class BookmarkPanel extends Stage {
     private void toggleFavorite(Bookmark bookmark) {
         try {
             bookmarkService.toggleFavorite(bookmark.getId());
+
+            settingsService.saveSettings();
             loadCurrentFolder();
         } catch (BrowserException e) {
             showError("Error Updating Favorite", e.getMessage());
@@ -758,6 +726,8 @@ public class BookmarkPanel extends Stage {
             if (response == ButtonType.OK) {
                 try {
                     bookmarkService.deleteBookmark(bookmark.getId());
+
+                    settingsService.saveSettings();
                     loadCurrentFolder();
                 } catch (BrowserException e) {
                     showError("Error Deleting Bookmark", e.getMessage());
@@ -777,6 +747,8 @@ public class BookmarkPanel extends Stage {
             if (response == ButtonType.OK) {
                 try {
                     bookmarkService.deleteFolder(folder.getId(), true);
+
+                    settingsService.saveSettings();
                     loadBookmarks();
                 } catch (BrowserException e) {
                     showError("Error Deleting Folder", e.getMessage());
@@ -800,9 +772,6 @@ public class BookmarkPanel extends Stage {
         this.onOpenUrl = handler;
     }
 
-    /**
-     * Custom cell for displaying bookmarks and folders.
-     */
     private class BookmarkCell extends ListCell<Object> {
         private final HBox container;
         private final StackPane iconContainer;
@@ -821,7 +790,6 @@ public class BookmarkPanel extends Stage {
             container.setPadding(new Insets(12, 15, 12, 15));
             container.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-background-radius: 8;");
 
-            // Icon
             iconContainer = new StackPane();
             iconContainer.setMinSize(40, 40);
             iconContainer.setMaxSize(40, 40);
@@ -838,7 +806,6 @@ public class BookmarkPanel extends Stage {
 
             iconContainer.getChildren().add(defaultIcon);
 
-            // Text content
             textContainer = new VBox(4);
             HBox.setHgrow(textContainer, Priority.ALWAYS);
 
@@ -854,7 +821,6 @@ public class BookmarkPanel extends Stage {
 
             textContainer.getChildren().addAll(titleLabel, urlLabel);
 
-            // Right side
             rightContainer = new HBox(10);
             rightContainer.setAlignment(Pos.CENTER_RIGHT);
 
@@ -875,7 +841,6 @@ public class BookmarkPanel extends Stage {
 
             container.getChildren().addAll(iconContainer, textContainer, rightContainer);
 
-            // Hover effects - theme aware
             String bgNormal = getBgPrimary();
             String bgHover = getBgSecondary();
             container.setOnMouseEntered(e -> {
@@ -901,7 +866,6 @@ public class BookmarkPanel extends Stage {
                 urlLabel.setVisible(true);
                 favoriteIcon.setVisible(bookmark.isFavorite());
 
-                // Set folder icon style
                 iconContainer.setStyle("-fx-background-color: #e3f2fd; -fx-background-radius: 8;");
                 loadFavicon(bookmark);
 
@@ -913,7 +877,6 @@ public class BookmarkPanel extends Stage {
                 urlLabel.setVisible(true);
                 favoriteIcon.setVisible(false);
 
-                // Set folder icon
                 iconContainer.getChildren().clear();
                 FontIcon folderIcon = new FontIcon("mdi2f-folder");
                 folderIcon.setIconSize(24);
@@ -981,15 +944,30 @@ public class BookmarkPanel extends Stage {
         }
     }
 
-    // 1. Add a method to open the Download Manager panel from anywhere in the app
     public static void showDownloadManager(DIContainer container) {
         DownloadManager downloadManager = new DownloadManager(container);
         downloadManager.show();
     }
-    // 2. (If not present) Add a method to trigger download from the BookmarkPanel (for demonstration)
+
     public void triggerDownload(String url, String fileName) {
-        // You may need to adapt this to your actual download trigger logic
-        // For demonstration, just open the download manager
+
         showDownloadManager(container);
+    }
+
+    public void reloadBookmarksFromService(BookmarkService service) {
+        if (service != null) {
+            Platform.runLater(() -> {
+                bookmarkList.clear();
+                try {
+                    List<BookmarkFolder> rootFolders = service.getRootFolders();
+                    List<Bookmark> favorites = service.getFavorites();
+                    bookmarkList.addAll(rootFolders);
+                    bookmarkList.addAll(favorites);
+                } catch (Exception e) {
+
+                    bookmarkList.clear();
+                }
+            });
+        }
     }
 }

@@ -23,12 +23,10 @@ public class FindDialog extends Dialog<Void> {
 
         setTitle("Find in Page");
 
-        // Set the button types
         ButtonType findButtonType = new ButtonType("Find", ButtonBar.ButtonData.OK_DONE);
         ButtonType closeButtonType = new ButtonType("Close", ButtonBar.ButtonData.CANCEL_CLOSE);
         getDialogPane().getButtonTypes().addAll(findButtonType, closeButtonType);
 
-        // Create the content
         VBox vbox = new VBox(10);
         vbox.setPadding(new Insets(20));
 
@@ -49,7 +47,6 @@ public class FindDialog extends Dialog<Void> {
 
         getDialogPane().setContent(vbox);
 
-        // Handle the find button
         setResultConverter(dialogButton -> {
             if (dialogButton == findButtonType) {
                 findNext();
@@ -57,7 +54,6 @@ public class FindDialog extends Dialog<Void> {
             return null;
         });
 
-        // Handle the close button
         Button closeButton = (Button) getDialogPane().lookupButton(closeButtonType);
         closeButton.setOnAction(e -> {
             browserTab.stopFind();

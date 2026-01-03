@@ -1,6 +1,5 @@
 package com.example.nexus.repository;
 
-
 import com.example.nexus.util.DatabaseManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

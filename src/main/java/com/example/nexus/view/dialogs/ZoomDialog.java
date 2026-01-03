@@ -1,6 +1,5 @@
 package com.example.nexus.view.dialogs;
 
-
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.view.components.BrowserTab;
 import javafx.geometry.Insets;
@@ -24,19 +23,16 @@ public class ZoomDialog extends Dialog<Void> {
 
         setTitle("Zoom");
 
-        // Set the button types
         ButtonType applyButtonType = new ButtonType("Apply", ButtonBar.ButtonData.OK_DONE);
         ButtonType resetButtonType = new ButtonType("Reset", ButtonBar.ButtonData.OTHER);
         ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
         getDialogPane().getButtonTypes().addAll(applyButtonType, resetButtonType, cancelButtonType);
 
-        // Create the content
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
         grid.setPadding(new Insets(20, 150, 10, 10));
 
-        // Zoom slider
         Label zoomLabel = new Label("Zoom Level:");
         zoomSlider = new Slider(0.25, 5.0, 1.0);
         zoomSlider.setShowTickLabels(true);
@@ -46,7 +42,6 @@ public class ZoomDialog extends Dialog<Void> {
         zoomSlider.setBlockIncrement(0.1);
         zoomSlider.setSnapToTicks(true);
 
-        // Zoom buttons
         Button zoomInButton = new Button();
         zoomInButton.setGraphic(new FontIcon("mdi-magnify-plus"));
         zoomInButton.setOnAction(e -> zoomSlider.setValue(zoomSlider.getValue() + 0.25));
@@ -67,7 +62,6 @@ public class ZoomDialog extends Dialog<Void> {
 
         getDialogPane().setContent(grid);
 
-        // Handle the apply button
         setResultConverter(dialogButton -> {
             if (dialogButton == applyButtonType) {
                 applyZoom();

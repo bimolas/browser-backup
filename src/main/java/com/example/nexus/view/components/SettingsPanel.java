@@ -1,6 +1,5 @@
 package com.example.nexus.view.components;
 
-
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.service.SettingsService;
 import com.example.nexus.util.ThemeManager;
@@ -45,7 +44,7 @@ public class SettingsPanel extends BorderPane {
     }
 
     private void initializeUI() {
-        // Set up the header
+
         Label titleLabel = new Label("Settings");
         titleLabel.setFont(Font.font("System", FontWeight.BOLD, 18));
 
@@ -53,11 +52,9 @@ public class SettingsPanel extends BorderPane {
         headerBox.setAlignment(Pos.CENTER_LEFT);
         headerBox.setPadding(new Insets(10));
 
-        // Set up the settings content
         VBox settingsBox = new VBox(20);
         settingsBox.setPadding(new Insets(20));
 
-        // Appearance settings
         VBox appearanceBox = new VBox(10);
         Label appearanceLabel = new Label("Appearance");
         appearanceLabel.setFont(Font.font("System", FontWeight.BOLD, 16));
@@ -70,7 +67,6 @@ public class SettingsPanel extends BorderPane {
 
         appearanceBox.getChildren().addAll(appearanceLabel, themeBox);
 
-        // Browser settings
         VBox browserBox = new VBox(10);
         Label browserLabel = new Label("Browser");
         browserLabel.setFont(Font.font("System", FontWeight.BOLD, 16));
@@ -94,14 +90,11 @@ public class SettingsPanel extends BorderPane {
 
         browserBox.getChildren().addAll(browserLabel, searchEngineBox, homePageBox, startupBehaviorBox);
 
-        // Add all settings sections
         settingsBox.getChildren().addAll(appearanceBox, new Separator(), browserBox);
 
-        // Set up the layout
         setTop(headerBox);
         setCenter(settingsBox);
 
-        // Set up the bottom
         MFXButton saveButton = new MFXButton("Save");
         saveButton.setGraphic(new FontIcon("mdi-content-save"));
         saveButton.setOnAction(e -> saveSettings());
@@ -129,8 +122,10 @@ public class SettingsPanel extends BorderPane {
         settingsService.setHomePage(homePageField.getText());
         settingsService.setStartupBehavior(startupBehaviorComboBox.getValue());
 
-        // Apply the theme
-        themeManager.applyTheme(getScene(), themeComboBox.getValue());
+        if (getScene() != null) {
+            themeManager.setScene(getScene());
+        }
+        themeManager.applyTheme(themeComboBox.getValue());
 
         close();
     }

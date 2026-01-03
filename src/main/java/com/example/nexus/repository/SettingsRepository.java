@@ -7,10 +7,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-/**
- * Repository for managing Settings in the database.
- * Handles all CRUD operations for browser settings.
- */
 public class SettingsRepository extends BaseRepository<Settings> {
 
     public SettingsRepository(DatabaseManager dbManager) {
@@ -42,7 +38,7 @@ public class SettingsRepository extends BaseRepository<Settings> {
     }
 
     public Settings findByUserId(int userId) {
-        // Return the newest settings row for the user to avoid stale/older entries
+
         String sql = "SELECT * FROM settings WHERE user_id = ? ORDER BY id DESC LIMIT 1";
 
         try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
@@ -60,9 +56,6 @@ public class SettingsRepository extends BaseRepository<Settings> {
         return null;
     }
 
-    /**
-     * Delete duplicate settings rows for a user, keeping only the row with keepId (if keepId>0). If keepId==0, keep the newest row.
-     */
     public void deleteDuplicatesForUser(int userId, int keepId) {
         try {
             String findSql = "SELECT id FROM settings WHERE user_id = ? ORDER BY id DESC";
@@ -75,10 +68,8 @@ public class SettingsRepository extends BaseRepository<Settings> {
                     }
                     if (ids.size() <= 1) return;
 
-                    // Determine which id to keep
                     int keep = keepId > 0 ? keepId : ids.get(0);
 
-                    // Build delete statement for other ids
                     StringBuilder sb = new StringBuilder("DELETE FROM settings WHERE user_id = ? AND id IN (");
                     for (int i = 0; i < ids.size(); i++) {
                         if (ids.get(i) == keep) continue;
@@ -106,11 +97,11 @@ public class SettingsRepository extends BaseRepository<Settings> {
 
     @Override
     public void save(Settings s) {
-        // If there's already a settings row for this user, update it instead of inserting a duplicate
+
         try {
             Settings existing = findByUserId(s.getUserId());
             if (existing != null) {
-                // Ensure we update the existing row
+
                 s.setId(existing.getId());
                 update(s);
                 return;
@@ -138,7 +129,7 @@ public class SettingsRepository extends BaseRepository<Settings> {
         try (PreparedStatement stmt = getConnection().prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
             int i = 1;
             stmt.setInt(i++, s.getUserId());
-            // Appearance
+
             stmt.setString(i++, s.getTheme());
             stmt.setString(i++, s.getAccentColor());
             stmt.setInt(i++, s.getFontSize());
@@ -146,18 +137,18 @@ public class SettingsRepository extends BaseRepository<Settings> {
             stmt.setBoolean(i++, s.isShowBookmarksBar());
             stmt.setBoolean(i++, s.isShowStatusBar());
             stmt.setBoolean(i++, s.isCompactMode());
-            // Startup & Home
+
             stmt.setString(i++, s.getHomePage());
             stmt.setString(i++, s.getStartupBehavior());
             stmt.setBoolean(i++, s.isRestoreSession());
             stmt.setString(i++, s.getNewTabPage());
             stmt.setString(i++, s.getCustomNewTabUrl());
-            // Search
+
             stmt.setString(i++, s.getSearchEngine());
             stmt.setString(i++, s.getCustomSearchUrl());
             stmt.setBoolean(i++, s.isShowSearchSuggestions());
             stmt.setBoolean(i++, s.isSearchInAddressBar());
-            // Privacy & Security
+
             stmt.setBoolean(i++, s.isClearHistoryOnExit());
             stmt.setBoolean(i++, s.isClearCookiesOnExit());
             stmt.setBoolean(i++, s.isClearCacheOnExit());
@@ -168,23 +159,23 @@ public class SettingsRepository extends BaseRepository<Settings> {
             stmt.setBoolean(i++, s.isSaveBrowsingHistory());
             stmt.setBoolean(i++, s.isSaveFormData());
             stmt.setBoolean(i++, s.isSavePasswords());
-            // Downloads
+
             stmt.setString(i++, s.getDownloadPath());
             stmt.setBoolean(i++, s.isAskDownloadLocation());
             stmt.setBoolean(i++, s.isOpenPdfInBrowser());
             stmt.setBoolean(i++, s.isShowDownloadNotification());
-            // Performance
+
             stmt.setBoolean(i++, s.isHardwareAcceleration());
             stmt.setBoolean(i++, s.isSmoothScrolling());
             stmt.setBoolean(i++, s.isPreloadPages());
             stmt.setBoolean(i++, s.isLazyLoadImages());
             stmt.setInt(i++, s.getMaxTabsInMemory());
-            // Accessibility
+
             stmt.setBoolean(i++, s.isHighContrast());
             stmt.setBoolean(i++, s.isReduceMotion());
             stmt.setBoolean(i++, s.isForceZoom());
             stmt.setString(i++, s.getDefaultEncoding());
-            // Advanced
+
             stmt.setBoolean(i++, s.isEnableJavaScript());
             stmt.setBoolean(i++, s.isEnableImages());
             stmt.setBoolean(i++, s.isEnableWebGL());
@@ -193,7 +184,7 @@ public class SettingsRepository extends BaseRepository<Settings> {
             stmt.setString(i++, s.getProxyHost());
             stmt.setInt(i++, s.getProxyPort());
             stmt.setString(i++, s.getUserAgent());
-            // Notifications
+
             stmt.setBoolean(i++, s.isEnableNotifications());
             stmt.setBoolean(i++, s.isSoundEnabled());
 
@@ -234,7 +225,7 @@ public class SettingsRepository extends BaseRepository<Settings> {
 
         try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
             int i = 1;
-            // Appearance
+
             stmt.setString(i++, s.getTheme());
             stmt.setString(i++, s.getAccentColor());
             stmt.setInt(i++, s.getFontSize());
@@ -242,18 +233,18 @@ public class SettingsRepository extends BaseRepository<Settings> {
             stmt.setBoolean(i++, s.isShowBookmarksBar());
             stmt.setBoolean(i++, s.isShowStatusBar());
             stmt.setBoolean(i++, s.isCompactMode());
-            // Startup & Home
+
             stmt.setString(i++, s.getHomePage());
             stmt.setString(i++, s.getStartupBehavior());
             stmt.setBoolean(i++, s.isRestoreSession());
             stmt.setString(i++, s.getNewTabPage());
             stmt.setString(i++, s.getCustomNewTabUrl());
-            // Search
+
             stmt.setString(i++, s.getSearchEngine());
             stmt.setString(i++, s.getCustomSearchUrl());
             stmt.setBoolean(i++, s.isShowSearchSuggestions());
             stmt.setBoolean(i++, s.isSearchInAddressBar());
-            // Privacy & Security
+
             stmt.setBoolean(i++, s.isClearHistoryOnExit());
             stmt.setBoolean(i++, s.isClearCookiesOnExit());
             stmt.setBoolean(i++, s.isClearCacheOnExit());
@@ -264,23 +255,23 @@ public class SettingsRepository extends BaseRepository<Settings> {
             stmt.setBoolean(i++, s.isSaveBrowsingHistory());
             stmt.setBoolean(i++, s.isSaveFormData());
             stmt.setBoolean(i++, s.isSavePasswords());
-            // Downloads
+
             stmt.setString(i++, s.getDownloadPath());
             stmt.setBoolean(i++, s.isAskDownloadLocation());
             stmt.setBoolean(i++, s.isOpenPdfInBrowser());
             stmt.setBoolean(i++, s.isShowDownloadNotification());
-            // Performance
+
             stmt.setBoolean(i++, s.isHardwareAcceleration());
             stmt.setBoolean(i++, s.isSmoothScrolling());
             stmt.setBoolean(i++, s.isPreloadPages());
             stmt.setBoolean(i++, s.isLazyLoadImages());
             stmt.setInt(i++, s.getMaxTabsInMemory());
-            // Accessibility
+
             stmt.setBoolean(i++, s.isHighContrast());
             stmt.setBoolean(i++, s.isReduceMotion());
             stmt.setBoolean(i++, s.isForceZoom());
             stmt.setString(i++, s.getDefaultEncoding());
-            // Advanced
+
             stmt.setBoolean(i++, s.isEnableJavaScript());
             stmt.setBoolean(i++, s.isEnableImages());
             stmt.setBoolean(i++, s.isEnableWebGL());
@@ -289,10 +280,10 @@ public class SettingsRepository extends BaseRepository<Settings> {
             stmt.setString(i++, s.getProxyHost());
             stmt.setInt(i++, s.getProxyPort());
             stmt.setString(i++, s.getUserAgent());
-            // Notifications
+
             stmt.setBoolean(i++, s.isEnableNotifications());
             stmt.setBoolean(i++, s.isSoundEnabled());
-            // WHERE
+
             stmt.setInt(i++, s.getId());
 
             int affected = stmt.executeUpdate();
@@ -320,7 +311,6 @@ public class SettingsRepository extends BaseRepository<Settings> {
         s.setId(rs.getInt("id"));
         s.setUserId(rs.getInt("user_id"));
 
-        // Appearance
         s.setTheme(getStringOrDefault(rs, "theme", "light"));
         s.setAccentColor(getStringOrDefault(rs, "accent_color", "#3b82f6"));
         s.setFontSize(getIntOrDefault(rs, "font_size", 14));
@@ -329,20 +319,17 @@ public class SettingsRepository extends BaseRepository<Settings> {
         s.setShowStatusBar(getBoolOrDefault(rs, "show_status_bar", true));
         s.setCompactMode(getBoolOrDefault(rs, "compact_mode", false));
 
-        // Startup & Home
         s.setHomePage(getStringOrDefault(rs, "home_page", "https://www.google.com"));
         s.setStartupBehavior(getStringOrDefault(rs, "startup_behavior", "show_home"));
         s.setRestoreSession(getBoolOrDefault(rs, "restore_session", true));
         s.setNewTabPage(getStringOrDefault(rs, "new_tab_page", "new_tab"));
         s.setCustomNewTabUrl(getStringOrDefault(rs, "custom_new_tab_url", ""));
 
-        // Search
         s.setSearchEngine(getStringOrDefault(rs, "search_engine", "google"));
         s.setCustomSearchUrl(getStringOrDefault(rs, "custom_search_url", ""));
         s.setShowSearchSuggestions(getBoolOrDefault(rs, "show_search_suggestions", true));
         s.setSearchInAddressBar(getBoolOrDefault(rs, "search_in_address_bar", true));
 
-        // Privacy & Security
         s.setClearHistoryOnExit(getBoolOrDefault(rs, "clear_history_on_exit", false));
         s.setClearCookiesOnExit(getBoolOrDefault(rs, "clear_cookies_on_exit", false));
         s.setClearCacheOnExit(getBoolOrDefault(rs, "clear_cache_on_exit", false));
@@ -354,26 +341,22 @@ public class SettingsRepository extends BaseRepository<Settings> {
         s.setSaveFormData(getBoolOrDefault(rs, "save_form_data", true));
         s.setSavePasswords(getBoolOrDefault(rs, "save_passwords", true));
 
-        // Downloads
         s.setDownloadPath(getStringOrDefault(rs, "download_path", System.getProperty("user.home") + "/Downloads"));
         s.setAskDownloadLocation(getBoolOrDefault(rs, "ask_download_location", false));
         s.setOpenPdfInBrowser(getBoolOrDefault(rs, "open_pdf_in_browser", true));
         s.setShowDownloadNotification(getBoolOrDefault(rs, "show_download_notification", true));
 
-        // Performance
         s.setHardwareAcceleration(getBoolOrDefault(rs, "hardware_acceleration", true));
         s.setSmoothScrolling(getBoolOrDefault(rs, "smooth_scrolling", true));
         s.setPreloadPages(getBoolOrDefault(rs, "preload_pages", true));
         s.setLazyLoadImages(getBoolOrDefault(rs, "lazy_load_images", true));
         s.setMaxTabsInMemory(getIntOrDefault(rs, "max_tabs_in_memory", 0));
 
-        // Accessibility
         s.setHighContrast(getBoolOrDefault(rs, "high_contrast", false));
         s.setReduceMotion(getBoolOrDefault(rs, "reduce_motion", false));
         s.setForceZoom(getBoolOrDefault(rs, "force_zoom", false));
         s.setDefaultEncoding(getStringOrDefault(rs, "default_encoding", "UTF-8"));
 
-        // Advanced
         s.setEnableJavaScript(getBoolOrDefault(rs, "enable_javascript", true));
         s.setEnableImages(getBoolOrDefault(rs, "enable_images", true));
         s.setEnableWebGL(getBoolOrDefault(rs, "enable_webgl", true));
@@ -383,14 +366,12 @@ public class SettingsRepository extends BaseRepository<Settings> {
         s.setProxyPort(getIntOrDefault(rs, "proxy_port", 8080));
         s.setUserAgent(getStringOrDefault(rs, "user_agent", ""));
 
-        // Notifications
         s.setEnableNotifications(getBoolOrDefault(rs, "enable_notifications", true));
         s.setSoundEnabled(getBoolOrDefault(rs, "sound_enabled", true));
 
         return s;
     }
 
-    // Helper methods to handle missing columns gracefully (for database migration compatibility)
     private String getStringOrDefault(ResultSet rs, String column, String defaultValue) {
         try {
             String value = rs.getString(column);

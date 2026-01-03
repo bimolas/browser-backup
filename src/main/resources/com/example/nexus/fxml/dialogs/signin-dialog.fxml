@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.example.nexus.controller.SignInController"
+      styleClass="auth-dialog-root" alignment="CENTER" spacing="0" prefWidth="450" prefHeight="500">
+
+    <!-- Header -->
+    <VBox alignment="CENTER" spacing="8" styleClass="auth-header">
+        <padding><Insets top="40" right="40" bottom="30" left="40"/></padding>
+        <Label text="Sign In" styleClass="auth-title"/>
+        <Label text="Sign in to your Nexus account" styleClass="auth-subtitle"/>
+    </VBox>
+
+    <!-- Form Container -->
+    <VBox alignment="CENTER" spacing="20" styleClass="auth-form-container">
+        <padding><Insets top="20" right="40" bottom="20" left="40"/></padding>
+
+        <!-- Email Field -->
+        <VBox spacing="8" styleClass="auth-field-group">
+            <Label text="Email" styleClass="auth-label"/>
+            <TextField fx:id="emailField" promptText="Enter your email" styleClass="auth-field" prefWidth="350"/>
+        </VBox>
+
+        <!-- Password Field -->
+        <VBox spacing="8" styleClass="auth-field-group">
+            <Label text="Password" styleClass="auth-label"/>
+            <PasswordField fx:id="passwordField" promptText="Enter your password" styleClass="auth-field" prefWidth="350"/>
+        </VBox>
+
+        <!-- Error Label -->
+        <Label fx:id="errorLabel" styleClass="error-label" visible="false" wrapText="true" maxWidth="350"/>
+
+        <!-- Sign In Button -->
+        <Button fx:id="signInButton" text="Sign In" styleClass="auth-primary-button" maxWidth="350" onAction="#handleSignIn"/>
+
+        <!-- Divider -->
+        <HBox alignment="CENTER" spacing="10" styleClass="auth-divider">
+            <padding><Insets top="10" bottom="10"/></padding>
+            <Separator HBox.hgrow="ALWAYS"/>
+            <Label text="or" styleClass="auth-divider-text"/>
+            <Separator HBox.hgrow="ALWAYS"/>
+        </HBox>
+
+        <!-- Sign Up Link -->
+        <HBox alignment="CENTER" spacing="5">
+            <Label text="Don't have an account?" styleClass="auth-link-label"/>
+            <Button fx:id="signUpLinkButton" text="Sign Up" styleClass="auth-link-button" onAction="#handleShowSignUp"/>
+        </HBox>
+    </VBox>
+
+    <!-- Footer -->
+    <Region VBox.vgrow="ALWAYS" minHeight="20"/>
+</VBox>
+

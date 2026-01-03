@@ -1,8 +1,5 @@
 package com.example.nexus.exception;
 
-/**
- * Base exception for browser-related errors.
- */
 public class BrowserException extends RuntimeException {
     private final ErrorCode errorCode;
 

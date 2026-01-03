@@ -72,81 +72,96 @@ CREATE TABLE IF NOT EXISTS settings (
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
--- Bookmarks table
+-- Bookmarks table - now linked to profile
 CREATE TABLE IF NOT EXISTS bookmarks (
-                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                         user_id INTEGER NOT NULL,
-                                         title TEXT NOT NULL,
-                                         url TEXT NOT NULL,
-                                         favicon_url TEXT,
-                                         folder_id INTEGER,
-                                         position INTEGER DEFAULT 0,
-                                         is_favorite INTEGER DEFAULT 0,
-                                         description TEXT,
-                                         tags TEXT,
-                                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    favicon_url TEXT,
+    folder_id INTEGER,
+    position INTEGER DEFAULT 0,
+    is_favorite INTEGER DEFAULT 0,
+    description TEXT,
+    tags TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (profile_id) REFERENCES profile (id) ON DELETE CASCADE,
     FOREIGN KEY (folder_id) REFERENCES bookmark_folders (id) ON DELETE SET NULL
-    );
+);
 
--- Bookmark Folders table
+-- Bookmark Folders table - now linked to profile
 CREATE TABLE IF NOT EXISTS bookmark_folders (
-                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                         user_id INTEGER DEFAULT 1,
-                                         name TEXT NOT NULL,
-                                         parent_folder_id INTEGER,
-                                         position INTEGER DEFAULT 0,
-                                         is_favorite INTEGER DEFAULT 0,
-                                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                         FOREIGN KEY (parent_folder_id) REFERENCES bookmark_folders(id) ON DELETE CASCADE
-    );
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    name TEXT NOT NULL,
+    parent_folder_id INTEGER,
+    position INTEGER DEFAULT 0,
+    is_favorite INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (profile_id) REFERENCES profile (id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_folder_id) REFERENCES bookmark_folders(id) ON DELETE CASCADE
+);
 
--- History table
+-- History table - now linked to profile
 CREATE TABLE IF NOT EXISTS history (
-                                       id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                       user_id INTEGER NOT NULL,
-                                       title TEXT NOT NULL,
-                                       url TEXT NOT NULL,
-                                       favicon_url TEXT,
-                                       visit_count INTEGER DEFAULT 1,
-                                       last_visit TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                       FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-    );
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    favicon_url TEXT,
+    visit_count INTEGER DEFAULT 1,
+    last_visit TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (profile_id) REFERENCES profile (id) ON DELETE CASCADE
+);
 
--- Downloads table
+-- Downloads table - now linked to profile
 CREATE TABLE IF NOT EXISTS downloads (
-                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                         user_id INTEGER NOT NULL,
-                                         url TEXT NOT NULL,
-                                         file_name TEXT NOT NULL,
-                                         file_path TEXT NOT NULL,
-                                         file_size INTEGER DEFAULT 0,
-                                         downloaded_size INTEGER DEFAULT 0,
-                                         status TEXT DEFAULT 'pending',
-                                         start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                         end_time TIMESTAMP,
-                                         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-    );
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    url TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    file_size INTEGER DEFAULT 0,
+    downloaded_size INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'pending',
+    start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP,
+    FOREIGN KEY (profile_id) REFERENCES profile (id) ON DELETE CASCADE
+);
 
--- Tabs table
+-- Tabs table - now linked to profile
 CREATE TABLE IF NOT EXISTS tabs (
-                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                    user_id INTEGER NOT NULL,
-                                    title TEXT NOT NULL,
-                                    url TEXT NOT NULL,
-                                    favicon_url TEXT,
-                                    is_pinned BOOLEAN DEFAULT 0,
-                                    is_active BOOLEAN DEFAULT 0,
-                                    position INTEGER DEFAULT 0,
-                                    session_id TEXT,
-                                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-    );
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    favicon_url TEXT,
+    is_pinned BOOLEAN DEFAULT 0,
+    is_active BOOLEAN DEFAULT 0,
+    position INTEGER DEFAULT 0,
+    session_id TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (profile_id) REFERENCES profile (id) ON DELETE CASCADE
+);
+
+-- Profile table
+CREATE TABLE IF NOT EXISTS profile (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    email TEXT,
+    profile_image_path TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Insert default user if not exists
 INSERT OR IGNORE INTO users (id, name) VALUES (1, 'Default User');
 
 -- Insert default settings for default user
 INSERT OR IGNORE INTO settings (user_id) VALUES (1);
+
+-- Insert default profile if not exists (id=1)
+INSERT OR IGNORE INTO profile (id, username, email, profile_image_path)
+VALUES (1, 'Default User', '', '');

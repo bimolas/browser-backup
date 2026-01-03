@@ -83,7 +83,7 @@ public class TabRepository extends BaseRepository<Tab> {
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement stmt = getConnection().prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
-            stmt.setInt(1, 1); // Default user ID
+            stmt.setInt(1, 1);
             stmt.setString(2, tab.getTitle());
             stmt.setString(3, tab.getUrl());
             stmt.setString(4, tab.getFaviconUrl());

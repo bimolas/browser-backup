@@ -36,9 +36,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-/**
- * Modern History Panel with search, filter, and grouping capabilities.
- */
 public class HistoryPanel extends Stage {
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy");
@@ -58,7 +55,6 @@ public class HistoryPanel extends Stage {
     private Label statusLabel;
     private VBox contentBox;
 
-    // Filter options
     private static final String FILTER_ALL = "All Time";
     private static final String FILTER_TODAY = "Today";
     private static final String FILTER_YESTERDAY = "Yesterday";
@@ -73,7 +69,6 @@ public class HistoryPanel extends Stage {
         this.filteredHistory = new FilteredList<>(historyList, p -> true);
         this.faviconCache = new HashMap<>();
 
-        // Detect current theme
         String theme = settingsService.getTheme();
         this.isDarkTheme = "dark".equals(theme) || ("system".equals(theme) && isSystemDark());
 
@@ -89,12 +84,11 @@ public class HistoryPanel extends Stage {
                 return true;
             }
         } catch (Exception e) {
-            // Ignore
+
         }
         return false;
     }
 
-    // Theme-aware color getters
     private String getBgPrimary() { return isDarkTheme ? "#1e1e1e" : "#ffffff"; }
     private String getBgSecondary() { return isDarkTheme ? "#252525" : "#f8f9fa"; }
     private String getBgTertiary() { return isDarkTheme ? "#2d2d2d" : "#e9ecef"; }
@@ -116,35 +110,30 @@ public class HistoryPanel extends Stage {
     private void initializeUI() {
         BorderPane root = new BorderPane();
         root.getStyleClass().add("history-panel");
-        // expose theme colors as CSS variables for this root
+
         root.setStyle(String.format("--bg-primary: %s; --bg-secondary: %s; --border-color: %s; --text-primary: %s; --text-muted: %s;",
             getBgPrimary(), getBgSecondary(), getBorderColor(), getTextPrimary(), getTextMuted()));
 
-        // Header
         root.setTop(createHeader());
 
-        // Content
         contentBox = new VBox(10);
         contentBox.setPadding(new Insets(15));
         contentBox.getStyleClass().add("history-content");
         contentBox.setStyle(String.format("--bg-secondary: %s;", getBgSecondary()));
 
-        // History list
         historyListView = createHistoryListView();
         VBox.setVgrow(historyListView, Priority.ALWAYS);
         contentBox.getChildren().add(historyListView);
 
         root.setCenter(contentBox);
 
-        // Footer
         root.setBottom(createFooter());
 
         Scene scene = new Scene(root);
-        // Load appropriate theme CSS
+
         String cssPath = isDarkTheme ? "/com/example/nexus/css/dark.css" : "/com/example/nexus/css/main.css";
         scene.getStylesheets().add(getClass().getResource(cssPath).toExternalForm());
 
-        // Add keyboard shortcuts
         scene.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
                 close();
@@ -161,7 +150,6 @@ public class HistoryPanel extends Stage {
         header.setPadding(new Insets(20, 20, 15, 20));
         header.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-border-color: " + getBorderColor() + "; -fx-border-width: 0 0 1 0;");
 
-        // Title row
         HBox titleRow = new HBox(15);
         titleRow.setAlignment(Pos.CENTER_LEFT);
 
@@ -186,11 +174,9 @@ public class HistoryPanel extends Stage {
 
         titleRow.getChildren().addAll(historyIcon, titleLabel, spacer, clearAllBtn);
 
-        // Search and filter row
         HBox searchRow = new HBox(15);
         searchRow.setAlignment(Pos.CENTER_LEFT);
 
-        // Search field with modern styling - theme aware
         String searchBgNormal = isDarkTheme ? "#2d2d2d" : "#f8f9fa";
         String searchBgFocused = isDarkTheme ? "#1e1e1e" : "#ffffff";
         String searchBorderFocused = "#0d6efd";
@@ -200,7 +186,7 @@ public class HistoryPanel extends Stage {
         searchField.setPrefWidth(400);
         searchField.getStyleClass().add("search-field");
         searchField.setStyle(String.format("--search-bg-normal: %s; --search-bg-focused: %s; --search-border-focused: %s; --text-primary: %s;", searchBgNormal, searchBgFocused, searchBorderFocused, getTextPrimary()));
-        // Toggle focus pseudo-class via style class
+
         searchField.focusedProperty().addListener((obs, oldVal, focused) -> {
             if (focused) {
                 if (!searchField.getStyleClass().contains("search-focused")) {
@@ -225,7 +211,6 @@ public class HistoryPanel extends Stage {
 
         searchField.textProperty().addListener((obs, oldVal, newVal) -> filterHistory());
 
-        // Filter combo with modern styling - theme aware
         String comboBg = isDarkTheme ? "#2d2d2d" : "#f8f9fa";
         String comboBorder = isDarkTheme ? "#404040" : "#dee2e6";
 
@@ -249,7 +234,6 @@ public class HistoryPanel extends Stage {
         listView.setPlaceholder(createEmptyPlaceholder());
         listView.setCellFactory(lv -> new HistoryCell());
 
-        // Double-click to open
         listView.setOnMouseClicked(event -> {
             if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
                 HistoryEntry selected = listView.getSelectionModel().getSelectedItem();
@@ -259,7 +243,6 @@ public class HistoryPanel extends Stage {
             }
         });
 
-        // Context menu
         ContextMenu contextMenu = createContextMenu();
         listView.setContextMenu(contextMenu);
 
@@ -361,12 +344,11 @@ public class HistoryPanel extends Stage {
         String filterValue = filterCombo.getValue();
 
         filteredHistory.setPredicate(entry -> {
-            // Text filter
+
             boolean matchesText = searchText.isEmpty() ||
                 (entry.getTitle() != null && entry.getTitle().toLowerCase().contains(searchText)) ||
                 (entry.getUrl() != null && entry.getUrl().toLowerCase().contains(searchText));
 
-            // Date filter
             boolean matchesDate = true;
             if (entry.getLastVisit() != null) {
                 LocalDate entryDate = entry.getLastVisit().toLocalDate();
@@ -443,9 +425,6 @@ public class HistoryPanel extends Stage {
         this.onOpenUrl = handler;
     }
 
-    /**
-     * Custom cell for displaying history entries.
-     */
     private class HistoryCell extends ListCell<HistoryEntry> {
         private final HBox container;
         private final StackPane faviconContainer;
@@ -465,7 +444,6 @@ public class HistoryPanel extends Stage {
             container.setPadding(new Insets(12, 15, 12, 15));
             container.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-background-radius: 8;");
 
-            // Favicon
             faviconContainer = new StackPane();
             faviconContainer.setMinSize(40, 40);
             faviconContainer.setMaxSize(40, 40);
@@ -482,7 +460,6 @@ public class HistoryPanel extends Stage {
 
             faviconContainer.getChildren().add(defaultIcon);
 
-            // Text content
             textContainer = new VBox(4);
             HBox.setHgrow(textContainer, Priority.ALWAYS);
 
@@ -498,7 +475,6 @@ public class HistoryPanel extends Stage {
 
             textContainer.getChildren().addAll(titleLabel, urlLabel);
 
-            // Right side
             rightContainer = new VBox(4);
             rightContainer.setAlignment(Pos.CENTER_RIGHT);
             rightContainer.setMinWidth(100);
@@ -513,7 +489,6 @@ public class HistoryPanel extends Stage {
 
             rightContainer.getChildren().addAll(timeLabel, visitCountLabel);
 
-            // Delete button - theme aware icon
             deleteBtn = new Button();
             FontIcon deleteIcon = new FontIcon("mdi2d-delete-outline");
             deleteIcon.setIconSize(16);
@@ -531,7 +506,6 @@ public class HistoryPanel extends Stage {
 
             container.getChildren().addAll(faviconContainer, textContainer, rightContainer, deleteBtn);
 
-            // Hover effects - theme aware
             String bgNormal = getBgPrimary();
             String bgHover = getBgSecondary();
             container.setOnMouseEntered(e -> {
@@ -552,13 +526,11 @@ public class HistoryPanel extends Stage {
                 setGraphic(null);
                 setText(null);
             } else {
-                // Title
+
                 titleLabel.setText(item.getDisplayTitle());
 
-                // URL
                 urlLabel.setText(item.getDomain());
 
-                // Time
                 if (item.getLastVisit() != null) {
                     LocalDate entryDate = item.getLastVisit().toLocalDate();
                     LocalDate today = LocalDate.now();
@@ -572,11 +544,9 @@ public class HistoryPanel extends Stage {
                     }
                 }
 
-                // Visit count
                 int visits = item.getVisitCount();
                 visitCountLabel.setText(visits + " visit" + (visits != 1 ? "s" : ""));
 
-                // Favicon
                 loadFavicon(item);
 
                 setGraphic(container);
@@ -593,7 +563,7 @@ public class HistoryPanel extends Stage {
                     faviconView.setImage(cached);
                     faviconContainer.getChildren().add(faviconView);
                 } else {
-                    // Load async
+
                     faviconContainer.getChildren().add(defaultIcon);
                     new Thread(() -> {
                         try {
@@ -612,7 +582,7 @@ public class HistoryPanel extends Stage {
                     }).start();
                 }
             } else {
-                // Generate favicon from domain
+
                 String domain = item.getDomain();
                 if (!domain.isEmpty()) {
                     String faviconUrl = "https://www.google.com/s2/favicons?sz=64&domain=" + domain;
@@ -639,4 +609,3 @@ public class HistoryPanel extends Stage {
         }
     }
 }
-

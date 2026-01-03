@@ -1,68 +1,83 @@
 package com.example.nexus.util;
 
+import com.example.nexus.core.DIContainer;
+import com.example.nexus.service.SettingsService;
+import javafx.application.Platform;
 import javafx.scene.Scene;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 public class ThemeManager {
     private static final Logger logger = LoggerFactory.getLogger(ThemeManager.class);
-    private final Map<String, String> themes = new HashMap<>();
-    private String currentTheme = "main";
 
-    public ThemeManager() {
-        // Register available themes
-        themes.put("main", "/com/example/nexus/css/main.css");
-        themes.put("dark", "/com/example/nexus/css/dark.css");
-        // backward compatibility alias
-        themes.put("light", "/com/example/nexus/css/main.css");
+    private final SettingsService settingsService;
+    private String currentTheme = "light";
+    private Scene currentScene;
+    private final List<Consumer<String>> themeChangeListeners = new ArrayList<>();
+
+    public ThemeManager(DIContainer container) {
+        this.settingsService = container.getOrCreate(SettingsService.class);
+        this.currentTheme = settingsService.getTheme();
     }
 
-    /**
-     * Apply a theme key to a specific scene. Accepts "main", "light", "dark" or null.
-     */
-    public void applyTheme(Scene scene, String themeName) {
-        if (scene == null) return;
+    public void setScene(Scene scene) {
+        this.currentScene = scene;
+        applyTheme(currentTheme);
+    }
 
-        String key = themeName == null ? "main" : themeName.toLowerCase();
-        if ("system".equals(key)) {
-            // Resolve system -> default to main (caller should resolve if they prefer otherwise)
-            key = "main";
+    public void applyTheme(String theme) {
+        if (currentScene == null) {
+            logger.warn("No scene set for theme application");
+            return;
         }
 
-        String themePath = themes.get(key);
-        if (themePath == null) {
-            logger.warn("Theme not found: {}. Falling back to main.", themeName);
-            themePath = themes.get("main");
-            key = "main";
-        }
+        Platform.runLater(() -> {
 
-        try {
-            // Remove any existing theme stylesheets (main or dark)
-            scene.getStylesheets().removeIf(s -> s.contains("main.css") || s.contains("dark.css"));
+            currentScene.getStylesheets().clear();
 
-            // Add the requested theme
-            var res = getClass().getResource(themePath);
-            if (res != null) {
-                scene.getStylesheets().add(res.toExternalForm());
-            } else {
-                logger.warn("Theme resource not found on classpath: {}", themePath);
+            String cssResource = switch (theme) {
+                case "dark" -> "/com/example/nexus/css/dark.css";
+                case "light" -> "/com/example/nexus/css/main.css";
+                default -> "/com/example/nexus/css/main.css";
+            };
+
+            try {
+                String cssUrl = getClass().getResource(cssResource).toExternalForm();
+                currentScene.getStylesheets().add(cssUrl);
+                currentTheme = theme;
+                notifyListeners(theme);
+                logger.info("Theme applied: {}", theme);
+            } catch (Exception e) {
+                logger.error("Error applying theme: {}", theme, e);
             }
-
-            currentTheme = key;
-            logger.info("Applied theme to scene: {}", key);
-        } catch (Exception e) {
-            logger.error("Failed to apply theme: {}", themeName, e);
-        }
+        });
     }
 
     public String getCurrentTheme() {
         return currentTheme;
     }
 
-    public void registerTheme(String name, String path) {
-        themes.put(name, path);
+    public void addThemeChangeListener(Consumer<String> listener) {
+        if (listener != null && !themeChangeListeners.contains(listener)) {
+            themeChangeListeners.add(listener);
+        }
+    }
+
+    public void removeThemeChangeListener(Consumer<String> listener) {
+        themeChangeListeners.remove(listener);
+    }
+
+    private void notifyListeners(String theme) {
+        for (Consumer<String> listener : themeChangeListeners) {
+            try {
+                listener.accept(theme);
+            } catch (Exception e) {
+                logger.error("Error notifying theme listener", e);
+            }
+        }
     }
 }

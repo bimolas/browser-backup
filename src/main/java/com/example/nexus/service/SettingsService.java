@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-
 public class SettingsService implements ISettingsService {
     private static final Logger logger = LoggerFactory.getLogger(SettingsService.class);
 
@@ -20,21 +19,20 @@ public class SettingsService implements ISettingsService {
 
     public SettingsService(DIContainer container) {
         this.settingsRepository = container.getOrCreate(SettingsRepository.class);
-        // Load settings synchronously so startup code can access them immediately
+
         try {
             loadSettings();
         } catch (Throwable t) {
             logger.error("Failed to load settings during initialization", t);
-            // Ensure defaults exist
+
             currentSettings = new Settings(1);
         }
     }
 
     private synchronized void loadSettings() {
-        // If already loaded by another thread, skip
+
         if (currentSettings != null) return;
 
-        // Load settings for default user (ID 1)
         try {
             Settings s = settingsRepository.findByUserId(1);
             if (s == null) {
@@ -43,26 +41,23 @@ public class SettingsService implements ISettingsService {
                 logger.info("Created default settings");
             }
             currentSettings = s;
-            // Clean up duplicates (keep the current one) to avoid multiple settings rows per user
+
             try {
                 settingsRepository.deleteDuplicatesForUser(currentSettings.getUserId(), currentSettings.getId());
             } catch (Exception ex) {
                 logger.debug("Failed to cleanup duplicate settings rows", ex);
             }
             logger.info("Loaded settings: {}", currentSettings);
-            // Notify listeners that settings are available
+
             notifyListeners();
         } catch (Exception e) {
             logger.error("Error loading settings from DB", e);
-            // Create defaults to keep app functioning
+
             currentSettings = new Settings(1);
             notifyListeners();
         }
     }
 
-    /**
-     * Notify all listeners of settings change
-     */
     private void notifyListeners() {
         for (Consumer<Settings> listener : changeListeners) {
             try {
@@ -73,15 +68,11 @@ public class SettingsService implements ISettingsService {
         }
     }
 
-    /**
-     * Save settings and notify listeners
-     */
     private void saveAndNotify() {
         try {
-            // Ensure currentSettings is non-null
+
             if (currentSettings == null) currentSettings = new Settings(1);
 
-            // Try to find existing settings row for this user
             Settings existing = null;
             try {
                 existing = settingsRepository.findByUserId(currentSettings.getUserId());
@@ -91,9 +82,9 @@ public class SettingsService implements ISettingsService {
 
             if (existing == null) {
                 settingsRepository.save(currentSettings);
-                // Ensure ID is set if DB generated one
+
                 if (currentSettings.getId() == 0) {
-                    // Try to reload from DB to get ID
+
                     try {
                         Settings reloaded = settingsRepository.findByUserId(currentSettings.getUserId());
                         if (reloaded != null) currentSettings.setId(reloaded.getId());
@@ -102,7 +93,7 @@ public class SettingsService implements ISettingsService {
                     }
                 }
             } else {
-                // If existing id differs, ensure model has DB id
+
                 if (currentSettings.getId() == 0) currentSettings.setId(existing.getId());
                 settingsRepository.update(currentSettings);
             }
@@ -112,11 +103,9 @@ public class SettingsService implements ISettingsService {
         notifyListeners();
     }
 
-    // ==================== CORE ====================
-
     @Override
     public Settings getSettings() {
-        // Return defaults until loaded
+
         if (currentSettings == null) {
             return new Settings(1);
         }
@@ -148,36 +137,34 @@ public class SettingsService implements ISettingsService {
         changeListeners.remove(listener);
     }
 
-    // ==================== APPEARANCE ====================
-
     @Override
     public String getTheme() {
         Settings s = currentSettings;
-        // Return canonical theme names: "light", "dark", or "system".
+
         String t = (s != null && s.getTheme() != null) ? s.getTheme().trim() : "light";
-        if (t.equalsIgnoreCase("main")) return "light"; // legacy value
+        if (t.equalsIgnoreCase("main")) return "light";
         if (t.equalsIgnoreCase("light") || t.equalsIgnoreCase("dark") || t.equalsIgnoreCase("system")) {
             return t.toLowerCase();
         }
-        // Unknown values -> default to light
+
         return "light";
     }
 
     @Override
     public void setTheme(String theme) {
         if (currentSettings == null) currentSettings = new Settings(1);
-        // Normalize incoming values to canonical names
+
         if (theme == null) theme = "light";
         theme = theme.trim();
-        if (theme.equalsIgnoreCase("main")) theme = "light"; // legacy
+        if (theme.equalsIgnoreCase("main")) theme = "light";
         if (!(theme.equalsIgnoreCase("light") || theme.equalsIgnoreCase("dark") || theme.equalsIgnoreCase("system"))) {
-            // If unknown, default to light
+
             theme = "light";
         }
-         // Only persist if theme actually changed to avoid loops
+
          String prev = currentSettings.getTheme();
         if (prev == null) prev = "";
-        // Normalize prev to compare properly (handle legacy stored 'main')
+
         if ("main".equalsIgnoreCase(prev)) prev = "light";
         if (prev.equalsIgnoreCase(theme)) {
             logger.debug("setTheme requested but value unchanged: {}", theme);
@@ -246,33 +233,9 @@ public class SettingsService implements ISettingsService {
     }
 
     @Override
-    public void setShowBookmarksBar(boolean show) {
-        if (currentSettings == null) currentSettings = new Settings(1);
-        boolean prev = currentSettings.isShowBookmarksBar();
-        if (prev == show) {
-            logger.debug("setShowBookmarksBar requested but value unchanged: {}", show);
-            return;
-        }
-        currentSettings.setShowBookmarksBar(show);
-        saveAndNotify();
-    }
-
-    @Override
     public boolean isShowStatusBar() {
         Settings s = currentSettings;
         return s != null && s.isShowStatusBar();
-    }
-
-    @Override
-    public void setShowStatusBar(boolean show) {
-        if (currentSettings == null) currentSettings = new Settings(1);
-        boolean prev = currentSettings.isShowStatusBar();
-        if (prev == show) {
-            logger.debug("setShowStatusBar requested but value unchanged: {}", show);
-            return;
-        }
-        currentSettings.setShowStatusBar(show);
-        saveAndNotify();
     }
 
     @Override
@@ -293,8 +256,6 @@ public class SettingsService implements ISettingsService {
         saveAndNotify();
     }
 
-    // ==================== STARTUP & HOME ====================
-
     @Override
     public String getHomePage() {
         Settings s = currentSettings;
@@ -305,7 +266,7 @@ public class SettingsService implements ISettingsService {
     public void setHomePage(String homePage) {
         if (currentSettings == null) currentSettings = new Settings(1);
         currentSettings.setHomePage(homePage);
-        // Persist using unified save logic
+
         saveAndNotify();
     }
 
@@ -342,8 +303,6 @@ public class SettingsService implements ISettingsService {
         saveAndNotify();
     }
 
-    // ==================== SEARCH ====================
-
     @Override
     public String getSearchEngine() {
         Settings s = currentSettings;
@@ -354,7 +313,7 @@ public class SettingsService implements ISettingsService {
     public void setSearchEngine(String searchEngine) {
         if (currentSettings == null) currentSettings = new Settings(1);
         currentSettings.setSearchEngine(searchEngine);
-        // Persist using unified save logic
+
         saveAndNotify();
     }
 
@@ -373,8 +332,6 @@ public class SettingsService implements ISettingsService {
         currentSettings.setShowSearchSuggestions(show);
         saveAndNotify();
     }
-
-    // ==================== PRIVACY & SECURITY ====================
 
     @Override
     public boolean isClearHistoryOnExit() {
@@ -442,8 +399,6 @@ public class SettingsService implements ISettingsService {
         saveAndNotify();
     }
 
-    // ==================== DOWNLOADS ====================
-
     @Override
     public String getDownloadPath() {
         return currentSettings.getDownloadPath();
@@ -465,8 +420,6 @@ public class SettingsService implements ISettingsService {
         currentSettings.setAskDownloadLocation(ask);
         saveAndNotify();
     }
-
-    // ==================== PERFORMANCE ====================
 
     @Override
     public boolean isHardwareAcceleration() {
@@ -490,8 +443,6 @@ public class SettingsService implements ISettingsService {
         saveAndNotify();
     }
 
-    // ==================== ACCESSIBILITY ====================
-
     @Override
     public boolean isHighContrast() {
         return currentSettings.isHighContrast();
@@ -513,8 +464,6 @@ public class SettingsService implements ISettingsService {
         currentSettings.setReduceMotion(reduce);
         saveAndNotify();
     }
-
-    // ==================== ADVANCED ====================
 
     @Override
     public boolean isEnableJavaScript() {
@@ -548,5 +497,26 @@ public class SettingsService implements ISettingsService {
         currentSettings.setProxyMode(mode);
         saveAndNotify();
     }
-}
 
+    public void setShowBookmarksBar(boolean show) {
+        if (currentSettings == null) currentSettings = new Settings(1);
+        boolean prev = currentSettings.isShowBookmarksBar();
+        if (prev == show) {
+            logger.debug("setShowBookmarksBar requested but value unchanged: {}", show);
+            return;
+        }
+        currentSettings.setShowBookmarksBar(show);
+        saveAndNotify();
+    }
+
+    public void setShowStatusBar(boolean show) {
+        if (currentSettings == null) currentSettings = new Settings(1);
+        boolean prev = currentSettings.isShowStatusBar();
+        if (prev == show) {
+            logger.debug("setShowStatusBar requested but value unchanged: {}", show);
+            return;
+        }
+        currentSettings.setShowStatusBar(show);
+        saveAndNotify();
+    }
+}

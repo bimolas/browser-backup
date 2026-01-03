@@ -1,120 +1,154 @@
 package com.example.nexus.util;
 
-
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.Scene;
-import com.example.nexus.controller.MainController;
+import javafx.stage.Window;
+import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
 
 import java.util.HashMap;
 import java.util.Map;
+import javafx.event.EventHandler;
 
 public class KeyboardShortcutManager {
     private final Map<KeyCombination, Runnable> shortcuts = new HashMap<>();
-    private final MainController controller;
+    private Scene currentScene;
+    private javafx.scene.Node currentRoot;
+    private final EventHandler<KeyEvent> keyHandler = this::handleKeyEvent;
+    private final java.util.Deque<Scene> sceneStack = new java.util.ArrayDeque<>();
+    private final java.util.Set<Window> trackedWindows = new java.util.HashSet<>();
+    private final java.util.Map<Scene, java.util.Set<KeyCombination>> addedSceneAccelerators = new java.util.IdentityHashMap<>();
 
-    public KeyboardShortcutManager(MainController controller) {
-        this.controller = controller;
-        setupDefaultShortcuts();
+    public KeyboardShortcutManager() {
+
+        Platform.runLater(() -> {
+            try {
+                for (Window w : Window.getWindows()) {
+                    attachWindowFilter(w);
+                }
+                Window.getWindows().addListener((ListChangeListener<Window>) change -> {
+                    while (change.next()) {
+                        if (change.wasAdded()) {
+                            for (Window w : change.getAddedSubList()) attachWindowFilter(w);
+                        }
+                        if (change.wasRemoved()) {
+                            for (Window w : change.getRemoved()) detachWindowFilter(w);
+                        }
+                    }
+                });
+            } catch (Exception ignored) {}
+        });
     }
 
-    private void setupDefaultShortcuts() {
-        // Tab shortcuts
-        addShortcut(new KeyCodeCombination(KeyCode.T, KeyCombination.CONTROL_DOWN),
-                controller::handleNewTab);
-        addShortcut(new KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN),
-                this::closeCurrentTab);
-        addShortcut(new KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN),
-                this::nextTab);
-        addShortcut(new KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN),
-                this::previousTab);
+    private void attachWindowFilter(Window w) {
+        if (w == null) return;
+        if (trackedWindows.contains(w)) return;
+        try {
+            w.addEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
+            trackedWindows.add(w);
+        } catch (Exception ignored) {}
+    }
 
-        // Navigation shortcuts
-        addShortcut(new KeyCodeCombination(KeyCode.L, KeyCombination.CONTROL_DOWN),
-                this::focusAddressBar);
-        addShortcut(new KeyCodeCombination(KeyCode.R, KeyCombination.CONTROL_DOWN),
-                controller::handleReload);
-        addShortcut(new KeyCodeCombination(KeyCode.R, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN),
-                this::hardReload);
-        addShortcut(new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN),
-                controller::handleFind);
-
-        // Zoom shortcuts
-        addShortcut(new KeyCodeCombination(KeyCode.EQUALS, KeyCombination.CONTROL_DOWN),
-                controller::handleZoomIn);
-        addShortcut(new KeyCodeCombination(KeyCode.MINUS, KeyCombination.CONTROL_DOWN),
-                controller::handleZoomOut);
-        addShortcut(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.CONTROL_DOWN),
-                controller::handleResetZoom);
-
-        // History shortcuts
-        addShortcut(new KeyCodeCombination(KeyCode.H, KeyCombination.CONTROL_DOWN),
-                controller::handleShowHistory);
-        addShortcut(new KeyCodeCombination(KeyCode.J, KeyCombination.CONTROL_DOWN),
-                controller::handleShowDownloads);
-
-        // Bookmark shortcuts
-        addShortcut(new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN),
-                controller::handleShowBookmarks);
-        addShortcut(new KeyCodeCombination(KeyCode.D, KeyCombination.CONTROL_DOWN),
-                controller::handleBookmarkCurrentPage);
-
-        // Settings shortcuts
-        addShortcut(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.CONTROL_DOWN),
-                controller::handleShowSettings);
-
-        // Developer shortcuts
-        addShortcut(new KeyCodeCombination(KeyCode.F12, KeyCombination.CONTROL_DOWN),
-                controller::handleShowDeveloperTools);
-        addShortcut(new KeyCodeCombination(KeyCode.U, KeyCombination.CONTROL_DOWN),
-                this::viewSource);
-
-        // Dark mode for web pages (like Dark Reader) - Ctrl+Shift+D
-        addShortcut(new KeyCodeCombination(KeyCode.D, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN),
-                controller::toggleWebPageDarkMode);
+    private void detachWindowFilter(Window w) {
+        if (w == null) return;
+        try {
+            w.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
+        } catch (Exception ignored) {}
+        trackedWindows.remove(w);
     }
 
     public void addShortcut(KeyCombination combination, Runnable action) {
         shortcuts.put(combination, action);
     }
 
+    public void removeShortcut(KeyCombination combination) {
+        shortcuts.remove(combination);
+    }
+
     public void handleKeyEvent(KeyEvent event) {
+
+        try {
+            System.out.println("[ShortcutManager] KeyEvent: code=" + event.getCode() + ", ctrl=" + event.isControlDown() + ", shift=" + event.isShiftDown() + ", alt=" + event.isAltDown() + ", text='" + event.getText() + "'");
+        } catch (Exception ignored) {}
         for (Map.Entry<KeyCombination, Runnable> entry : shortcuts.entrySet()) {
-            if (entry.getKey().match(event)) {
-                event.consume();
-                entry.getValue().run();
-                break;
+            try {
+                if (entry.getKey().match(event)) {
+                    System.out.println("[ShortcutManager] Matched: " + entry.getKey());
+                    event.consume();
+                    entry.getValue().run();
+                    break;
+                }
+            } catch (Exception ignored) {
+
             }
         }
     }
 
     public void setupForScene(Scene scene) {
-        scene.setOnKeyPressed(this::handleKeyEvent);
+        if (currentScene != null) {
+            currentScene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
+
+            try {
+                java.util.Set<KeyCombination> added = addedSceneAccelerators.remove(currentScene);
+                if (added != null) {
+                    for (KeyCombination kc : added) {
+                        try { currentScene.getAccelerators().remove(kc); } catch (Exception ignored) {}
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        if (currentRoot != null) {
+            currentRoot.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
+        }
+        currentScene = scene;
+        currentRoot = (scene != null) ? scene.getRoot() : null;
+        if (currentScene != null) {
+            currentScene.addEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
+
+            try {
+                java.util.Set<KeyCombination> added = new java.util.HashSet<>();
+                for (Map.Entry<KeyCombination, Runnable> entry : shortcuts.entrySet()) {
+                    try {
+                        KeyCombination kc = entry.getKey();
+                        Runnable act = entry.getValue();
+
+                        Runnable wrapper = () -> Platform.runLater(act);
+
+                        if (!currentScene.getAccelerators().containsKey(kc)) {
+                            currentScene.getAccelerators().put(kc, wrapper);
+                            added.add(kc);
+                        }
+                    } catch (Exception ignored) {}
+                }
+                addedSceneAccelerators.put(currentScene, added);
+            } catch (Exception ignored) {}
+        }
+        if (currentRoot != null) {
+            try {
+                currentRoot.addEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
+            } catch (Exception ignored) {}
+        }
     }
 
-    private void closeCurrentTab() {
-        // Implementation to close the current tab
+    public void pushScene(Scene scene) {
+        if (currentScene != null) {
+            sceneStack.push(currentScene);
+        }
+        setupForScene(scene);
     }
 
-    private void nextTab() {
-        // Implementation to switch to the next tab
+    public void popScene() {
+        Scene prev = sceneStack.poll();
+        if (prev != null) {
+            setupForScene(prev);
+        }
     }
 
-    private void previousTab() {
-        // Implementation to switch to the previous tab
-    }
-
-    private void focusAddressBar() {
-        // Implementation to focus the address bar
-    }
-
-    private void hardReload() {
-        // Implementation to hard reload the current page
-    }
-
-    private void viewSource() {
-        // Implementation to view the page source
+    public void dumpRegisteredShortcuts() {
+        System.out.println("[ShortcutManager] Registered shortcuts:");
+        for (KeyCombination kc : shortcuts.keySet()) {
+            System.out.println("  - " + kc);
+        }
     }
 }

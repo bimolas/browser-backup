@@ -1,6 +1,5 @@
 package com.example.nexus.repository;
 
-
 import com.example.nexus.model.Download;
 import com.example.nexus.util.DatabaseManager;
 
@@ -61,7 +60,7 @@ public class DownloadRepository extends BaseRepository<Download> {
                 "downloaded_size, status, start_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement stmt = getConnection().prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
-            stmt.setInt(1, 1); // Default user ID
+            stmt.setInt(1, 1);
             stmt.setString(2, download.getUrl());
             stmt.setString(3, download.getFileName());
             stmt.setString(4, download.getFilePath());

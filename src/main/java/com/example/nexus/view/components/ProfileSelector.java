@@ -1,11 +1,9 @@
 package com.example.nexus.view.components;
 
-
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.model.Profile;
 import com.example.nexus.service.ProfileService;
 import com.example.nexus.service.SettingsService;
-import com.example.nexus.util.ThemeManager;
 import com.example.nexus.view.dialogs.ProfileDialog;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -32,7 +30,6 @@ public class ProfileSelector extends BorderPane {
     private final DIContainer container;
     private final ProfileService profileService;
     private final SettingsService settingsService;
-    private final ThemeManager themeManager;
     private final ListView<Profile> profileListView;
     private final ObservableList<Profile> profileList;
 
@@ -40,7 +37,6 @@ public class ProfileSelector extends BorderPane {
         this.container = container;
         this.profileService = container.getOrCreate(ProfileService.class);
         this.settingsService = container.getOrCreate(SettingsService.class);
-        this.themeManager = container.getOrCreate(ThemeManager.class);
         this.profileList = FXCollections.observableArrayList();
         this.profileListView = new ListView<>(profileList);
 
@@ -49,7 +45,7 @@ public class ProfileSelector extends BorderPane {
     }
 
     private void initializeUI() {
-        // Set up the header
+
         Label titleLabel = new Label("Select Profile");
         titleLabel.setFont(Font.font("System", FontWeight.BOLD, 18));
 
@@ -57,10 +53,8 @@ public class ProfileSelector extends BorderPane {
         headerBox.setAlignment(Pos.CENTER_LEFT);
         headerBox.setPadding(new Insets(10));
 
-        // Set up the profile list
         profileListView.setCellFactory(param -> new ProfileCell());
 
-        // Set up the buttons
         Button addButton = new Button("Add Profile");
         addButton.setGraphic(new FontIcon("mdi-plus"));
         addButton.setOnAction(e -> addProfile());
@@ -77,7 +71,6 @@ public class ProfileSelector extends BorderPane {
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
         buttonBox.setPadding(new Insets(10));
 
-        // Set up the layout
         setTop(headerBox);
         setCenter(profileListView);
         setBottom(buttonBox);
@@ -108,8 +101,7 @@ public class ProfileSelector extends BorderPane {
     private void selectProfile() {
         Profile selectedProfile = profileListView.getSelectionModel().getSelectedItem();
         if (selectedProfile != null) {
-            // Load the profile settings
-            // For now, just close the dialog
+
             close();
         }
     }
@@ -152,18 +144,17 @@ public class ProfileSelector extends BorderPane {
             } else {
                 nameLabel.setText(item.getName());
 
-                // Load the avatar image
                 String avatarPath = item.getAvatarPath();
                 if (avatarPath != null && !avatarPath.isEmpty()) {
                     try {
                         Image image = new Image(new File(avatarPath).toURI().toString());
                         imageView.setImage(image);
                     } catch (Exception e) {
-                        // Use a default avatar
+
                         imageView.setImage(new Image(getClass().getResourceAsStream("/icons/default-avatar.png")));
                     }
                 } else {
-                    // Use a default avatar
+
                     imageView.setImage(new Image(getClass().getResourceAsStream("/icons/default-avatar.png")));
                 }
 

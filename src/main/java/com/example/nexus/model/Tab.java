@@ -10,7 +10,6 @@ public class Tab {
     private int position;
     private String sessionId;
 
-    // Constructors, getters, and setters
     public Tab() {}
 
     public Tab(String url) {
@@ -21,7 +20,6 @@ public class Tab {
         this.position = 0;
     }
 
-    // Getters and setters
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 

@@ -1,6 +1,5 @@
 package com.example.nexus.view.components;
 
-
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.model.Bookmark;
 import com.example.nexus.service.BookmarkService;
@@ -42,7 +41,7 @@ public class BookmarkManager extends BorderPane {
     }
 
     private void initializeUI() {
-        // Set up the header
+
         Label titleLabel = new Label("Bookmarks");
         titleLabel.setFont(Font.font("System", FontWeight.BOLD, 18));
 
@@ -63,14 +62,11 @@ public class BookmarkManager extends BorderPane {
         headerBox.setAlignment(Pos.CENTER_LEFT);
         headerBox.setPadding(new Insets(10));
 
-        // Set up the bookmark list
         bookmarkListView.setCellFactory(param -> new BookmarkCell());
 
-        // Set up the layout
         setTop(headerBox);
         setCenter(new MFXScrollPane(bookmarkListView));
 
-        // Set up the bottom
         Button closeButton = new Button("Close");
         closeButton.setOnAction(e -> close());
 

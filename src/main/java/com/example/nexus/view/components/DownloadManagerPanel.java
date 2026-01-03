@@ -12,10 +12,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.kordamp.ikonli.javafx.FontIcon;
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
-import javafx.util.Duration;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
@@ -27,9 +23,8 @@ public class DownloadManagerPanel extends Stage {
     private final ListView<Download> downloadListView;
     private final ScheduledExecutorService refresher = Executors.newSingleThreadScheduledExecutor(r -> { Thread t = new Thread(r); t.setDaemon(true); return t; });
 
-
     public DownloadManagerPanel(com.example.nexus.core.DIContainer container, DownloadController downloadController, boolean isDarkTheme) {
-        // Keep the container parameter for callers, but do not store it as a field (unused in this panel)
+
         this.downloadController = downloadController;
         this.isDarkTheme = isDarkTheme;
         this.downloadListView = new ListView<>();
@@ -42,7 +37,7 @@ public class DownloadManagerPanel extends Stage {
         setHeight(500);
         initializeUI();
         loadDownloads();
-        // register a listener on DownloadService for immediate updates
+
         try {
             var downloadService = container.getOrCreate(com.example.nexus.service.DownloadService.class);
             downloadService.addListener(new com.example.nexus.service.DownloadListener() {
@@ -56,7 +51,7 @@ public class DownloadManagerPanel extends Stage {
                 public void downloadRemoved(int downloadId) { Platform.runLater(() -> loadDownloads()); }
             });
         } catch (Exception ignored) {
-            // fallback to periodic refresher
+
             refresher.scheduleAtFixedRate(this::loadDownloads, 1, 1, TimeUnit.SECONDS);
         }
     }
@@ -64,22 +59,22 @@ public class DownloadManagerPanel extends Stage {
     private void initializeUI() {
         BorderPane root = new BorderPane();
         root.getStyleClass().add("download-panel");
-        // Header
+
         HBox header = new HBox(10);
         Label title = new Label("Downloads");
         title.getStyleClass().addAll("download-title","modern-title");
-        // Search box to filter downloads by filename or URL
+
         TextField searchField = new TextField();
         searchField.setPromptText("Search downloads...");
         searchField.getStyleClass().add("search-field");
         searchField.setPrefWidth(260);
         searchField.textProperty().addListener((obs, oldV, newV) -> loadDownloads(newV));
-        // Add a small search icon to the left of the field
-        Label searchIcon = new Label("\uD83D\uDD0D"); // 🔍
+
+        Label searchIcon = new Label("\uD83D\uDD0D");
         searchIcon.getStyleClass().add("search-icon");
         HBox searchBox = new HBox(6, searchIcon, searchField);
         searchBox.setAlignment(Pos.CENTER_LEFT);
-        // Use modern styled buttons
+
         Button clearBtn = new Button("Clear All");
         clearBtn.getStyleClass().addAll("action-button","secondary-button");
         clearBtn.setOnAction(e -> { downloadController.clearAllDownloads(); loadDownloads(); });
@@ -87,10 +82,10 @@ public class DownloadManagerPanel extends Stage {
         header.getChildren().addAll(title, searchBox, spacer, clearBtn);
         header.setPadding(new Insets(16));
         root.setTop(header);
-        // List
+
         downloadListView.setCellFactory(lv -> new DownloadCell());
         root.setCenter(downloadListView);
-        // Footer
+
         Button closeBtn = new Button("Close");
         closeBtn.getStyleClass().addAll("action-button","secondary-button");
         closeBtn.setOnAction(e -> { refresher.shutdownNow(); close(); });
@@ -135,7 +130,6 @@ public class DownloadManagerPanel extends Stage {
                 HBox topRow = new HBox(8);
                 topRow.setAlignment(Pos.CENTER_LEFT);
 
-                // File type icon (image/video/file/zip/other)
                 Label fileTypeIcon = new Label(getFileTypeIcon(item.getFileName()));
                 fileTypeIcon.getStyleClass().add("file-type-icon");
 
@@ -147,16 +141,18 @@ public class DownloadManagerPanel extends Stage {
                 status.getStyleClass().add("status");
                 topRow.getChildren().addAll(fileTypeIcon, name, spacer, status);
 
-                // Progress row - now includes Open/Delete icon buttons on the right
                 ProgressBar pb = new ProgressBar();
                 pb.getStyleClass().addAll("download-progress","progress-bar");
                 pb.setPrefWidth(480);
                 pb.setPrefHeight(10);
-                if (item.getFileSize() > 0) animateProgress(pb, item.getProgress()); else pb.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+                if (item.getFileSize() > 0) {
+                    pb.setProgress(item.getProgress());
+                } else {
+                    pb.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+                }
                 Label percent = new Label(item.getFileSize() > 0 ? String.format("%.0f%%", item.getProgress() * 100) : "");
                 percent.getStyleClass().add("download-dropdown-percent");
 
-                // Size and ETA
                 String sizeText = formatBytes(item.getDownloadedSize());
                 if (item.getFileSize() > 0) sizeText += " / " + formatBytes(item.getFileSize());
                 Label sizeLabel = new Label(sizeText);
@@ -165,17 +161,15 @@ public class DownloadManagerPanel extends Stage {
                 Label eta = new Label(estimateTimeLeft(item));
                 eta.getStyleClass().add("download-dropdown-percent");
 
-                // If completed, show end time next to ETA
                 if ("completed".equalsIgnoreCase(item.getStatus()) && item.getEndTime() != null) {
                     eta.setText(formatDateTime(item.getEndTime()));
                 }
 
-                // Icon-style action buttons (Open folder and Delete 'X') placed inline
                 Button openBtn = new Button();
                 try {
                     FontIcon fi = new FontIcon("mdi2f-folder-open-outline");
                     fi.setIconSize(16);
-                    // Do not set color inline; CSS will control .ikonli-font-icon color via .icon-button classes
+
                     openBtn.setGraphic(fi);
                 } catch (Throwable t) {
                     Label openIcon = new Label("📁"); openIcon.getStyleClass().add("action-icon"); openBtn.setGraphic(openIcon);
@@ -188,7 +182,7 @@ public class DownloadManagerPanel extends Stage {
                 try {
                     FontIcon di = new FontIcon("mdi2d-delete");
                     di.setIconSize(14);
-                    // color controlled by CSS
+
                     deleteBtn.setGraphic(di);
                 } catch (Throwable t) {
                     Label deleteIcon = new Label("✖"); deleteIcon.getStyleClass().add("action-icon"); deleteBtn.setGraphic(deleteIcon);
@@ -200,7 +194,6 @@ public class DownloadManagerPanel extends Stage {
                 HBox rightActions = new HBox(8, openBtn, deleteBtn);
                 rightActions.setAlignment(Pos.CENTER_RIGHT);
 
-                // Compose the progress row with flexible spacer so actions sit on the far right
                 HBox progressRow = new HBox(8);
                 progressRow.setAlignment(Pos.CENTER_LEFT);
                 Region midSpacer = new Region(); HBox.setHgrow(midSpacer, Priority.ALWAYS);
@@ -214,7 +207,6 @@ public class DownloadManagerPanel extends Stage {
             }
         }
 
-        // Helper to map file extensions to a simple icon (emoji fallback)
         private String getFileTypeIcon(String fileName) {
             if (fileName == null) return "📦";
             String lower = fileName.toLowerCase();
@@ -249,7 +241,7 @@ public class DownloadManagerPanel extends Stage {
         if (start == null) return "";
         long elapsedSecs = java.time.Duration.between(start, java.time.LocalDateTime.now()).getSeconds();
         if (elapsedSecs <= 0) return "";
-        double speed = (double) downloaded / elapsedSecs; // bytes/sec
+        double speed = (double) downloaded / elapsedSecs;
         if (speed <= 0) return "";
         long remaining = total - downloaded;
         if (remaining <= 0) return "";
@@ -261,17 +253,6 @@ public class DownloadManagerPanel extends Stage {
         return hrs + "h";
     }
 
-    // Animate progress bar to a target value
-    private void animateProgress(ProgressBar pb, double target) {
-        try {
-            double from = pb.getProgress();
-            Timeline t = new Timeline(
-                new KeyFrame(Duration.ZERO, new KeyValue(pb.progressProperty(), from)),
-                new KeyFrame(Duration.millis(360), new KeyValue(pb.progressProperty(), target, javafx.animation.Interpolator.EASE_BOTH))
-            );
-            t.play();
-        } catch (Exception ignored) {}
-    }
 
     @Override
     public void close() {

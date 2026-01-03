@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+           fx:controller="com.example.nexus.controller.ProfileChooserController"
+           styleClass="profile-chooser-root">
+    <BorderPane>
+        <top>
+            <VBox alignment="CENTER" spacing="12" styleClass="chooser-header">
+                <padding><Insets top="40" bottom="20"/></padding>
+                <Label text="Who's using Nexus?" styleClass="chooser-title"/>
+                <Label text="Create profiles for friends and family, or split between work and fun."
+                       styleClass="chooser-subtitle" wrapText="true" maxWidth="600" alignment="CENTER"/>
+            </VBox>
+        </top>
+
+        <center>
+            <VBox alignment="CENTER" spacing="20">
+                <FlowPane fx:id="accountsTile" hgap="20" vgap="20" alignment="CENTER"
+                          styleClass="accounts-grid" prefWrapLength="800">
+                    <!-- tiles added dynamically from controller -->
+                </FlowPane>
+            </VBox>
+        </center>
+
+        <bottom>
+            <HBox alignment="CENTER_LEFT" spacing="12" styleClass="chooser-footer">
+                <padding><Insets top="20" bottom="30" left="40" right="40"/></padding>
+                <Button fx:id="guestModeButton" text="Guest mode" styleClass="guest-mode-button"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <CheckBox fx:id="showOnStartup" text="Show on startup" styleClass="startup-checkbox"/>
+            </HBox>
+        </bottom>
+    </BorderPane>
+</StackPane>
+

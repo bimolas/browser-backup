@@ -1,21 +1,15 @@
 package com.example.nexus.util;
 
-/**
- * Application-wide constants including colors, sizes, and configuration values.
- * Centralizes magic numbers and strings for easier maintenance.
- */
 public final class AppConstants {
 
     private AppConstants() {
-        // Prevent instantiation
+
     }
 
-    // ==================== APPLICATION INFO ====================
     public static final String APP_NAME = "Nexus Browser";
     public static final String APP_VERSION = "1.0.0";
     public static final String APP_DESCRIPTION = "A modern web browser built with JavaFX";
 
-    // ==================== LIGHT THEME COLORS ====================
     public static final class LightTheme {
         public static final String PRIMARY = "#6366f1";
         public static final String PRIMARY_HOVER = "#4f46e5";
@@ -37,7 +31,6 @@ public final class AppConstants {
         private LightTheme() {}
     }
 
-    // ==================== DARK THEME COLORS ====================
     public static final class DarkTheme {
         public static final String PRIMARY = "#818cf8";
         public static final String PRIMARY_HOVER = "#6366f1";
@@ -59,7 +52,6 @@ public final class AppConstants {
         private DarkTheme() {}
     }
 
-    // ==================== UI SIZES ====================
     public static final class Sizes {
         public static final int TAB_MIN_WIDTH = 100;
         public static final int TAB_MAX_WIDTH = 240;
@@ -84,7 +76,6 @@ public final class AppConstants {
         private Sizes() {}
     }
 
-    // ==================== ANIMATION DURATIONS ====================
     public static final class Animation {
         public static final int FAST = 100;
         public static final int NORMAL = 200;
@@ -94,7 +85,6 @@ public final class AppConstants {
         private Animation() {}
     }
 
-    // ==================== DEFAULT URLS ====================
     public static final class URLs {
         public static final String DEFAULT_HOME = "https://www.google.com";
         public static final String NEW_TAB_PAGE = "about:blank";
@@ -106,7 +96,6 @@ public final class AppConstants {
         private URLs() {}
     }
 
-    // ==================== FILE PATHS ====================
     public static final class Paths {
         public static final String CSS_MAIN = "/com/example/nexus/css/main.css";
         public static final String CSS_LIGHT = "/com/example/nexus/css/light.css";
@@ -117,7 +106,6 @@ public final class AppConstants {
         private Paths() {}
     }
 
-    // ==================== DATABASE ====================
     public static final class Database {
         public static final String FILE_NAME = "browser.db";
         public static final int DEFAULT_USER_ID = 1;
@@ -125,7 +113,6 @@ public final class AppConstants {
         private Database() {}
     }
 
-    // ==================== ZOOM LEVELS ====================
     public static final class Zoom {
         public static final double MIN = 0.25;
         public static final double MAX = 5.0;
@@ -139,4 +126,3 @@ public final class AppConstants {
         private Zoom() {}
     }
 }
-

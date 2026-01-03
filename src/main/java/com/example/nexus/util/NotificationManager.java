@@ -1,6 +1,5 @@
 package com.example.nexus.util;
 
-
 import javafx.animation.PauseTransition;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -19,7 +18,7 @@ public class NotificationManager {
 
         VBox notificationBox = new VBox(5);
         notificationBox.setAlignment(Pos.CENTER);
-        // Let CSS handle visual styling; add style class that has light/dark variants
+
         notificationBox.getStyleClass().add("notification-box");
 
         Label titleLabel = new Label(title);
@@ -34,13 +33,11 @@ public class NotificationManager {
         scene.setFill(null);
         notificationStage.setScene(scene);
 
-        // Position the notification at the top right of the screen
         notificationStage.setX(javafx.stage.Screen.getPrimary().getVisualBounds().getWidth() - 300);
         notificationStage.setY(50);
 
         notificationStage.show();
 
-        // Auto-hide the notification after a delay
         PauseTransition delay = new PauseTransition(NOTIFICATION_DURATION);
         delay.setOnFinished(e -> notificationStage.hide());
         delay.play();

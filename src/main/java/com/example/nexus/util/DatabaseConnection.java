@@ -8,7 +8,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-
 public class DatabaseConnection {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseConnection.class);
     private static volatile DatabaseConnection instance;
@@ -19,7 +18,7 @@ public class DatabaseConnection {
         if (configured != null && !configured.isBlank()) {
             jdbcUrl = configured;
         } else {
-            // Default to a stable per-user location under ~/.nexus/identifier.sqlite
+
             String userHome = System.getProperty("user.home");
             File appDir = new File(userHome, ".nexus");
             if (!appDir.exists()) {
@@ -31,7 +30,7 @@ public class DatabaseConnection {
         }
 
         try {
-            // Ensure directory and file creation by opening a connection and closing it
+
             DriverManager.getConnection(jdbcUrl).close();
             logger.info("Database initialized using URL: {}", jdbcUrl);
         } catch (SQLException e) {
