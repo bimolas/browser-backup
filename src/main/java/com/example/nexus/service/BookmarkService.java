@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Optional;
 
+
 public class BookmarkService {
     private static final Logger logger = LoggerFactory.getLogger(BookmarkService.class);
 
@@ -80,6 +81,7 @@ public class BookmarkService {
     }
 
     public void updateBookmark(Bookmark bookmark) {
+        if (bookmark == null) {
             throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT,
                     "Bookmark cannot be null");
         }

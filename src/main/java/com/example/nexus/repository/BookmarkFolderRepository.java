@@ -1,6 +1,5 @@
 package com.example.nexus.repository;
 
-import com.example.nexus.exception.BrowserException;
 import com.example.nexus.model.BookmarkFolder;
 import com.example.nexus.util.DatabaseManager;
 
@@ -174,6 +173,7 @@ public class BookmarkFolderRepository extends BaseRepository<BookmarkFolder> {
 
     @Override
     public void delete(int id) {
+        //noinspection SqlDialectInspection
         String sql = "DELETE FROM bookmark_folders WHERE id = ?";
 
         try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
@@ -185,20 +185,6 @@ public class BookmarkFolderRepository extends BaseRepository<BookmarkFolder> {
         }
     }
 
-    public int count() {
-        String sql = "SELECT COUNT(*) FROM bookmark_folders";
-
-        try (PreparedStatement stmt = getConnection().prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-        } catch (SQLException e) {
-            logger.error("Error counting bookmark folders", e);
-        }
-
-        return 0;
-    }
 
     private BookmarkFolder mapResultSetToFolder(ResultSet rs) throws SQLException {
         BookmarkFolder folder = new BookmarkFolder();

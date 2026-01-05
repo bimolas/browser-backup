@@ -1,37 +1,25 @@
 package com.example.nexus.controller;
 
-import com.example.nexus.core.DIContainer;
 import com.example.nexus.service.*;
 import com.example.nexus.view.components.BrowserTab;
 import javafx.scene.control.*;
 import javafx.scene.paint.Color;
-import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MenuController {
-    private static final Logger logger = LoggerFactory.getLogger(MenuController.class);
-
     private final MainController mainController;
     private final SettingsService settingsService;
     private final ZoomService zoomService;
     private final TabController tabController;
-    private final HistoryController historyController;
-    private final BookmarkController bookmarkController;
 
     public MenuController(MainController mainController,
                           SettingsService settingsService,
                           ZoomService zoomService,
-                          TabController tabController,
-                          HistoryController historyController,
-                          BookmarkController bookmarkController) {
+                          TabController tabController) {
         this.mainController = mainController;
         this.settingsService = settingsService;
         this.zoomService = zoomService;
         this.tabController = tabController;
-        this.historyController = historyController;
-        this.bookmarkController = bookmarkController;
     }
 
     public void showMainMenu(Button menuButton) {
@@ -200,7 +188,7 @@ public class MenuController {
                         shortcut.replace("++", "+PLUS").replace("+-", "+MINUS")
                 ));
             } catch (Exception e) {
-
+                // Silently ignore invalid keyboard shortcuts
             }
         }
 

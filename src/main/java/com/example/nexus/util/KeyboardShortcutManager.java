@@ -67,14 +67,9 @@ public class KeyboardShortcutManager {
     }
 
     public void handleKeyEvent(KeyEvent event) {
-
-        try {
-            System.out.println("[ShortcutManager] KeyEvent: code=" + event.getCode() + ", ctrl=" + event.isControlDown() + ", shift=" + event.isShiftDown() + ", alt=" + event.isAltDown() + ", text='" + event.getText() + "'");
-        } catch (Exception ignored) {}
         for (Map.Entry<KeyCombination, Runnable> entry : shortcuts.entrySet()) {
             try {
                 if (entry.getKey().match(event)) {
-                    System.out.println("[ShortcutManager] Matched: " + entry.getKey());
                     event.consume();
                     entry.getValue().run();
                     break;
@@ -142,13 +137,6 @@ public class KeyboardShortcutManager {
         Scene prev = sceneStack.poll();
         if (prev != null) {
             setupForScene(prev);
-        }
-    }
-
-    public void dumpRegisteredShortcuts() {
-        System.out.println("[ShortcutManager] Registered shortcuts:");
-        for (KeyCombination kc : shortcuts.keySet()) {
-            System.out.println("  - " + kc);
         }
     }
 }

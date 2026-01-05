@@ -61,7 +61,6 @@ public class MainView extends BorderPane {
                             try {
                                 if (controller != null && controller.getShortcutManager() != null) {
                                     controller.getShortcutManager().setupForScene(newScene);
-                                    controller.getShortcutManager().dumpRegisteredShortcuts();
                                 }
                             } catch (Exception ignored) {}
                         } catch (Exception e) {
@@ -74,7 +73,6 @@ public class MainView extends BorderPane {
                     Scene currentScene = this.getScene();
                     if (currentScene != null && controller != null && controller.getShortcutManager() != null) {
                         controller.getShortcutManager().setupForScene(currentScene);
-                        controller.getShortcutManager().dumpRegisteredShortcuts();
                     }
                 } catch (Exception ignored) {}
             } catch (Exception e) {

@@ -22,8 +22,6 @@ public class SignInController {
     @FXML private TextField emailField;
     @FXML private PasswordField passwordField;
     @FXML private Label errorLabel;
-    @FXML private Button signInButton;
-    @FXML private Button signUpLinkButton;
 
     public SignInController(DIContainer container) {
         this.container = container;

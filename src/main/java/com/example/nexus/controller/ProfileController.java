@@ -3,8 +3,7 @@ package com.example.nexus.controller;
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.model.Profile;
 import com.example.nexus.service.ProfileService;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
+import com.example.nexus.util.FileUtils;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -51,34 +50,12 @@ public class ProfileController {
     private Label emailDisplayLabel;
 
     @FXML
-    private TextField emailField;
+    private Button signOutButton;
 
     @FXML
-    private TextField usernameField;
-
-    @FXML
-    private Button editButton;
-
-    @FXML
-    private Button saveButton;
-
-    @FXML
-    private Button cancelButton;
-
-    @FXML
-    private Button changeImageButton;
-
-    @FXML private Button signInButton;
-    @FXML private Button signOutButton;
-    @FXML private Button addAccountButton;
-    @FXML private Button guestModeButton;
-    @FXML private Button switchAccountButton;
-    @FXML private Button removeAccountButton;
-    @FXML private ListView<String> accountsListView;
+    private Button switchAccountButton;
 
     private Profile currentProfile;
-
-    private final ObservableList<String> accounts = FXCollections.observableArrayList();
 
     public ProfileController(DIContainer container) {
         this.container = container;
@@ -133,17 +110,19 @@ public class ProfileController {
             try {
 
                 if (!selectedFile.canRead()) {
-                    showAlert("Error", "Cannot read the selected image file.");
+                    showAlert("Cannot read the selected image file.");
                     return;
                 }
 
                 String appDataDir = System.getProperty("user.home") + File.separator + ".nexus" + File.separator + "profiles";
                 File profileDir = new File(appDataDir);
-                if (!profileDir.exists()) {
-                    profileDir.mkdirs();
+                if (!profileDir.exists() && !profileDir.mkdirs()) {
+                    logger.warn("Failed to create profile directory: {}", appDataDir);
+                    showAlert("Failed to create profile directory.");
+                    return;
                 }
 
-                String extension = getFileExtension(selectedFile.getName());
+                String extension = FileUtils.getFileExtension(selectedFile.getName());
                 String newFileName = currentProfile.getUsername() + "_avatar." + extension;
                 Path destination = Paths.get(appDataDir, newFileName);
                 Files.copy(selectedFile.toPath(), destination, StandardCopyOption.REPLACE_EXISTING);
@@ -172,18 +151,11 @@ public class ProfileController {
 
             } catch (Exception e) {
                 logger.error("Error updating profile image", e);
-                showAlert("Error", "Failed to update profile image: " + e.getMessage());
+                showAlert("Failed to update profile image: " + e.getMessage());
             }
         }
     }
 
-    private String getFileExtension(String fileName) {
-        int lastIndexOf = fileName.lastIndexOf(".");
-        if (lastIndexOf == -1) {
-            return "";
-        }
-        return fileName.substring(lastIndexOf + 1);
-    }
 
     @FXML
     private void handleSignOut() {
@@ -202,7 +174,7 @@ public class ProfileController {
             }
         } catch (Exception e) {
             logger.error("Sign out failed", e);
-            showAlert("Error", "Failed to sign out: " + e.getMessage());
+            showAlert("Failed to sign out: " + e.getMessage());
         }
     }
 
@@ -260,16 +232,15 @@ public class ProfileController {
             logger.info("Profile chooser opened with theme: {}", actualTheme);
         } catch (Exception e) {
             logger.error("Error opening profile chooser", e);
-            showAlert("Error", "Failed to open profile chooser: " + e.getMessage());
+            showAlert("Failed to open profile chooser: " + e.getMessage());
         }
     }
 
     private boolean isSystemDark() {
         try {
-
             String osName = System.getProperty("os.name").toLowerCase();
             if (osName.contains("linux")) {
-                Process process = Runtime.getRuntime().exec("gsettings get org.gnome.desktop.interface gtk-theme");
+                Process process = Runtime.getRuntime().exec(new String[]{"gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"});
                 java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(process.getInputStream()));
                 String theme = reader.readLine();
                 return theme != null && theme.toLowerCase().contains("dark");
@@ -352,17 +323,9 @@ public class ProfileController {
         });
     }
 
-    private void showAlert(String title, String message) {
+    private void showAlert(String message) {
         javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.WARNING);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-
-    private void showInfoAlert(String title, String message) {
-        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
+        alert.setTitle("Error");
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();

@@ -497,7 +497,7 @@ public class ProfileChooserController {
         try {
             String osName = System.getProperty("os.name").toLowerCase();
             if (osName.contains("linux")) {
-                Process process = Runtime.getRuntime().exec("gsettings get org.gnome.desktop.interface gtk-theme");
+                Process process = Runtime.getRuntime().exec(new String[]{"gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"});
                 java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(process.getInputStream()));
                 String theme = reader.readLine();
                 return theme != null && theme.toLowerCase().contains("dark");

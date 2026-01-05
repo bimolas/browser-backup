@@ -20,17 +20,14 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.*;
 
+import static com.example.nexus.controller.TabController.logger;
+
 public class MainController {
-    private static final Logger logger = LoggerFactory.getLogger(MainController.class);
 
     private DIContainer container;
     private TabService tabService;
-    private BookmarkService bookmarkService;
-    private HistoryService historyService;
     private SettingsService settingsService;
     private SettingsController settingsController;
     private KeyboardShortcutManager shortcutManager;
@@ -57,7 +54,6 @@ public class MainController {
     @FXML private Button profileButton;
     @FXML private Button menuButton;
     @FXML private Label securityIcon;
-    @FXML private Label statusLabel;
     @FXML private HBox statusBar;
 
     private DownloadDropdown downloadDropdown;
@@ -70,17 +66,13 @@ public class MainController {
         return container;
     }
 
-    public BorderPane getRootPane() {
-        return rootPane;
-    }
 
     @FXML
     public void initialize() {
-        System.out.println("MainController.initialize() called");
 
         tabService = container.getOrCreate(TabService.class);
-        bookmarkService = container.getOrCreate(BookmarkService.class);
-        historyService = container.getOrCreate(HistoryService.class);
+        BookmarkService bookmarkService = container.getOrCreate(BookmarkService.class);
+        HistoryService historyService = container.getOrCreate(HistoryService.class);
         settingsService = container.getOrCreate(SettingsService.class);
         shortcutManager = new com.example.nexus.util.KeyboardShortcutManager();
 
@@ -146,14 +138,12 @@ public class MainController {
                 this,
                 settingsService,
                 zoomService,
-                tabController,
-                historyController,
-                bookmarkController
+                tabController
         );
-        navController = new NavigationController(tabController, settingsService, zoomService);
+        navController = new NavigationController(tabController, settingsService);
 
         downloadController = container.getOrCreate(DownloadController.class);
-        tabController.initializeUIComponents(tabPane, browserContainer, addressBar, securityIcon, bookmarkButton);
+        tabController.initializeUIComponents(tabPane, browserContainer, addressBar, securityIcon);
 
         try {
             var ds = container.getOrCreate(com.example.nexus.service.DownloadService.class);
@@ -245,8 +235,6 @@ public class MainController {
             }
         });
 
-        System.out.println("MainController initialized successfully");
-        logger.info("Main controller initialized");
     }
 
     private void setupIcons() {
@@ -399,7 +387,6 @@ public class MainController {
         try {
             bookmarkController.showBookmarkPanel(container, tabController::createNewTab, shortcutManager);
         } catch (Exception e) {
-            logger.error("Error opening bookmark panel", e);
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Error");
             alert.setHeaderText("Failed to open bookmarks");
@@ -451,23 +438,16 @@ public class MainController {
             settingsStage.show();
             settingsStage.toFront();
 
-            logger.info("Settings dialog opened");
         } catch (Exception e) {
             logger.error("Error showing settings", e);
         }
     }
 
-    private void applyTheme(String theme) {
-        settingsController.applyTheme(theme);
-    }
 
     public void applyInterfaceSettings() {
         settingsController.applyInterfaceSettings();
     }
 
-    private String detectSystemTheme() {
-        return settingsController.detectSystemTheme();
-    }
 
     public void refreshBookmarkBar() {
         if (bookmarkBarComponent != null) {
@@ -475,13 +455,6 @@ public class MainController {
         }
     }
 
-    private void applyAccentColor(String accentColor) {
-        settingsController.applyAccentColor(accentColor);
-    }
-
-    private void applyFontSize(int fontSize) {
-        settingsController.applyFontSize(fontSize);
-    }
 
     @FXML
     public void handleNewWindow() {
@@ -567,6 +540,8 @@ public class MainController {
     }
 
     public void saveCurrentSession() {
+        // TODO: Implement session saving functionality
+        // Currently collecting tabs but not persisting them
         if (tabService == null || tabPane == null) return;
 
         java.util.List<Tab> tabsToSave = new java.util.ArrayList<>();
@@ -579,9 +554,9 @@ public class MainController {
                 }
             }
         }
+        // TODO: Save tabsToSave to tabService or persistence layer
     }
     public void handleToggleMagnifierMode() {
-        logger.info("Shortcut: handleToggleMagnifierMode called");
         if (zoomService != null) {
             zoomService.toggleZoomMode(() -> {
                 if (rootPane.getScene() != null && rootPane.getScene().getWindow() != null) {
@@ -592,7 +567,6 @@ public class MainController {
     }
 
     public void handleToggleMouseNavigation() {
-        logger.info("Shortcut: handleToggleMouseNavigation called");
         if (zoomService != null) {
             zoomService.toggleMouseTracking(() -> {
                 if (rootPane.getScene() != null && rootPane.getScene().getWindow() != null) {
@@ -606,35 +580,13 @@ public class MainController {
         return shortcutManager;
     }
 
-    private void loadProfilePanel() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/example/nexus/fxml/dialogs/profile-panel.fxml"));
-
-            loader.setControllerFactory(controllerClass -> {
-                if (controllerClass == ProfileController.class) {
-                    return new ProfileController(container);
-                }
-                return null;
-            });
-
-            ScrollPane profilePanel = loader.load();
-            logger.info("Profile panel loaded successfully");
-        } catch (Exception e) {
-            logger.error("Error loading profile panel", e);
-        }
-    }
 
     private void restoreUserData() {
         try {
 
-            SettingsService settingsService = container.getOrCreate(SettingsService.class);
-            logger.info("Settings restored");
-
             com.example.nexus.service.ProfileService profileService = container.getOrCreate(com.example.nexus.service.ProfileService.class);
             profileService.getCurrentProfile();
-            logger.info("Profile restored");
 
-            logger.info("User data restored on startup");
         } catch (Exception e) {
             logger.error("Error restoring user data", e);
         }
@@ -646,7 +598,6 @@ public class MainController {
             com.example.nexus.service.ProfileService profileService = container.getOrCreate(com.example.nexus.service.ProfileService.class);
             profileService.saveProfile(profileService.getCurrentProfile());
 
-            logger.info("All user data saved successfully");
         } catch (Exception e) {
             logger.error("Error saving user data on exit", e);
         }
@@ -691,7 +642,6 @@ public class MainController {
             profileStage.show();
             profileStage.toFront();
 
-            logger.info("Profile panel opened");
         } catch (Exception e) {
             logger.error("Error opening profile panel", e);
         }

@@ -1,6 +1,5 @@
 package com.example.nexus.controller;
 
-import com.example.nexus.model.Settings;
 import com.example.nexus.service.SettingsService;
 import javafx.application.Platform;
 import javafx.scene.Node;
@@ -14,12 +13,10 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 public class SettingsController {
     private static final Logger logger = LoggerFactory.getLogger(SettingsController.class);
@@ -35,8 +32,6 @@ public class SettingsController {
     private HBox statusBar;
 
     private String currentResolvedTheme = "light";
-    private Consumer<Settings>[] changeListeners;
-    private Settings currentSettings;
 
     public SettingsController(SettingsService settingsService) {
         this.settingsService = settingsService;

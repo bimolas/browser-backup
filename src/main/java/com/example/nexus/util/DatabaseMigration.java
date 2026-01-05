@@ -40,10 +40,9 @@ public class DatabaseMigration {
 
             try {
                 stmt.execute("ALTER TABLE profile ADD COLUMN logged_in BOOLEAN DEFAULT 1");
-                logger.info("Added logged_in column to profile table");
             } catch (SQLException e) {
+                logger.info("Database migration result in an error " + e);
 
-                logger.debug("logged_in column already exists");
             }
         }
     }

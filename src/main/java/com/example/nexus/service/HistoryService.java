@@ -7,11 +7,7 @@ import com.example.nexus.repository.HistoryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
-import java.util.Optional;
 
 public class HistoryService {
     private static final Logger logger = LoggerFactory.getLogger(HistoryService.class);
@@ -33,7 +29,7 @@ public class HistoryService {
     }
 
 
-    public HistoryEntry addToHistory(String url, String title, String faviconUrl) {
+    public void addToHistory(String url, String title, String faviconUrl) {
         if (url == null || url.trim().isEmpty()) {
             throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT,
                 "URL cannot be null or empty");
@@ -54,13 +50,11 @@ public class HistoryService {
                 }
                 historyRepository.update(existingEntry);
                 logger.info("Updated history entry for URL: " + url);
-                return existingEntry;
             } else {
 
                 HistoryEntry entry = new HistoryEntry(title, url, faviconUrl);
                 historyRepository.save(entry);
                 logger.info("Added new history entry for URL: " + url);
-                return entry;
             }
         } catch (BrowserException e) {
             throw e;
@@ -71,8 +65,8 @@ public class HistoryService {
         }
     }
 
-    public HistoryEntry addToHistory(String url, String title) {
-        return addToHistory(url, title, null);
+    public void addToHistory(String url, String title) {
+        addToHistory(url, title, null);
     }
 
 
@@ -110,47 +104,5 @@ public class HistoryService {
             throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR,
                 "Failed to search history", e);
         }
-    }
-
-    public List<HistoryEntry> getHistoryByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
-        if (startDate == null || endDate == null) {
-            throw new BrowserException(BrowserException.ErrorCode.INVALID_INPUT,
-                "Start date and end date cannot be null");
-        }
-
-        try {
-            return historyRepository.findByDateRange(startDate, endDate);
-        } catch (Exception e) {
-            logger.error("Error retrieving history by date range", e);
-            throw new BrowserException(BrowserException.ErrorCode.DATABASE_ERROR,
-                "Failed to retrieve history by date range", e);
-        }
-    }
-
-    public List<HistoryEntry> getTodayHistory() {
-        LocalDate today = LocalDate.now();
-        return getHistoryByDateRange(
-            today.atStartOfDay(),
-            today.atTime(LocalTime.MAX)
-        );
-    }
-
-
-    public List<HistoryEntry> getThisWeekHistory() {
-        LocalDate today = LocalDate.now();
-        LocalDate weekStart = today.minusDays(today.getDayOfWeek().getValue() - 1);
-        return getHistoryByDateRange(
-            weekStart.atStartOfDay(),
-            today.atTime(LocalTime.MAX)
-        );
-    }
-
-    public List<HistoryEntry> getThisMonthHistory() {
-        LocalDate today = LocalDate.now();
-        LocalDate monthStart = today.withDayOfMonth(1);
-        return getHistoryByDateRange(
-            monthStart.atStartOfDay(),
-            today.atTime(LocalTime.MAX)
-        );
     }
 }

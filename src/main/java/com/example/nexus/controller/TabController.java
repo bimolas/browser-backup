@@ -30,7 +30,6 @@ public class TabController {
     private final DIContainer container;
     private final TabService tabService;
     private final SettingsService settingsService;
-    private final HistoryService historyService;
     private final HistoryController historyController;
     private final ZoomService zoomService;
 
@@ -46,7 +45,7 @@ public class TabController {
         this.container = container;
         this.tabService = container.getOrCreate(TabService.class);
         this.settingsService = container.getOrCreate(SettingsService.class);
-        this.historyService = container.getOrCreate(HistoryService.class);
+        HistoryService historyService = container.getOrCreate(HistoryService.class);
         this.historyController = new HistoryController(historyService);
         this.zoomService = container.getOrCreate(ZoomService.class);
     }
@@ -56,7 +55,7 @@ public class TabController {
     }
 
     public void initializeUIComponents(TabPane tabPane, StackPane browserContainer,
-                                       TextField addressBar, Label securityIcon, Button bookmarkButton) {
+                                       TextField addressBar, Label securityIcon) {
         this.tabPane = tabPane;
         this.browserContainer = browserContainer;
         this.addressBar = addressBar;
@@ -109,7 +108,7 @@ public class TabController {
         final ChangeListener<String> titleListener = (obs, oldTitle, newTitle) -> Platform.runLater(() -> {
             updateTabTitle(tab, newTitle);
 
-            Tab tabModelRef = (Tab) browserTab.getTabModel();
+            Tab tabModelRef = browserTab.getTabModel();
             if (tabModelRef != null) {
                 tabModelRef.setTitle(newTitle);
                 tabService.updateTab(tabModelRef);
@@ -121,9 +120,8 @@ public class TabController {
             if (tabPane.getSelectionModel().getSelectedItem() == tab) {
                 addressBar.setText(newUrl);
                 updateSecurityIcon(newUrl);
-                updateBookmarkButtonState(newUrl);
             }
-            Tab tabModelRef = (Tab) browserTab.getTabModel();
+            Tab tabModelRef = browserTab.getTabModel();
             if (tabModelRef != null) {
                 tabModelRef.setUrl(newUrl);
                 tabService.updateTab(tabModelRef);
@@ -146,10 +144,12 @@ public class TabController {
         tabCleanupMap.put(tab, () -> {
             try {
                 browserTab.titleProperty().removeListener(titleListener);
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
             try {
                 browserTab.urlProperty().removeListener(urlListener);
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         });
 
         tabPane.getTabs().add(tab);
@@ -170,14 +170,11 @@ public class TabController {
             addressBar.setText(browserTab.getUrl());
 
             updateSecurityIcon(browserTab.getUrl());
-
-            updateBookmarkButtonState(browserTab.getUrl());
         }
     }
 
     private void updateSecurityIcon(String url) {
-        if (securityIcon != null && securityIcon.getGraphic() instanceof FontIcon) {
-            FontIcon icon = (FontIcon) securityIcon.getGraphic();
+        if (securityIcon != null && securityIcon.getGraphic() instanceof FontIcon icon) {
             if (url != null && url.startsWith("https://")) {
                 icon.setIconLiteral("mdi2l-lock");
                 icon.setIconColor(Color.valueOf("#28a745"));
@@ -268,6 +265,7 @@ public class TabController {
         header.setUserData(new Object[]{titleLabel, titleTooltip, faviconContainer, faviconView, defaultIcon});
 
         setupTabPreview(tab, header, browserTab);
+
 
         return header;
     }
@@ -405,10 +403,10 @@ public class TabController {
                         return true;
                     }
                 } catch (Exception ex) {
-
+                    // Silently ignore gsettings errors
                 }
             } catch (Exception e) {
-
+                // Silently ignore theme detection errors
             }
         }
 
@@ -420,7 +418,11 @@ public class TabController {
 
         Runnable cleanup = tabCleanupMap.remove(tab);
         if (cleanup != null) {
-            try { cleanup.run(); } catch (Exception e) { logger.debug("Error running tab cleanup", e); }
+            try {
+                cleanup.run();
+            } catch (Exception e) {
+                logger.debug("Error running tab cleanup", e);
+            }
         }
 
         tabBrowserMap.remove(tab);
@@ -448,9 +450,6 @@ public class TabController {
         return null;
     }
 
-    private void updateBookmarkButtonState(String url) {
-
-    }
 
     private void setupScrollZoom(BrowserTab browserTab) {
         browserTab.setOnScroll(event -> {
@@ -513,37 +512,7 @@ public class TabController {
         });
     }
 
-    public void loadSession(String sessionId) {
-        java.util.List<Tab> tabs = tabService.getTabsBySessionId(sessionId);
-        for (Tab tab : tabs) {
-            createNewTab(tab.getUrl());
-        }
-    }
-
-    public void closeAllTabs() {
-
-        java.util.List<javafx.scene.control.Tab> tabsToClose = new java.util.ArrayList<>(tabPane.getTabs());
-        for (javafx.scene.control.Tab tab : tabsToClose) {
-            handleTabClose(tab);
-        }
-    }
-
-    public int getTabCount() {
-        return tabPane.getTabs().size();
-    }
-
     public BrowserTab getBrowserTabForFxTab(javafx.scene.control.Tab fxTab) {
         return tabBrowserMap.get(fxTab);
-    }
-
-    public java.util.List<Tab> getAllOpenTabModels() {
-        java.util.List<Tab> tabs = new java.util.ArrayList<>();
-        for (javafx.scene.control.Tab fxTab : tabPane.getTabs()) {
-            BrowserTab bt = tabBrowserMap.get(fxTab);
-            if (bt != null && bt.getTabModel() != null) {
-                tabs.add(bt.getTabModel());
-            }
-        }
-        return tabs;
     }
 }

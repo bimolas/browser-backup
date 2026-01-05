@@ -445,6 +445,78 @@ public class BookmarkPanel extends Stage {
         return menu;
     }
 
+    private void showContextMenuForItem(Object item, javafx.scene.Node node, double screenX, double screenY) {
+        ContextMenu menu = new ContextMenu();
+
+        if (item instanceof Bookmark bookmark) {
+            // Bookmark context menu items
+            MenuItem openItem = new MenuItem("Open in New Tab");
+            openItem.setGraphic(new FontIcon("mdi2t-tab-plus"));
+            openItem.setOnAction(e -> {
+                if (onOpenUrl != null) {
+                    onOpenUrl.accept(bookmark.getUrl());
+                }
+            });
+
+            MenuItem editItem = new MenuItem("Edit");
+            editItem.setGraphic(new FontIcon("mdi2p-pencil"));
+            editItem.setOnAction(e -> showEditBookmarkDialog(bookmark));
+
+            MenuItem favoriteItem = new MenuItem(bookmark.isFavorite() ? "Remove from Favorites" : "Add to Favorites");
+            favoriteItem.setGraphic(new FontIcon(bookmark.isFavorite() ? "mdi2s-star-off" : "mdi2s-star"));
+            favoriteItem.setOnAction(e -> toggleFavorite(bookmark));
+
+            MenuItem copyUrlItem = new MenuItem("Copy URL");
+            copyUrlItem.setGraphic(new FontIcon("mdi2c-content-copy"));
+            copyUrlItem.setOnAction(e -> {
+                javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
+                javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+                content.putString(bookmark.getUrl());
+                clipboard.setContent(content);
+            });
+
+            MenuItem deleteItem = new MenuItem("Delete");
+            deleteItem.setGraphic(new FontIcon("mdi2d-delete"));
+            deleteItem.setOnAction(e -> deleteBookmark(bookmark));
+
+            menu.getItems().addAll(
+                openItem,
+                new SeparatorMenuItem(),
+                editItem,
+                favoriteItem,
+                new SeparatorMenuItem(),
+                copyUrlItem,
+                new SeparatorMenuItem(),
+                deleteItem
+            );
+
+        } else if (item instanceof BookmarkFolder folder) {
+            // Folder context menu items
+            MenuItem openItem = new MenuItem("Open Folder");
+            openItem.setGraphic(new FontIcon("mdi2f-folder-open"));
+            openItem.setOnAction(e -> navigateToFolder(folder.getId()));
+
+            MenuItem renameItem = new MenuItem("Rename");
+            renameItem.setGraphic(new FontIcon("mdi2p-pencil"));
+            renameItem.setOnAction(e -> showEditFolderDialog(folder));
+
+            MenuItem deleteItem = new MenuItem("Delete Folder");
+            deleteItem.setGraphic(new FontIcon("mdi2d-delete"));
+            deleteItem.setOnAction(e -> deleteFolder(folder));
+
+            menu.getItems().addAll(
+                openItem,
+                new SeparatorMenuItem(),
+                renameItem,
+                new SeparatorMenuItem(),
+                deleteItem
+            );
+        }
+
+        // Show the menu at the specified location
+        menu.show(node, screenX, screenY);
+    }
+
     private HBox createFooter() {
         HBox footer = new HBox(15);
         footer.setPadding(new Insets(15, 20, 15, 20));
@@ -850,6 +922,22 @@ public class BookmarkPanel extends Stage {
             container.setOnMouseExited(e -> {
                 container.setStyle("-fx-background-color: " + bgNormal + "; -fx-background-radius: 8;");
                 menuBtn.setVisible(false);
+            });
+
+            // Add context menu on right-click
+            container.setOnMouseClicked(e -> {
+                if (e.getButton() == MouseButton.SECONDARY && getItem() != null) {
+                    showContextMenuForItem(getItem(), container, e.getScreenX(), e.getScreenY());
+                    e.consume();
+                }
+            });
+
+            // Add context menu on menu button click
+            menuBtn.setOnAction(e -> {
+                if (getItem() != null) {
+                    javafx.geometry.Bounds bounds = menuBtn.localToScreen(menuBtn.getBoundsInLocal());
+                    showContextMenuForItem(getItem(), container, bounds.getMaxX(), bounds.getMinY());
+                }
             });
         }
 
