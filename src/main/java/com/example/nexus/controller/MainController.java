@@ -20,11 +20,14 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.*;
 
-import static com.example.nexus.controller.TabController.logger;
-
 public class MainController {
+
+    private static final Logger logger = LoggerFactory.getLogger(MainController.class);
 
     private DIContainer container;
     private TabService tabService;

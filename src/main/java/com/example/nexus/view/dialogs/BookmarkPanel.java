@@ -28,13 +28,14 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.kordamp.ikonli.javafx.FontIcon;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.function.Consumer;
 
-import static com.example.nexus.controller.TabController.logger;
-
 public class BookmarkPanel extends Stage {
+    private static final Logger logger = LoggerFactory.getLogger(BookmarkPanel.class);
     private final DIContainer container;
     private final BookmarkService bookmarkService;
     private final SettingsService settingsService;

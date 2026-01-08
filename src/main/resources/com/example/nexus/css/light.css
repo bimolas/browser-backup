@@ -98,6 +98,11 @@
     -fx-background-color: #ced4da;
 }
 
+/* Disable hover effect on selected tabs */
+.browser-tab-pane > .tab-header-area > .headers-region > .tab:selected:hover {
+    -fx-background-color: #ffffff;
+}
+
 .browser-tab-pane > .tab-header-area > .headers-region > .tab > .tab-container > .tab-label {
     -fx-text-fill: #495057;
     -fx-font-size: 11px;

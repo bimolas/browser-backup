@@ -20,12 +20,13 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
+
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TabController {
-    public static final Logger logger = LoggerFactory.getLogger(TabController.class);
+
+    private static final Logger logger = LoggerFactory.getLogger(TabController.class);
 
     private final DIContainer container;
     private final TabService tabService;
@@ -40,6 +41,7 @@ public class TabController {
 
     private final Map<javafx.scene.control.Tab, BrowserTab> tabBrowserMap = new HashMap<>();
     private final Map<javafx.scene.control.Tab, Runnable> tabCleanupMap = new HashMap<>();
+    private final Map<javafx.scene.control.Tab, UUID> tabUuidMap = new HashMap<>();
 
     public TabController(DIContainer container) {
         this.container = container;
@@ -99,9 +101,14 @@ public class TabController {
         tab.setText("New Tab");
         tab.setClosable(false);
 
+        // Generate UUID for this tab
+        UUID tabUuid = UUID.randomUUID();
+        tabUuidMap.put(tab, tabUuid);
+
         HBox tabHeader = createTabHeader(tab, browserTab);
         tab.setGraphic(tabHeader);
         tab.setText(null);
+
 
         tabBrowserMap.put(tab, browserTab);
 
@@ -425,7 +432,10 @@ public class TabController {
             }
         }
 
+        // Remove tab from maps
         tabBrowserMap.remove(tab);
+        UUID tabUuid = tabUuidMap.remove(tab);
+
 
         tabPane.getTabs().remove(tab);
 

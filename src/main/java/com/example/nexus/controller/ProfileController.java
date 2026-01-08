@@ -3,7 +3,7 @@ package com.example.nexus.controller;
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.model.Profile;
 import com.example.nexus.service.ProfileService;
-import com.example.nexus.util.FileUtils;
+import com.example.nexus.service.SettingsService;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -122,7 +122,11 @@ public class ProfileController {
                     return;
                 }
 
-                String extension = FileUtils.getFileExtension(selectedFile.getName());
+                // Extract file extension
+                String fileName = selectedFile.getName();
+                int lastIndexOf = fileName.lastIndexOf(".");
+                String extension = (lastIndexOf == -1) ? "" : fileName.substring(lastIndexOf + 1);
+
                 String newFileName = currentProfile.getUsername() + "_avatar." + extension;
                 Path destination = Paths.get(appDataDir, newFileName);
                 Files.copy(selectedFile.toPath(), destination, StandardCopyOption.REPLACE_EXISTING);
