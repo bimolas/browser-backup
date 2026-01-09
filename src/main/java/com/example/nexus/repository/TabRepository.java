@@ -77,13 +77,47 @@ public class TabRepository extends BaseRepository<Tab> {
         return tabs;
     }
 
+    public List<Tab> findByProfileId(int profileId) {
+        List<Tab> tabs = new ArrayList<>();
+        String sql = "SELECT * FROM tabs WHERE profile_id = ? ORDER BY position";
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+            stmt.setInt(1, profileId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Tab tab = mapResultSetToTab(rs);
+                    tabs.add(tab);
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error finding tabs by profile ID: " + profileId, e);
+        }
+
+        return tabs;
+    }
+
+    public void deleteByProfileId(int profileId) {
+        String sql = "DELETE FROM tabs WHERE profile_id = ?";
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+            stmt.setInt(1, profileId);
+            stmt.executeUpdate();
+            logger.debug("Deleted all tabs for profile ID: {}", profileId);
+        } catch (SQLException e) {
+            logger.error("Error deleting tabs by profile ID: " + profileId, e);
+        }
+    }
+
     @Override
     public void save(Tab tab) {
-        String sql = "INSERT INTO tabs (user_id, title, url, favicon_url, is_pinned, is_active, position, session_id) " +
+        String sql = "INSERT INTO tabs (profile_id, title, url, favicon_url, is_pinned, is_active, position, session_id) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
+        logger.info("Attempting to save tab: profileId={}, title={}, url={}", tab.getProfileId(), tab.getTitle(), tab.getUrl());
+
         try (PreparedStatement stmt = getConnection().prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
-            stmt.setInt(1, 1);
+            stmt.setInt(1, tab.getProfileId() > 0 ? tab.getProfileId() : 1);
             stmt.setString(2, tab.getTitle());
             stmt.setString(3, tab.getUrl());
             stmt.setString(4, tab.getFaviconUrl());
@@ -93,11 +127,13 @@ public class TabRepository extends BaseRepository<Tab> {
             stmt.setString(8, tab.getSessionId());
 
             int affectedRows = stmt.executeUpdate();
+            logger.info("Tab save affected {} rows", affectedRows);
 
             if (affectedRows > 0) {
                 try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         tab.setId(generatedKeys.getInt(1));
+                        logger.info("Tab saved successfully with ID: {}", tab.getId());
                     }
                 }
             }
@@ -142,6 +178,7 @@ public class TabRepository extends BaseRepository<Tab> {
     private Tab mapResultSetToTab(ResultSet rs) throws SQLException {
         Tab tab = new Tab();
         tab.setId(rs.getInt("id"));
+        tab.setProfileId(rs.getInt("profile_id"));
         tab.setTitle(rs.getString("title"));
         tab.setUrl(rs.getString("url"));
         tab.setFaviconUrl(rs.getString("favicon_url"));

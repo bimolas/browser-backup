@@ -1,6 +1,7 @@
 package com.example.nexus.controller;
 
 import com.example.nexus.core.DIContainer;
+import com.example.nexus.model.Profile;
 import com.example.nexus.model.Tab;
 import com.example.nexus.service.*;
 import com.example.nexus.view.components.BrowserTab;
@@ -163,6 +164,25 @@ public class TabController {
         tabPane.getSelectionModel().select(tab);
 
         Tab tabModel = new Tab(url);
+
+        // Set profileId from current profile
+        try {
+            ProfileService profileService = container.getOrCreate(ProfileService.class);
+            Profile currentProfile = profileService.getCurrentProfile();
+            if (currentProfile != null && currentProfile.getId() > 0) {
+                tabModel.setProfileId(currentProfile.getId());
+                logger.debug("Tab created with profileId: {} for profile: {}", currentProfile.getId(), currentProfile.getUsername());
+            } else {
+                tabModel.setProfileId(1); // Default profile
+                logger.debug("No valid profile found, using default profileId=1");
+            }
+        } catch (Exception e) {
+            logger.error("Error getting current profile for tab, using default", e);
+            tabModel.setProfileId(1);
+        }
+
+        // Save tab to database immediately
+        // Old sessions are cleared on startup, not here
         tabService.saveTab(tabModel);
         browserTab.setTabModel(tabModel);
     }
@@ -434,11 +454,11 @@ public class TabController {
 
         // Remove tab from maps
         tabBrowserMap.remove(tab);
-        UUID tabUuid = tabUuidMap.remove(tab);
-
+        tabUuidMap.remove(tab);
 
         tabPane.getTabs().remove(tab);
 
+        // Delete from database when tab is closed
         if (browserTab != null && browserTab.getTabModel() != null) {
             tabService.deleteTab(browserTab.getTabModel().getId());
         }
@@ -524,5 +544,119 @@ public class TabController {
 
     public BrowserTab getBrowserTabForFxTab(javafx.scene.control.Tab fxTab) {
         return tabBrowserMap.get(fxTab);
+    }
+
+    // === Session Persistence Methods ===
+
+    /**
+     * Save current tabs for the given profile
+     */
+    public void saveSessionForProfile(int profileId) {
+        try {
+            List<Tab> tabsToSave = new ArrayList<>();
+
+            for (int i = 0; i < tabPane.getTabs().size(); i++) {
+                javafx.scene.control.Tab fxTab = tabPane.getTabs().get(i);
+                BrowserTab browserTab = tabBrowserMap.get(fxTab);
+
+                if (browserTab != null) {
+                    Tab tab = new Tab();
+                    tab.setProfileId(profileId);
+
+                    String title = browserTab.getTitle();
+                    if (title == null || title.trim().isEmpty()) {
+                        title = "New Tab"; // Fallback if title is null
+                    }
+                    tab.setTitle(title);
+
+                    tab.setUrl(browserTab.getUrl());
+                    tab.setPosition(i);
+                    tab.setActive(tabPane.getSelectionModel().getSelectedItem() == fxTab);
+                    tab.setPinned(false); // Add pinned state if you implement it
+
+                    tabsToSave.add(tab);
+                }
+            }
+
+            // Always save tabs (even if empty) to clear old session
+            tabService.saveProfileTabs(tabsToSave, profileId);
+            logger.info("Saved {} tabs for profile {}", tabsToSave.size(), profileId);
+        } catch (Exception e) {
+            logger.error("Error saving session for profile {}", profileId, e);
+        }
+    }
+
+    /**
+     * Restore tabs from saved session for the given profile
+     */
+    public void restoreSessionForProfile(int profileId) {
+        try {
+            List<Tab> savedTabs = tabService.getTabsByProfileId(profileId);
+
+            if (savedTabs.isEmpty()) {
+                logger.info("No saved tabs found for profile {}, creating default tab", profileId);
+                createNewTab(settingsService.getHomePage());
+                return;
+            }
+
+            logger.info("Restoring {} tabs for profile {}", savedTabs.size(), profileId);
+
+            // Sort by position
+            savedTabs.sort((a, b) -> Integer.compare(a.getPosition(), b.getPosition()));
+
+            // Clear old tabs from database - they'll be re-added as they're created
+            tabService.clearProfileTabs(profileId);
+            logger.info("Cleared old saved tabs, will track current session going forward");
+
+            // Close any existing tabs first
+            Platform.runLater(() -> {
+                tabPane.getTabs().clear();
+                tabBrowserMap.clear();
+                tabCleanupMap.clear();
+                tabUuidMap.clear();
+            });
+
+            // Restore each tab
+            Tab activeTab = null;
+            for (Tab tab : savedTabs) {
+                if (tab.isActive()) {
+                    activeTab = tab;
+                }
+                Platform.runLater(() -> createNewTab(tab.getUrl()));
+            }
+
+            // Select the active tab
+            if (activeTab != null) {
+                final Tab finalActiveTab = activeTab;
+                Platform.runLater(() -> {
+                    try {
+                        int activeIndex = finalActiveTab.getPosition();
+                        if (activeIndex >= 0 && activeIndex < tabPane.getTabs().size()) {
+                            tabPane.getSelectionModel().select(activeIndex);
+                        }
+                    } catch (Exception e) {
+                        logger.debug("Could not select active tab", e);
+                    }
+                });
+            }
+
+        } catch (Exception e) {
+            logger.error("Error restoring session for profile {}", profileId, e);
+            // Fallback: create default tab
+            Platform.runLater(() -> createNewTab(settingsService.getHomePage()));
+        }
+    }
+
+    /**
+     * Check if there are saved tabs for a profile
+     */
+    public boolean hasSessionForProfile(int profileId) {
+        try {
+            List<Tab> savedTabs = tabService.getTabsByProfileId(profileId);
+            return !savedTabs.isEmpty();
+        } catch (Exception e) {
+            logger.error("Error checking session for profile {}", profileId, e);
+            return false;
+        }
     }
 }

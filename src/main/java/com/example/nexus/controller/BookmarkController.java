@@ -5,6 +5,7 @@ import com.example.nexus.model.BookmarkFolder;
 import com.example.nexus.service.BookmarkService;
 import com.example.nexus.core.DIContainer;
 import com.example.nexus.service.SettingsService;
+import com.example.nexus.view.dialogs.BookmarkPanel;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -235,21 +236,95 @@ public class BookmarkController {
 
     public void showBookmarkPanel(DIContainer container, Consumer<String> onOpenUrl, com.example.nexus.util.KeyboardShortcutManager shortcutManager) {
         try {
-            com.example.nexus.view.dialogs.BookmarkPanel bookmarkPanel = new com.example.nexus.view.dialogs.BookmarkPanel(container);
-            bookmarkPanel.setOnOpenUrl(onOpenUrl);
-            bookmarkPanel.reloadBookmarksFromService(bookmarkService);
-            bookmarkPanel.show();
+            // Determine theme
+            String theme = settingsService.getTheme();
+            boolean isDarkTheme = "dark".equals(theme) || ("system".equals(theme) && isSystemDark());
 
-            if (shortcutManager != null && bookmarkPanel.getScene() != null) {
+            // Load FXML
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                getClass().getResource("/com/example/nexus/fxml/dialogs/bookmark-panel.fxml")
+            );
+            javafx.scene.Parent root = loader.load();
+
+            // Get the FXML view controller
+            BookmarkPanel viewController = loader.getController();
+            viewController.setDarkTheme(isDarkTheme);
+
+            // Set up callbacks from view to business controller
+            viewController.setOnOpenUrl(onOpenUrl);
+            viewController.setOnAddBookmark(() -> {
+                showAddBookmarkDialog("", "", null);
+                refreshPanelData(viewController);
+            });
+            viewController.setOnCreateFolder((name, parentId) -> {
+                createFolder(name, parentId);
+                refreshPanelData(viewController);
+            });
+            viewController.setOnNavigateToFolder(folderId -> {
+                loadFolderData(viewController, folderId);
+            });
+            viewController.setOnShowFavorites(() -> {
+                loadFavoritesData(viewController);
+            });
+            viewController.setOnEditBookmark(bookmark -> {
+                editBookmark(bookmark);
+                refreshPanelData(viewController);
+            });
+            viewController.setOnDeleteBookmark(bookmark -> {
+                deleteBookmark(bookmark);
+                refreshPanelData(viewController);
+            });
+            viewController.setOnToggleFavorite(bookmark -> {
+                toggleFavoriteBookmark(bookmark);
+                refreshPanelData(viewController);
+            });
+            viewController.setOnEditFolder(folder -> {
+                editFolder(folder);
+                refreshPanelData(viewController);
+            });
+            viewController.setOnDeleteFolder(folder -> {
+                deleteFolder(folder);
+                refreshPanelData(viewController);
+            });
+
+            // Create stage
+            javafx.stage.Stage stage = new javafx.stage.Stage();
+            stage.setTitle("Bookmarks");
+            stage.initModality(javafx.stage.Modality.NONE);
+            stage.setMinWidth(800);
+            stage.setMinHeight(550);
+            stage.setWidth(950);
+            stage.setHeight(700);
+
+            javafx.scene.Scene scene = new javafx.scene.Scene(root);
+
+            // Apply theme CSS
+            String cssPath = isDarkTheme ? "/com/example/nexus/css/dark.css" : "/com/example/nexus/css/main.css";
+            var cssResource = getClass().getResource(cssPath);
+            if (cssResource != null) {
+                scene.getStylesheets().add(cssResource.toExternalForm());
+            }
+
+            stage.setScene(scene);
+            viewController.setOnClose(() -> stage.close());
+
+            // Load initial data from services and push to view
+            refreshPanelData(viewController);
+
+            // Keyboard shortcuts
+            if (shortcutManager != null) {
                 try {
-                    shortcutManager.pushScene(bookmarkPanel.getScene());
-                    bookmarkPanel.setOnHidden(ev -> {
+                    shortcutManager.pushScene(scene);
+                    stage.setOnHidden(ev -> {
                         try {
                             shortcutManager.popScene();
                         } catch (Exception ignored) {}
                     });
                 } catch (Exception ignored) {}
             }
+
+            stage.show();
+
         } catch (Exception e) {
             logger.error("Error opening bookmark panel", e);
             javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
@@ -260,6 +335,186 @@ public class BookmarkController {
         }
     }
 
+    private boolean isSystemDark() {
+        try {
+            String gtkTheme = System.getenv("GTK_THEME");
+            if (gtkTheme != null && gtkTheme.toLowerCase().contains("dark")) {
+                return true;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return false;
+    }
+
+    // === Business logic methods (load data from services and push to view) ===
+
+    private void refreshPanelData(BookmarkPanel viewController) {
+        try {
+            java.util.List<BookmarkFolder> folders = bookmarkService.getRootFolders();
+            java.util.List<Bookmark> bookmarks = bookmarkService.getFavorites();
+
+            viewController.setFolders(folders);
+            viewController.setBookmarks(bookmarks);
+            viewController.setBreadcrumb("All Bookmarks");
+        } catch (Exception e) {
+            logger.error("Error loading bookmarks", e);
+        }
+    }
+
+    private void loadFolderData(BookmarkPanel viewController, Integer folderId) {
+        try {
+            java.util.List<BookmarkFolder> subFolders = bookmarkService.getSubFolders(folderId);
+            java.util.List<Bookmark> bookmarks = bookmarkService.getBookmarksByFolderId(folderId);
+
+            viewController.setBookmarksAndFolders(subFolders, bookmarks);
+
+            // Update breadcrumb
+            if (folderId == null) {
+                viewController.setBreadcrumb("All Bookmarks");
+            } else {
+                bookmarkService.getFolder(folderId).ifPresent(folder ->
+                    viewController.setBreadcrumb(folder.getName())
+                );
+            }
+        } catch (Exception e) {
+            logger.error("Error loading folder data", e);
+        }
+    }
+
+    private void loadFavoritesData(BookmarkPanel viewController) {
+        try {
+            java.util.List<Bookmark> favorites = bookmarkService.getFavorites();
+            viewController.setBookmarks(favorites);
+            viewController.setBreadcrumb("Favorites");
+        } catch (Exception e) {
+            logger.error("Error loading favorites", e);
+        }
+    }
+
+    private void editBookmark(Bookmark bookmark) {
+        Dialog<Bookmark> dialog = new Dialog<>();
+        dialog.setTitle("Edit Bookmark");
+
+        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+
+        TextField titleField = new TextField(bookmark.getTitle());
+        titleField.setPrefWidth(300);
+
+        TextField urlField = new TextField(bookmark.getUrl());
+
+        CheckBox favoriteCheck = new CheckBox("Favorite");
+        favoriteCheck.setSelected(bookmark.isFavorite());
+
+        grid.add(new Label("Title:"), 0, 0);
+        grid.add(titleField, 1, 0);
+        grid.add(new Label("URL:"), 0, 1);
+        grid.add(urlField, 1, 1);
+        grid.add(favoriteCheck, 1, 2);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType == saveButtonType) {
+                bookmark.setTitle(titleField.getText().trim());
+                bookmark.setUrl(urlField.getText().trim());
+                bookmark.setFavorite(favoriteCheck.isSelected());
+                return bookmark;
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(updated -> {
+            try {
+                bookmarkService.updateBookmark(updated);
+                settingsService.saveSettings();
+                notifyBookmarkChanged();
+            } catch (Exception e) {
+                logger.error("Error updating bookmark", e);
+                showErrorAlert("Failed to update bookmark: " + e.getMessage());
+            }
+        });
+    }
+
+    private void deleteBookmark(Bookmark bookmark) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Delete Bookmark");
+        confirm.setHeaderText("Delete this bookmark?");
+        confirm.setContentText("\"" + bookmark.getTitle() + "\" will be permanently deleted.");
+
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    bookmarkService.deleteBookmark(bookmark.getId());
+                    settingsService.saveSettings();
+                    notifyBookmarkChanged();
+                } catch (Exception e) {
+                    logger.error("Error deleting bookmark", e);
+                    showErrorAlert("Failed to delete bookmark: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    private void toggleFavoriteBookmark(Bookmark bookmark) {
+        try {
+            bookmarkService.toggleFavorite(bookmark.getId());
+            settingsService.saveSettings();
+            notifyBookmarkChanged();
+        } catch (Exception e) {
+            logger.error("Error toggling favorite", e);
+            showErrorAlert("Failed to toggle favorite: " + e.getMessage());
+        }
+    }
+
+    private void editFolder(BookmarkFolder folder) {
+        TextInputDialog dialog = new TextInputDialog(folder.getName());
+        dialog.setTitle("Edit Folder");
+        dialog.setHeaderText("Rename folder");
+        dialog.setContentText("Folder name:");
+
+        dialog.showAndWait().ifPresent(name -> {
+            if (!name.trim().isEmpty()) {
+                try {
+                    folder.setName(name.trim());
+                    bookmarkService.updateFolder(folder);
+                    settingsService.saveSettings();
+                    notifyBookmarkChanged();
+                } catch (Exception e) {
+                    logger.error("Error updating folder", e);
+                    showErrorAlert("Failed to update folder: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    private void deleteFolder(BookmarkFolder folder) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Delete Folder");
+        confirm.setHeaderText("Delete this folder?");
+        confirm.setContentText("\"" + folder.getName() + "\" and all its contents will be permanently deleted.");
+
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    bookmarkService.deleteFolder(folder.getId(), true);
+                    settingsService.saveSettings();
+                    notifyBookmarkChanged();
+                } catch (Exception e) {
+                    logger.error("Error deleting folder", e);
+                    showErrorAlert("Failed to delete folder: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+
     private void showErrorAlert(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle("Error");
@@ -268,3 +523,4 @@ public class BookmarkController {
         alert.showAndWait();
     }
 }
+

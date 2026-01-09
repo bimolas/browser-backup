@@ -1689,4 +1689,55 @@
     -fx-border-color: #f28b82;
 }
 
+/* Bookmark bar - dark theme */
+.bookmark-bar {
+    -fx-background-color: #2d2d2d;
+    -fx-border-color: #404040;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 4 10 4 10;
+}
 
+.bookmark-bar .menu-button {
+    -fx-text-fill: #e0e0e0;
+}
+
+/* Bookmark bar button rules for dark theme */
+.bookmark-bar .bookmark-btn {
+    -fx-background-color: transparent;
+    -fx-background-radius: 4;
+    -fx-cursor: hand;
+}
+
+.bookmark-bar .bookmark-btn:hover {
+    -fx-background-color: #3d3d3d;
+}
+
+.bookmark-bar .bookmark-btn-label {
+    -fx-text-fill: #e0e0e0;
+    -fx-font-size: 12px;
+    -fx-font-weight: 400;
+}
+
+.bookmark-bar .bookmark-more-btn {
+    -fx-background-color: transparent;
+    -fx-border-color: #404040;
+    -fx-text-fill: #909090;
+    -fx-font-size: 11px;
+    -fx-padding: 4 8 4 8;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.bookmark-bar .bookmark-more-btn:hover {
+    -fx-background-color: #3d3d3d;
+    -fx-text-fill: #e0e0e0;
+}
+
+.bookmark-bar .bookmark-folders-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #e0e0e0;
+}
+
+.bookmark-bar .bookmark-folders-btn:hover {
+    -fx-background-color: #3d3d3d;
+}

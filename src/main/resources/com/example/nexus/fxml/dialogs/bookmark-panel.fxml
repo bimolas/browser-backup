@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.nexus.view.dialogs.BookmarkPanel"
+            styleClass="bookmark-panel"
+            prefWidth="950" prefHeight="700">
+
+    <!-- Top: Header -->
+    <top>
+        <VBox spacing="15" styleClass="bookmark-header">
+            <padding>
+                <Insets top="20" right="20" bottom="15" left="20"/>
+            </padding>
+
+            <!-- Title Row -->
+            <HBox spacing="15" alignment="CENTER_LEFT">
+                <Label fx:id="bookmarkIconLabel" style="-fx-font-size: 28px;"/>
+                <Label fx:id="titleLabel" text="Bookmarks" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="addBookmarkBtn" text="Add Bookmark" styleClass="primary-button,bookmark-add-btn" onAction="#handleAddBookmark"/>
+                <Button fx:id="addFolderBtn" text="New Folder" styleClass="secondary-button,bookmark-new-folder-btn" onAction="#handleAddFolder"/>
+            </HBox>
+
+            <!-- Search Row -->
+            <HBox spacing="15" alignment="CENTER_LEFT">
+                <Button fx:id="backBtn" styleClass="bookmark-back-btn" onAction="#handleBack"/>
+                <Label fx:id="breadcrumbLabel" text="All Bookmarks" style="-fx-font-size: 14px; -fx-font-weight: medium;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <TextField fx:id="searchField" promptText="Search bookmarks..." prefWidth="300" styleClass="bookmark-search-field"/>
+            </HBox>
+        </VBox>
+    </top>
+
+    <!-- Center: Split Pane with Sidebar and Main Content -->
+    <center>
+        <SplitPane dividerPositions="0.25">
+            <!-- Left: Sidebar with Folder Tree -->
+            <VBox spacing="10" styleClass="bookmark-sidebar" minWidth="200" maxWidth="300">
+                <padding>
+                    <Insets top="15" right="15" bottom="15" left="15"/>
+                </padding>
+                <Label text="Folders" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+
+                <!-- Quick Access Buttons -->
+                <VBox spacing="5">
+                    <padding>
+                        <Insets bottom="15"/>
+                    </padding>
+                    <Button fx:id="allBookmarksBtn" text="All Bookmarks" maxWidth="Infinity" alignment="CENTER_LEFT"
+                            styleClass="sidebar-btn" onAction="#handleShowAllBookmarks"/>
+                    <Button fx:id="favoritesBtn" text="Favorites" maxWidth="Infinity" alignment="CENTER_LEFT"
+                            styleClass="sidebar-btn" onAction="#handleShowFavorites"/>
+                </VBox>
+
+                <Separator/>
+                <TreeView fx:id="folderTreeView" VBox.vgrow="ALWAYS" styleClass="folder-tree" showRoot="false"/>
+            </VBox>
+
+            <!-- Right: Main Content with Bookmark List -->
+            <VBox spacing="10">
+                <padding>
+                    <Insets top="15" right="15" bottom="15" left="15"/>
+                </padding>
+                <ListView fx:id="bookmarkListView" VBox.vgrow="ALWAYS"
+                         style="-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;"/>
+            </VBox>
+        </SplitPane>
+    </center>
+
+    <!-- Bottom: Status Bar -->
+    <bottom>
+        <HBox spacing="15" alignment="CENTER_LEFT" fx:id="footerBox">
+            <padding>
+                <Insets top="15" right="20" bottom="15" left="20"/>
+            </padding>
+            <Label fx:id="statusLabel" text="0 items"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="closeBtn" text="Close" onAction="#handleClose"/>
+        </HBox>
+    </bottom>
+</BorderPane>
+

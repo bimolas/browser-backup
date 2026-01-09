@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.nexus.view.dialogs.HistoryPanel"
+            styleClass="history-panel"
+            prefWidth="850" prefHeight="650">
+
+    <!-- Top: Header -->
+    <top>
+        <VBox spacing="15" styleClass="history-header">
+            <padding>
+                <Insets top="20" right="20" bottom="15" left="20"/>
+            </padding>
+
+            <!-- Title Row -->
+            <HBox spacing="15" alignment="CENTER_LEFT">
+                <Label fx:id="historyIconLabel" style="-fx-font-size: 28px;"/>
+                <Label text="History" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="clearAllBtn" text="Clear All History" styleClass="danger-button" onAction="#handleClearAll"/>
+            </HBox>
+
+            <!-- Search and Filter Row -->
+            <HBox spacing="15" alignment="CENTER_LEFT">
+                <ComboBox fx:id="filterCombo" prefWidth="150"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <TextField fx:id="searchField" promptText="Search history..." prefWidth="300" styleClass="history-search-field"/>
+            </HBox>
+        </VBox>
+    </top>
+
+    <!-- Center: History List -->
+    <center>
+        <VBox spacing="10" fx:id="contentBox">
+            <padding>
+                <Insets top="15" right="15" bottom="15" left="15"/>
+            </padding>
+            <ListView fx:id="historyListView" VBox.vgrow="ALWAYS"
+                     style="-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;"/>
+        </VBox>
+    </center>
+
+    <!-- Bottom: Status Bar -->
+    <bottom>
+        <HBox spacing="15" alignment="CENTER_LEFT" fx:id="footerBox">
+            <padding>
+                <Insets top="15" right="20" bottom="15" left="20"/>
+            </padding>
+            <Label fx:id="statusLabel" text="0 items"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="closeBtn" text="Close" onAction="#handleClose"/>
+        </HBox>
+    </bottom>
+</BorderPane>
+

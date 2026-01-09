@@ -1,18 +1,22 @@
 package com.example.nexus.controller;
 
 import com.example.nexus.core.DIContainer;
+import com.example.nexus.model.Profile;
 import com.example.nexus.model.Tab;
 import com.example.nexus.service.*;
 import com.example.nexus.util.KeyboardShortcutManager;
+import com.example.nexus.view.MainView;
 import com.example.nexus.view.components.BookmarkBarComponent;
 import com.example.nexus.view.components.BrowserTab;
 import com.example.nexus.view.components.DownloadDropdown;
 import com.example.nexus.view.components.StatusBarComponent;
+import com.example.nexus.view.dialogs.SettingsPanel;
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -22,8 +26,6 @@ import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.*;
 
 public class MainController {
 
@@ -218,23 +220,19 @@ public class MainController {
             settingsController.applyTheme(savedTheme != null ? savedTheme : "light");
             settingsController.applyInterfaceSettings();
 
-            restoreUserData();
+            // Initialize session persistence
+            initializeSessionPersistence();
         });
 
         settingsService.addSettingsChangeListener(settings -> {
             Platform.runLater(() -> settingsController.applyInterfaceSettings());
         });
 
-        Platform.runLater(() -> {
-            String homePage = settingsService.getHomePage();
-            tabController.createNewTab(homePage);
-        });
-
         rootPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 shortcutManager.setupForScene(newScene);
 
-                newScene.getWindow().setOnCloseRequest(event -> saveAllUserData());
+                newScene.getWindow().setOnCloseRequest(event -> saveSessionOnExit());
             }
         });
 
@@ -402,8 +400,8 @@ public class MainController {
     public void handleShowSettings() {
         try {
 
-            com.example.nexus.view.dialogs.SettingsPanel settingsPanel =
-                    new com.example.nexus.view.dialogs.SettingsPanel(settingsService);
+            SettingsPanel settingsPanel =
+                    new SettingsPanel(settingsService);
 
             javafx.stage.Stage settingsStage = new javafx.stage.Stage();
             settingsStage.setTitle("Settings");
@@ -461,7 +459,61 @@ public class MainController {
 
     @FXML
     public void handleNewWindow() {
-        showNotImplementedAlert("New Window");
+        try {
+            logger.info("Opening new browser window");
+
+            // Create a new Stage (window)
+            Stage newWindow = new Stage();
+            newWindow.setTitle("Nexus Browser");
+
+            // Set icon
+            try {
+                var iconStream = getClass().getResourceAsStream("/com/example/nexus/icons/browser.png");
+                if (iconStream != null) {
+                    newWindow.getIcons().add(new javafx.scene.image.Image(iconStream));
+                }
+            } catch (Exception e) {
+                logger.debug("Could not load browser icon for new window");
+            }
+
+            MainView mainView = new MainView(container);
+
+            Scene scene = new Scene(mainView, 1280, 800);
+            var mainCssResource = getClass().getResource("/com/example/nexus/css/main.css");
+            if (mainCssResource != null) {
+                scene.getStylesheets().add(mainCssResource.toExternalForm());
+            }
+
+            String currentTheme = settingsService.getTheme();
+            String actualTheme = settingsController.resolveTheme(currentTheme);
+            var themeCssResource = getClass().getResource("/com/example/nexus/css/" + actualTheme + ".css");
+            if (themeCssResource != null) {
+                scene.getStylesheets().add(themeCssResource.toExternalForm());
+            }
+
+            settingsController.registerScene(scene);
+            newWindow.setOnHidden(e -> {
+                settingsController.unregisterScene(scene);
+                logger.info("Browser window closed");
+            });
+
+            newWindow.setScene(scene);
+            newWindow.setMinWidth(800);
+            newWindow.setMinHeight(600);
+
+            // Show the new window
+            newWindow.show();
+
+            logger.info("New browser window opened successfully");
+
+        } catch (Exception e) {
+            logger.error("Error opening new browser window", e);
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setHeaderText("Failed to open new window");
+            alert.setContentText("Could not create a new browser window: " + e.getMessage());
+            alert.showAndWait();
+        }
     }
 
     @FXML
@@ -543,21 +595,8 @@ public class MainController {
     }
 
     public void saveCurrentSession() {
-        // TODO: Implement session saving functionality
-        // Currently collecting tabs but not persisting them
-        if (tabService == null || tabPane == null) return;
-
-        java.util.List<Tab> tabsToSave = new java.util.ArrayList<>();
-        for (javafx.scene.control.Tab fxTab : tabPane.getTabs()) {
-            BrowserTab browserTab = tabController.getBrowserTabForFxTab(fxTab);
-            if (browserTab != null) {
-                Tab modelTab = browserTab.getTabModel();
-                if (modelTab != null) {
-                    tabsToSave.add(modelTab);
-                }
-            }
-        }
-        // TODO: Save tabsToSave to tabService or persistence layer
+        logger.info("saveCurrentSession() called from BrowserApplication.stop()");
+        saveSessionOnExit();
     }
     public void handleToggleMagnifierMode() {
         if (zoomService != null) {
@@ -647,6 +686,78 @@ public class MainController {
 
         } catch (Exception e) {
             logger.error("Error opening profile panel", e);
+        }
+    }
+
+    // === Session Persistence Methods ===
+
+    /**
+     * Initialize session persistence - restore tabs if setting is enabled
+     */
+    private void initializeSessionPersistence() {
+        try {
+            ProfileService profileService = container.getOrCreate(ProfileService.class);
+            Profile currentProfile = profileService.getCurrentProfile();
+
+            if (currentProfile == null || currentProfile.getId() <= 0) {
+                logger.warn("No valid profile found, creating default tab");
+                Platform.runLater(() -> tabController.createNewTab(settingsService.getHomePage()));
+                return;
+            }
+
+            // Check if session restore is enabled
+            boolean restoreSession = settingsService.isRestoreSession();
+
+            if (restoreSession && tabController.hasSessionForProfile(currentProfile.getId())) {
+                logger.info("Restoring session for profile: {}", currentProfile.getUsername());
+                Platform.runLater(() -> tabController.restoreSessionForProfile(currentProfile.getId()));
+            } else {
+                logger.info("Session restore disabled or no saved session, creating default tab");
+                // Clear old tabs if restore is disabled
+                TabService tabService = container.getOrCreate(TabService.class);
+                tabService.clearProfileTabs(currentProfile.getId());
+                Platform.runLater(() -> tabController.createNewTab(settingsService.getHomePage()));
+            }
+
+        } catch (Exception e) {
+            logger.error("Error initializing session persistence", e);
+            // Fallback to default tab
+            Platform.runLater(() -> tabController.createNewTab(settingsService.getHomePage()));
+        }
+    }
+
+    /**
+     * Save session when browser is closed
+     */
+    private void saveSessionOnExit() {
+        logger.info("saveSessionOnExit() called - saving current session");
+        try {
+            ProfileService profileService = container.getOrCreate(ProfileService.class);
+            Profile currentProfile = profileService.getCurrentProfile();
+
+            if (currentProfile == null || currentProfile.getId() <= 0) {
+                logger.warn("No valid profile to save session for");
+                return;
+            }
+
+            logger.info("Saving session for profile: {} (ID: {})", currentProfile.getUsername(), currentProfile.getId());
+
+            // Check if session restore is enabled
+            boolean restoreSession = settingsService.isRestoreSession();
+            logger.info("Restore session setting: {}", restoreSession);
+
+            if (restoreSession) {
+                logger.info("Session restore enabled, saving tabs for profile {}", currentProfile.getId());
+                tabController.saveSessionForProfile(currentProfile.getId());
+            } else {
+                logger.info("Session restore disabled, clearing saved tabs");
+                // Clear saved tabs if restore is disabled
+                TabService tabService = container.getOrCreate(TabService.class);
+                tabService.clearProfileTabs(currentProfile.getId());
+            }
+
+        } catch (Exception e) {
+            logger.error("Error saving session on exit", e);
         }
     }
 }

@@ -41,7 +41,7 @@ public class StatusBarComponent extends HBox {
 
         getChildren().addAll(urlLabel, statusLabel, zoomLabel);
 
-        applyVisibilitySettings();
+        com.example.nexus.util.UISettingsBinder.bindVisibility(this, settingsService, () -> settingsService.isShowStatusBar());
 
         settingsService.addSettingsChangeListener(this::onSettingsChanged);
     }
@@ -52,10 +52,8 @@ public class StatusBarComponent extends HBox {
 
     private void applyVisibilitySettings() {
         try {
-            boolean showStatusBar = settingsService.isShowStatusBar();
-            setVisible(showStatusBar);
-            setManaged(showStatusBar);
-            logger.debug("Status bar visibility set to: {}", showStatusBar);
+            com.example.nexus.util.UISettingsBinder.bindVisibility(this, settingsService, () -> settingsService.isShowStatusBar());
+            logger.debug("Status bar visibility applied via UISettingsBinder");
         } catch (Exception e) {
             logger.error("Error applying visibility settings", e);
         }

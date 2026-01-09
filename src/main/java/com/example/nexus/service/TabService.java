@@ -57,4 +57,31 @@ public class TabService {
             tabRepository.save(tab);
         }
     }
+
+    public List<Tab> getTabsByProfileId(int profileId) {
+        return tabRepository.findByProfileId(profileId);
+    }
+
+    public void saveProfileTabs(List<Tab> tabs, int profileId) {
+        // Always delete existing tabs for this profile first
+        // This ensures old sessions are cleared even if tabs list is empty
+        tabRepository.deleteByProfileId(profileId);
+        logger.info("Cleared old tabs for profile {}", profileId);
+
+        // Save new tabs (if any)
+        if (tabs != null && !tabs.isEmpty()) {
+            for (Tab tab : tabs) {
+                tab.setProfileId(profileId);
+                tabRepository.save(tab);
+            }
+            logger.info("Saved {} tabs for profile {}", tabs.size(), profileId);
+        } else {
+            logger.info("No tabs to save for profile {}", profileId);
+        }
+    }
+
+    public void clearProfileTabs(int profileId) {
+        tabRepository.deleteByProfileId(profileId);
+        logger.info("Cleared all tabs for profile {}", profileId);
+    }
 }

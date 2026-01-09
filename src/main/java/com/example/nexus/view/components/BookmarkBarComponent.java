@@ -1,30 +1,26 @@
 package com.example.nexus.view.components;
 
-import com.example.nexus.core.DIContainer;
 import com.example.nexus.model.Bookmark;
 import com.example.nexus.model.BookmarkFolder;
 import com.example.nexus.model.Settings;
 import com.example.nexus.service.BookmarkService;
 import com.example.nexus.service.SettingsService;
+import com.example.nexus.util.FaviconLoader;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.StackPane;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public class BookmarkBarComponent extends HBox {
@@ -39,8 +35,6 @@ public class BookmarkBarComponent extends HBox {
     private HBox favoritesContainer;
     private MenuButton foldersMenuButton;
     private Separator separator;
-
-    private static final Map<String, Image> faviconCache = new HashMap<>();
 
     public BookmarkBarComponent(BookmarkService bookmarkService, SettingsService settingsService,
                                 Consumer<String> onOpenUrl, Consumer<String> onOpenInNewTab,
@@ -57,7 +51,7 @@ public class BookmarkBarComponent extends HBox {
 
         setSpacing(8);
         setPadding(new Insets(4, 10, 4, 10));
-        setStyle("-fx-background-color: #f8f9fa; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;");
+        getStyleClass().add("bookmark-bar");
         setAlignment(Pos.CENTER_LEFT);
 
         favoritesContainer = new HBox(5);
@@ -69,15 +63,9 @@ public class BookmarkBarComponent extends HBox {
         separator.setMaxHeight(20);
 
         foldersMenuButton = new MenuButton("Bookmarks");
-        foldersMenuButton.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: #333333; -fx-font-size: 12px; -fx-cursor: hand; -fx-background-radius: 4; -fx-border-radius: 4;");
+        // let CSS control the visual appearance for light/dark themes
+        foldersMenuButton.getStyleClass().add("bookmark-folders-btn");
         foldersMenuButton.setGraphic(createFolderIcon());
-
-        foldersMenuButton.setOnMouseEntered(e -> {
-            foldersMenuButton.setStyle("-fx-background-color: #e9ecef; -fx-border-color: transparent; -fx-text-fill: #333333; -fx-font-size: 12px; -fx-cursor: hand; -fx-background-radius: 4; -fx-border-radius: 4;");
-        });
-        foldersMenuButton.setOnMouseExited(e -> {
-            foldersMenuButton.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: #333333; -fx-font-size: 12px; -fx-cursor: hand; -fx-background-radius: 4; -fx-border-radius: 4;");
-        });
 
         getChildren().addAll(favoritesContainer, separator, foldersMenuButton);
 
@@ -94,10 +82,9 @@ public class BookmarkBarComponent extends HBox {
 
     private void applyVisibilitySettings() {
         try {
-            boolean showBookmarksBar = settingsService.isShowBookmarksBar();
-            setVisible(showBookmarksBar);
-            setManaged(showBookmarksBar);
-            logger.debug("Bookmark bar visibility set to: {}", showBookmarksBar);
+            com.example.nexus.util.UISettingsBinder.bindVisibility(this, settingsService, () -> settingsService.isShowBookmarksBar());
+            // debug log kept
+            logger.debug("Bookmark bar visibility applied via UISettingsBinder");
         } catch (Exception e) {
             logger.error("Error applying visibility settings", e);
         }
@@ -175,26 +162,44 @@ public class BookmarkBarComponent extends HBox {
         HBox buttonContainer = new HBox(4);
         buttonContainer.setAlignment(Pos.CENTER_LEFT);
         buttonContainer.setPadding(new Insets(4, 8, 4, 8));
-        buttonContainer.setStyle("-fx-background-color: transparent; -fx-background-radius: 4;");
+        buttonContainer.getStyleClass().add("bookmark-btn");
 
-        ImageView iconView = new ImageView(createDefaultBookmarkIconImage());
-        iconView.setFitWidth(16);
-        iconView.setFitHeight(16);
-        iconView.setPreserveRatio(true);
+        // icon container: show a FontIcon by default so CSS can color it, then swap to ImageView when favicon loads
+        StackPane iconContainer = new StackPane();
+        iconContainer.setMinSize(16, 16);
+        iconContainer.setMaxSize(16, 16);
 
-        loadFaviconAsync(bookmark, iconView);
+        FontIcon defaultIcon = createDefaultBookmarkIcon();
+        defaultIcon.getStyleClass().add("bookmark-default-icon");
+
+        ImageView faviconView = new ImageView();
+        faviconView.setFitWidth(16);
+        faviconView.setFitHeight(16);
+        faviconView.setPreserveRatio(true);
+
+        iconContainer.getChildren().add(defaultIcon);
+
+        // async load of the favicon; when present, swap the image into the container
+        String domain = extractDomain(bookmark.getUrl());
+        if (domain != null) {
+            FaviconLoader.loadForDomain(domain, 16).thenAccept(image -> {
+                if (image != null) {
+                    Platform.runLater(() -> {
+                        faviconView.setImage(image);
+                        iconContainer.getChildren().clear();
+                        iconContainer.getChildren().add(faviconView);
+                    });
+                }
+            });
+        }
 
         Label titleLabel = new Label(truncateTitle(bookmark.getTitle(), 20));
-        titleLabel.setStyle("-fx-text-fill: #333333; -fx-font-size: 12px; -fx-font-weight: 400;");
+        titleLabel.getStyleClass().add("bookmark-btn-label");
 
         Tooltip tooltip = new Tooltip(bookmark.getTitle());
-        tooltip.setStyle("-fx-font-size: 12px;");
         Tooltip.install(titleLabel, tooltip);
 
-        buttonContainer.getChildren().addAll(iconView, titleLabel);
-
-        buttonContainer.setOnMouseEntered(e -> buttonContainer.setStyle("-fx-background-color: #e9ecef; -fx-background-radius: 4; -fx-cursor: hand;"));
-        buttonContainer.setOnMouseExited(e -> buttonContainer.setStyle("-fx-background-color: transparent; -fx-background-radius: 4; -fx-cursor: default;"));
+        buttonContainer.getChildren().addAll(iconContainer, titleLabel);
 
         buttonContainer.setOnMouseClicked(e -> {
             logger.debug("Opening bookmark: {}", bookmark.getTitle());
@@ -202,67 +207,6 @@ public class BookmarkBarComponent extends HBox {
         });
 
         return buttonContainer;
-    }
-
-    private void loadFaviconAsync(Bookmark bookmark, ImageView iconView) {
-
-        String domain = extractDomain(bookmark.getUrl());
-        if (domain == null) {
-            return;
-        }
-
-        String cacheKey = domain;
-
-        if (faviconCache.containsKey(cacheKey)) {
-            iconView.setImage(faviconCache.get(cacheKey));
-            return;
-        }
-
-        CompletableFuture.supplyAsync(() -> {
-            try {
-
-                String googleFaviconUrl = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=16";
-                Image image = new Image(googleFaviconUrl, 16, 16, true, true, true);
-                if (!image.isError()) {
-                    logger.debug("Loaded favicon from Google for domain: {}", domain);
-                    return image;
-                }
-
-                String directFaviconUrl = "https://" + domain + "/favicon.ico";
-                image = new Image(directFaviconUrl, 16, 16, true, true, true);
-                if (!image.isError()) {
-                    logger.debug("Loaded direct favicon for domain: {}", domain);
-                    return image;
-                }
-
-                if (bookmark.getFaviconUrl() != null && !bookmark.getFaviconUrl().isEmpty()) {
-                    image = new Image(bookmark.getFaviconUrl(), 16, 16, true, true, true);
-                    if (!image.isError()) {
-                        logger.debug("Loaded stored favicon for domain: {}", domain);
-                        return image;
-                    }
-                }
-
-                String ddgFaviconUrl = "https://icons.duckduckgo.com/ip3/" + domain + ".ico";
-                image = new Image(ddgFaviconUrl, 16, 16, true, true, true);
-                if (!image.isError()) {
-                    logger.debug("Loaded DDG favicon for domain: {}", domain);
-                    return image;
-                }
-
-                return null;
-            } catch (Exception e) {
-                logger.debug("Error loading favicon for domain {}: {}", domain, e.getMessage());
-                return null;
-            }
-        }).thenAcceptAsync(image -> {
-
-            if (image != null) {
-                iconView.setImage(image);
-
-                faviconCache.put(cacheKey, image);
-            }
-        }, Platform::runLater);
     }
 
     private String extractDomain(String url) {
@@ -287,20 +231,6 @@ public class BookmarkBarComponent extends HBox {
         }
     }
 
-    private Image createDefaultBookmarkIconImage() {
-
-        FontIcon icon = createDefaultBookmarkIcon();
-
-        return createImageFromIcon(icon);
-    }
-
-    private Image createImageFromIcon(FontIcon icon) {
-
-        javafx.scene.SnapshotParameters params = new javafx.scene.SnapshotParameters();
-        params.setFill(javafx.scene.paint.Color.TRANSPARENT);
-        return icon.snapshot(params, null);
-    }
-
     private String truncateTitle(String title, int maxLength) {
         if (title == null) return "";
         if (title.length() <= maxLength) return title;
@@ -316,25 +246,42 @@ public class BookmarkBarComponent extends HBox {
 
     private Button createMoreButton() {
         Button button = new Button("More");
-        button.setStyle("-fx-background-color: transparent; -fx-border-color: #dee2e6; -fx-text-fill: #666666; -fx-font-size: 11px; -fx-cursor: hand; -fx-padding: 4 8 4 8; -fx-border-radius: 4; -fx-background-radius: 4;");
+        button.getStyleClass().add("bookmark-more-btn");
         button.setAlignment(Pos.CENTER);
 
-        button.setOnMouseEntered(e -> button.setStyle("-fx-background-color: #e9ecef; -fx-border-color: #dee2e6; -fx-text-fill: #495057; -fx-font-size: 11px; -fx-cursor: hand; -fx-padding: 4 8 4 8; -fx-border-radius: 4; -fx-background-radius: 4;"));
-        button.setOnMouseExited(e -> button.setStyle("-fx-background-color: transparent; -fx-border-color: #dee2e6; -fx-text-fill: #666666; -fx-font-size: 11px; -fx-cursor: hand; -fx-padding: 4 8 4 8; -fx-border-radius: 4; -fx-background-radius: 4;"));
 
         return button;
     }
 
     private Node getBookmarkIcon(Bookmark bookmark) {
+        StackPane iconContainer = new StackPane();
+        iconContainer.setMinSize(16, 16);
+        iconContainer.setMaxSize(16, 16);
 
-        ImageView iconView = new ImageView(createDefaultBookmarkIconImage());
-        iconView.setFitWidth(16);
-        iconView.setFitHeight(16);
-        iconView.setPreserveRatio(true);
+        FontIcon defaultIcon = createDefaultBookmarkIcon();
+        defaultIcon.getStyleClass().add("bookmark-default-icon");
 
-        loadFaviconAsync(bookmark, iconView);
+        ImageView faviconView = new ImageView();
+        faviconView.setFitWidth(16);
+        faviconView.setFitHeight(16);
+        faviconView.setPreserveRatio(true);
 
-        return iconView;
+        iconContainer.getChildren().add(defaultIcon);
+
+        String domain = extractDomain(bookmark.getUrl());
+        if (domain != null) {
+            FaviconLoader.loadForDomain(domain, 16).thenAccept(image -> {
+                if (image != null) {
+                    Platform.runLater(() -> {
+                        faviconView.setImage(image);
+                        iconContainer.getChildren().clear();
+                        iconContainer.getChildren().add(faviconView);
+                    });
+                }
+            });
+        }
+
+        return iconContainer;
     }
 
     private MenuItem createFolderMenuItem(BookmarkFolder folder) {
@@ -373,14 +320,13 @@ public class BookmarkBarComponent extends HBox {
     private FontIcon createFolderIcon() {
         FontIcon icon = new FontIcon("mdi2f-folder");
         icon.setIconSize(16);
-        icon.setIconColor(javafx.scene.paint.Color.valueOf("#FFA000"));
+        // color is controlled by CSS via .bookmark-bar selectors
         return icon;
     }
 
     private FontIcon createDefaultBookmarkIcon() {
         FontIcon icon = new FontIcon("mdi2b-bookmark-outline");
         icon.setIconSize(16);
-        icon.setIconColor(javafx.scene.paint.Color.valueOf("#666666"));
         return icon;
     }
 

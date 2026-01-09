@@ -1,6 +1,7 @@
 package com.example.nexus.service;
 
 import com.example.nexus.core.DIContainer;
+import com.example.nexus.model.Profile;
 import com.example.nexus.model.Settings;
 import com.example.nexus.repository.SettingsRepository;
 import org.slf4j.Logger;
@@ -14,31 +15,45 @@ public class SettingsService {
     private static final Logger logger = LoggerFactory.getLogger(SettingsService.class);
 
     private final SettingsRepository settingsRepository;
+    private final DIContainer container;
     private volatile Settings currentSettings;
     private final List<Consumer<Settings>> changeListeners = new ArrayList<>();
+    private ProfileService profileService;
 
     public SettingsService(DIContainer container) {
         this.settingsRepository = container.getOrCreate(SettingsRepository.class);
+        this.container = container;
 
         try {
+            // Get ProfileService and listen for profile changes
+            this.profileService = container.getOrCreate(ProfileService.class);
+            this.profileService.addProfileChangeListener(profile -> {
+                logger.info("Profile changed to: {}, reloading settings", profile.getUsername());
+                reloadSettingsForCurrentProfile();
+            });
+
             loadSettings();
         } catch (Throwable t) {
             logger.error("Failed to load settings during initialization", t);
-
             currentSettings = new Settings(1);
         }
     }
 
     private synchronized void loadSettings() {
-
         if (currentSettings != null) return;
 
         try {
-            Settings s = settingsRepository.findByUserId(1);
+            // Get current profile
+            Profile currentProfile = profileService.getCurrentProfile();
+            int userId = (currentProfile != null && currentProfile.getId() > 0)
+                ? currentProfile.getId()
+                : 1;
+
+            Settings s = settingsRepository.findByUserId(userId);
             if (s == null) {
-                s = new Settings(1);
+                s = new Settings(userId);
                 settingsRepository.save(s);
-                logger.info("Created default settings");
+                logger.info("Created default settings for user {}", userId);
             }
             currentSettings = s;
 
@@ -52,9 +67,40 @@ public class SettingsService {
             notifyListeners();
         } catch (Exception e) {
             logger.error("Error loading settings from DB", e);
-
             currentSettings = new Settings(1);
             notifyListeners();
+        }
+    }
+
+    /**
+     * Reload settings when profile changes
+     */
+    private synchronized void reloadSettingsForCurrentProfile() {
+        try {
+            Profile currentProfile = profileService.getCurrentProfile();
+            int userId = (currentProfile != null && currentProfile.getId() > 0)
+                ? currentProfile.getId()
+                : 1;
+
+            // Only reload if switching to a different user
+            if (currentSettings != null && currentSettings.getUserId() == userId) {
+                logger.debug("Settings already loaded for user {}", userId);
+                return;
+            }
+
+            Settings s = settingsRepository.findByUserId(userId);
+            if (s == null) {
+                s = new Settings(userId);
+                settingsRepository.save(s);
+                logger.info("Created default settings for user {}", userId);
+            }
+
+            currentSettings = s;
+            logger.info("Reloaded settings for user {}: {}", userId, currentSettings);
+
+            notifyListeners();
+        } catch (Exception e) {
+            logger.error("Error reloading settings for current profile", e);
         }
     }
 

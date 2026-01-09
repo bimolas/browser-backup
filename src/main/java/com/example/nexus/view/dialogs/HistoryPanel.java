@@ -1,453 +1,243 @@
 package com.example.nexus.view.dialogs;
 
-import com.example.nexus.core.DIContainer;
-import com.example.nexus.exception.BrowserException;
 import com.example.nexus.model.HistoryEntry;
-import com.example.nexus.service.HistoryService;
-import com.example.nexus.service.SettingsService;
+import com.example.nexus.util.FaviconLoader;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
-import javafx.scene.layout.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
-public class HistoryPanel extends Stage {
-    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy");
+/**
+ * FXML View Controller for HistoryPanel - Handles UI ONLY, no business logic
+ */
+public class HistoryPanel {
 
-    private final DIContainer container;
-    private final HistoryService historyService;
-    private final SettingsService settingsService;
-    private final ObservableList<HistoryEntry> historyList;
-    private final FilteredList<HistoryEntry> filteredHistory;
-    private final Map<String, Image> faviconCache;
-    private final boolean isDarkTheme;
+    // FXML components
+    @FXML private Label historyIconLabel;
+    @FXML private Label statusLabel;
+    @FXML private TextField searchField;
+    @FXML private ComboBox<String> filterCombo;
+    @FXML private Button clearAllBtn;
+    @FXML private Button closeBtn;
+    @FXML private ListView<HistoryEntry> historyListView;
+    @FXML private VBox contentBox;
+    @FXML private HBox footerBox;
 
-    private Consumer<String> onOpenUrl;
-    private TextField searchField;
-    private ComboBox<String> filterCombo;
-    private ListView<HistoryEntry> historyListView;
-    private Label statusLabel;
-    private VBox contentBox;
+    // View state
+    private final ObservableList<HistoryEntry> historyList = FXCollections.observableArrayList();
+    private final FilteredList<HistoryEntry> filteredHistory = new FilteredList<>(historyList, p -> true);
+    private boolean isDarkTheme;
 
+    // Filter constants
     private static final String FILTER_ALL = "All Time";
     private static final String FILTER_TODAY = "Today";
     private static final String FILTER_YESTERDAY = "Yesterday";
     private static final String FILTER_WEEK = "This Week";
     private static final String FILTER_MONTH = "This Month";
 
-    public HistoryPanel(DIContainer container) {
-        this.container = container;
-        this.historyService = container.getOrCreate(HistoryService.class);
-        this.settingsService = container.getOrCreate(SettingsService.class);
-        this.historyList = FXCollections.observableArrayList();
-        this.filteredHistory = new FilteredList<>(historyList, p -> true);
-        this.faviconCache = new HashMap<>();
+    // Callbacks to business controller
+    private Consumer<String> onOpenUrl;
+    private Consumer<HistoryEntry> onDeleteEntry;
+    private Runnable onClearAll;
+    private Runnable onClose;
 
-        String theme = settingsService.getTheme();
-        this.isDarkTheme = "dark".equals(theme) || ("system".equals(theme) && isSystemDark());
+    @FXML
+    public void initialize() {
+        // Set up icons
+        setupIcons();
 
-        initializeStage();
-        initializeUI();
-        loadHistory();
-    }
-
-    private boolean isSystemDark() {
-        try {
-            String gtkTheme = System.getenv("GTK_THEME");
-            if (gtkTheme != null && gtkTheme.toLowerCase().contains("dark")) {
-                return true;
-            }
-        } catch (Exception e) {
-
-        }
-        return false;
-    }
-
-    private String getBgPrimary() { return isDarkTheme ? "#1e1e1e" : "#ffffff"; }
-    private String getBgSecondary() { return isDarkTheme ? "#252525" : "#f8f9fa"; }
-    private String getBgTertiary() { return isDarkTheme ? "#2d2d2d" : "#e9ecef"; }
-    private String getBorderColor() { return isDarkTheme ? "#404040" : "#e9ecef"; }
-    private String getTextPrimary() { return isDarkTheme ? "#e0e0e0" : "#212529"; }
-    private String getTextSecondary() { return isDarkTheme ? "#b0b0b0" : "#495057"; }
-    private String getTextMuted() { return isDarkTheme ? "#808080" : "#6c757d"; }
-
-    private void initializeStage() {
-        setTitle("History");
-        initModality(Modality.NONE);
-        initStyle(StageStyle.DECORATED);
-        setMinWidth(700);
-        setMinHeight(500);
-        setWidth(850);
-        setHeight(650);
-    }
-
-    private void initializeUI() {
-        BorderPane root = new BorderPane();
-        root.getStyleClass().add("history-panel");
-
-        root.setStyle(String.format("--bg-primary: %s; --bg-secondary: %s; --border-color: %s; --text-primary: %s; --text-muted: %s;",
-            getBgPrimary(), getBgSecondary(), getBorderColor(), getTextPrimary(), getTextMuted()));
-
-        root.setTop(createHeader());
-
-        contentBox = new VBox(10);
-        contentBox.setPadding(new Insets(15));
-        contentBox.getStyleClass().add("history-content");
-        contentBox.setStyle(String.format("--bg-secondary: %s;", getBgSecondary()));
-
-        historyListView = createHistoryListView();
-        VBox.setVgrow(historyListView, Priority.ALWAYS);
-        contentBox.getChildren().add(historyListView);
-
-        root.setCenter(contentBox);
-
-        root.setBottom(createFooter());
-
-        Scene scene = new Scene(root);
-
-        String cssPath = isDarkTheme ? "/com/example/nexus/css/dark.css" : "/com/example/nexus/css/main.css";
-        scene.getStylesheets().add(getClass().getResource(cssPath).toExternalForm());
-
-        scene.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ESCAPE) {
-                close();
-            } else if (event.isControlDown() && event.getCode() == KeyCode.F) {
-                searchField.requestFocus();
-            }
-        });
-
-        setScene(scene);
-    }
-
-    private VBox createHeader() {
-        VBox header = new VBox(15);
-        header.setPadding(new Insets(20, 20, 15, 20));
-        header.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-border-color: " + getBorderColor() + "; -fx-border-width: 0 0 1 0;");
-
-        HBox titleRow = new HBox(15);
-        titleRow.setAlignment(Pos.CENTER_LEFT);
-
-        FontIcon historyIcon = new FontIcon("mdi2h-history");
-        historyIcon.setIconSize(28);
-        historyIcon.setIconColor(Color.valueOf(getTextSecondary()));
-
-        Label titleLabel = new Label("History");
-        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
-        titleLabel.setTextFill(Color.valueOf(getTextPrimary()));
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Button clearAllBtn = new Button("Clear All History");
-        FontIcon clearIcon = new FontIcon("mdi2d-delete-sweep");
-        clearIcon.setIconSize(16);
-        clearIcon.setIconColor(Color.WHITE);
-        clearAllBtn.setGraphic(clearIcon);
-        clearAllBtn.getStyleClass().addAll("danger-button");
-        clearAllBtn.setOnAction(e -> clearAllHistory());
-
-        titleRow.getChildren().addAll(historyIcon, titleLabel, spacer, clearAllBtn);
-
-        HBox searchRow = new HBox(15);
-        searchRow.setAlignment(Pos.CENTER_LEFT);
-
-        String searchBgNormal = isDarkTheme ? "#2d2d2d" : "#f8f9fa";
-        String searchBgFocused = isDarkTheme ? "#1e1e1e" : "#ffffff";
-        String searchBorderFocused = "#0d6efd";
-
-        searchField = new TextField();
-        searchField.setPromptText("Search history by title or URL...");
-        searchField.setPrefWidth(400);
-        searchField.getStyleClass().add("search-field");
-        searchField.setStyle(String.format("--search-bg-normal: %s; --search-bg-focused: %s; --search-border-focused: %s; --text-primary: %s;", searchBgNormal, searchBgFocused, searchBorderFocused, getTextPrimary()));
-
-        searchField.focusedProperty().addListener((obs, oldVal, focused) -> {
-            if (focused) {
-                if (!searchField.getStyleClass().contains("search-focused")) {
-                    searchField.getStyleClass().add("search-focused");
-                }
-            } else {
-                searchField.getStyleClass().remove("search-focused");
-            }
-        });
-
-        FontIcon searchIcon = new FontIcon("mdi2m-magnify");
-        searchIcon.setIconSize(18);
-        searchIcon.setIconColor(Color.valueOf(getTextMuted()));
-
-        HBox searchBox = new HBox(10);
-        searchBox.setAlignment(Pos.CENTER_LEFT);
-        searchBox.getStyleClass().add("search-box");
-        searchBox.setStyle(String.format("--search-bg-normal: %s;", searchBgNormal));
-        searchBox.getChildren().addAll(searchIcon, searchField);
-        HBox.setHgrow(searchField, Priority.ALWAYS);
-        HBox.setHgrow(searchBox, Priority.ALWAYS);
-
-        searchField.textProperty().addListener((obs, oldVal, newVal) -> filterHistory());
-
-        String comboBg = isDarkTheme ? "#2d2d2d" : "#f8f9fa";
-        String comboBorder = isDarkTheme ? "#404040" : "#dee2e6";
-
-        filterCombo = new ComboBox<>();
+        // Set up filter combo
         filterCombo.getItems().addAll(FILTER_ALL, FILTER_TODAY, FILTER_YESTERDAY, FILTER_WEEK, FILTER_MONTH);
         filterCombo.setValue(FILTER_ALL);
-        filterCombo.setPrefWidth(150);
-        filterCombo.setStyle("-fx-background-color: " + comboBg + "; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: " + comboBorder + "; -fx-border-width: 1; -fx-padding: 6 12; -fx-font-size: 13px;");
-        filterCombo.getStyleClass().add("filter-dropdown");
-        filterCombo.setOnAction(e -> filterHistory());
+        filterCombo.valueProperty().addListener((obs, oldVal, newVal) -> applyFilters());
 
-        searchRow.getChildren().addAll(searchBox, filterCombo);
+        // Set up list view
+        historyListView.setItems(filteredHistory);
+        historyListView.setCellFactory(lv -> new HistoryCell());
+        historyListView.setPlaceholder(createEmptyPlaceholder());
 
-        header.getChildren().addAll(titleRow, searchRow);
-        return header;
-    }
+        // Set up search
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> applyFilters());
 
-    private ListView<HistoryEntry> createHistoryListView() {
-        ListView<HistoryEntry> listView = new ListView<>(filteredHistory);
-        listView.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;");
-        listView.setPlaceholder(createEmptyPlaceholder());
-        listView.setCellFactory(lv -> new HistoryCell());
-
-        listView.setOnMouseClicked(event -> {
+        // Set up double-click to open
+        historyListView.setOnMouseClicked(event -> {
             if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
-                HistoryEntry selected = listView.getSelectionModel().getSelectedItem();
+                HistoryEntry selected = historyListView.getSelectionModel().getSelectedItem();
                 if (selected != null && onOpenUrl != null) {
                     onOpenUrl.accept(selected.getUrl());
                 }
             }
         });
-
-        ContextMenu contextMenu = createContextMenu();
-        listView.setContextMenu(contextMenu);
-
-        return listView;
     }
 
-    private VBox createEmptyPlaceholder() {
-        VBox placeholder = new VBox(15);
-        placeholder.setAlignment(Pos.CENTER);
-        placeholder.setPadding(new Insets(50));
+    private void setupIcons() {
+        FontIcon historyIcon = new FontIcon("mdi2h-history");
+        historyIcon.setIconSize(28);
+        historyIconLabel.setGraphic(historyIcon);
 
-        FontIcon emptyIcon = new FontIcon("mdi2h-history");
-        emptyIcon.setIconSize(64);
-        emptyIcon.setIconColor(Color.valueOf("#adb5bd"));
-
-        Label emptyLabel = new Label("No history found");
-        emptyLabel.setFont(Font.font("System", FontWeight.MEDIUM, 18));
-        emptyLabel.setTextFill(Color.valueOf("#6c757d"));
-
-        Label hintLabel = new Label("Pages you visit will appear here");
-        hintLabel.setFont(Font.font("System", 14));
-        hintLabel.setTextFill(Color.valueOf("#adb5bd"));
-
-        placeholder.getChildren().addAll(emptyIcon, emptyLabel, hintLabel);
-        return placeholder;
+        FontIcon clearIcon = new FontIcon("mdi2d-delete-sweep");
+        clearIcon.setIconSize(16);
+        clearIcon.setIconColor(Color.WHITE);
+        clearAllBtn.setGraphic(clearIcon);
     }
 
-    private ContextMenu createContextMenu() {
-        ContextMenu menu = new ContextMenu();
-
-        MenuItem openItem = new MenuItem("Open in New Tab");
-        openItem.setGraphic(new FontIcon("mdi2t-tab-plus"));
-        openItem.setOnAction(e -> {
-            HistoryEntry selected = historyListView.getSelectionModel().getSelectedItem();
-            if (selected != null && onOpenUrl != null) {
-                onOpenUrl.accept(selected.getUrl());
-            }
-        });
-
-        MenuItem copyUrlItem = new MenuItem("Copy URL");
-        copyUrlItem.setGraphic(new FontIcon("mdi2c-content-copy"));
-        copyUrlItem.setOnAction(e -> {
-            HistoryEntry selected = historyListView.getSelectionModel().getSelectedItem();
-            if (selected != null) {
-                javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
-                javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
-                content.putString(selected.getUrl());
-                clipboard.setContent(content);
-            }
-        });
-
-        MenuItem deleteItem = new MenuItem("Delete");
-        deleteItem.setGraphic(new FontIcon("mdi2d-delete"));
-        deleteItem.setOnAction(e -> {
-            HistoryEntry selected = historyListView.getSelectionModel().getSelectedItem();
-            if (selected != null) {
-                deleteHistoryEntry(selected);
-            }
-        });
-
-        menu.getItems().addAll(openItem, copyUrlItem, new SeparatorMenuItem(), deleteItem);
-        return menu;
+    // === FXML Event Handlers ===
+    @FXML
+    private void handleClearAll() {
+        if (onClearAll != null) onClearAll.run();
     }
 
-    private HBox createFooter() {
-        HBox footer = new HBox(15);
-        footer.setPadding(new Insets(15, 20, 15, 20));
-        footer.setAlignment(Pos.CENTER_LEFT);
-        footer.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-border-color: " + getBorderColor() + "; -fx-border-width: 1 0 0 0;");
-
-        statusLabel = new Label();
-        statusLabel.setTextFill(Color.valueOf(getTextMuted()));
-        updateStatusLabel();
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Button closeBtn = new Button("Close");
-        String closeBtnBg = isDarkTheme ? "#4a4a4a" : "#6c757d";
-        closeBtn.setStyle("-fx-background-color: " + closeBtnBg + "; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 20;");
-        closeBtn.setOnAction(e -> close());
-
-        footer.getChildren().addAll(statusLabel, spacer, closeBtn);
-        return footer;
+    @FXML
+    private void handleClose() {
+        if (onClose != null) onClose.run();
     }
 
-    private void loadHistory() {
-        try {
-            List<HistoryEntry> entries = historyService.getAllHistory();
-            historyList.setAll(entries);
-            updateStatusLabel();
-        } catch (BrowserException e) {
-            showError("Error Loading History", e.getMessage());
-        }
-    }
-
-    private void filterHistory() {
-        String searchText = searchField.getText().toLowerCase().trim();
-        String filterValue = filterCombo.getValue();
-
-        filteredHistory.setPredicate(entry -> {
-
-            boolean matchesText = searchText.isEmpty() ||
-                (entry.getTitle() != null && entry.getTitle().toLowerCase().contains(searchText)) ||
-                (entry.getUrl() != null && entry.getUrl().toLowerCase().contains(searchText));
-
-            boolean matchesDate = true;
-            if (entry.getLastVisit() != null) {
-                LocalDate entryDate = entry.getLastVisit().toLocalDate();
-                LocalDate today = LocalDate.now();
-
-                matchesDate = switch (filterValue) {
-                    case FILTER_TODAY -> entryDate.equals(today);
-                    case FILTER_YESTERDAY -> entryDate.equals(today.minusDays(1));
-                    case FILTER_WEEK -> !entryDate.isBefore(today.minusDays(7));
-                    case FILTER_MONTH -> !entryDate.isBefore(today.minusDays(30));
-                    default -> true;
-                };
-            }
-
-            return matchesText && matchesDate;
-        });
-
-        updateStatusLabel();
-    }
-
-    private void deleteHistoryEntry(HistoryEntry entry) {
-        try {
-            historyService.deleteHistoryEntry(entry.getId());
-            historyList.remove(entry);
-            updateStatusLabel();
-        } catch (BrowserException e) {
-            showError("Error Deleting Entry", e.getMessage());
-        }
-    }
-
-    private void clearAllHistory() {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Clear History");
-        confirm.setHeaderText("Clear all browsing history?");
-        confirm.setContentText("This action cannot be undone. All your browsing history will be permanently deleted.");
-        confirm.initOwner(this);
-
-        confirm.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                try {
-                    historyService.clearHistory();
-                    historyList.clear();
-                    updateStatusLabel();
-                } catch (BrowserException e) {
-                    showError("Error Clearing History", e.getMessage());
-                }
-            }
-        });
-    }
-
-    private void updateStatusLabel() {
-        int total = historyList.size();
-        int filtered = filteredHistory.size();
-
-        if (total == filtered) {
-            statusLabel.setText(total + " item" + (total != 1 ? "s" : "") + " in history");
-        } else {
-            statusLabel.setText("Showing " + filtered + " of " + total + " items");
-        }
-    }
-
-    private void showError(String title, String message) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-            alert.initOwner(this);
-            alert.showAndWait();
-        });
-    }
-
+    // === Callback Setters ===
     public void setOnOpenUrl(Consumer<String> handler) {
         this.onOpenUrl = handler;
     }
 
+    public void setOnDeleteEntry(Consumer<HistoryEntry> handler) {
+        this.onDeleteEntry = handler;
+    }
+
+    public void setOnClearAll(Runnable handler) {
+        this.onClearAll = handler;
+    }
+
+    public void setOnClose(Runnable handler) {
+        this.onClose = handler;
+    }
+
+    public void setDarkTheme(boolean isDarkTheme) {
+        this.isDarkTheme = isDarkTheme;
+        applyThemeColors();
+    }
+
+    private void applyThemeColors() {
+        if (isDarkTheme) {
+            String closeBtnBg = "#4a4a4a";
+            closeBtn.setStyle("-fx-background-color: " + closeBtnBg + "; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 20;");
+
+            String footerBg = "#1e1e1e";
+            String borderColor = "#404040";
+            footerBox.setStyle("-fx-background-color: " + footerBg + "; -fx-border-color: " + borderColor + "; -fx-border-width: 1 0 0 0;");
+
+            String contentBg = "#1e1e1e";
+            contentBox.setStyle("-fx-background-color: " + contentBg + ";");
+        } else {
+            String closeBtnBg = "#6c757d";
+            closeBtn.setStyle("-fx-background-color: " + closeBtnBg + "; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 8 20;");
+
+            String footerBg = "#ffffff";
+            String borderColor = "#e9ecef";
+            footerBox.setStyle("-fx-background-color: " + footerBg + "; -fx-border-color: " + borderColor + "; -fx-border-width: 1 0 0 0;");
+
+            String contentBg = "#ffffff";
+            contentBox.setStyle("-fx-background-color: " + contentBg + ";");
+        }
+    }
+
+    // === Data Setters (Controller pushes data to view) ===
+    public void setHistory(List<HistoryEntry> history) {
+        Platform.runLater(() -> {
+            historyList.clear();
+            historyList.addAll(history);
+            updateStatusLabel();
+        });
+    }
+
+    // === UI Helpers ===
+    private void applyFilters() {
+        String searchText = searchField.getText().toLowerCase().trim();
+        String filter = filterCombo.getValue();
+
+        filteredHistory.setPredicate(entry -> {
+            // Search filter
+            if (!searchText.isEmpty()) {
+                boolean matchesSearch = (entry.getTitle() != null && entry.getTitle().toLowerCase().contains(searchText)) ||
+                                      (entry.getUrl() != null && entry.getUrl().toLowerCase().contains(searchText));
+                if (!matchesSearch) return false;
+            }
+
+            // Time filter
+            if (filter != null && !filter.equals(FILTER_ALL)) {
+                LocalDate entryDate = entry.getLastVisit().toLocalDate();
+                LocalDate now = LocalDate.now();
+
+                switch (filter) {
+                    case FILTER_TODAY:
+                        if (!entryDate.equals(now)) return false;
+                        break;
+                    case FILTER_YESTERDAY:
+                        if (!entryDate.equals(now.minusDays(1))) return false;
+                        break;
+                    case FILTER_WEEK:
+                        if (entryDate.isBefore(now.minusWeeks(1))) return false;
+                        break;
+                    case FILTER_MONTH:
+                        if (entryDate.isBefore(now.minusMonths(1))) return false;
+                        break;
+                }
+            }
+
+            return true;
+        });
+
+        updateStatusLabel();
+    }
+
+    private void updateStatusLabel() {
+        int count = filteredHistory.size();
+        statusLabel.setText(count + (count == 1 ? " item" : " items"));
+    }
+
+    private VBox createEmptyPlaceholder() {
+        return com.example.nexus.util.ViewUtils.createEmptyPlaceholder(
+            "mdi2h-history",
+            "No history yet",
+            "Your browsing history will appear here"
+        );
+    }
+
+    // === Custom Cell Renderer ===
     private class HistoryCell extends ListCell<HistoryEntry> {
         private final HBox container;
-        private final StackPane faviconContainer;
+        private final StackPane iconContainer;
         private final ImageView faviconView;
         private final FontIcon defaultIcon;
-        private final VBox textContainer;
         private final Label titleLabel;
         private final Label urlLabel;
-        private final VBox rightContainer;
         private final Label timeLabel;
-        private final Label visitCountLabel;
         private final Button deleteBtn;
 
         public HistoryCell() {
             container = new HBox(12);
             container.setAlignment(Pos.CENTER_LEFT);
             container.setPadding(new Insets(12, 15, 12, 15));
-            container.setStyle("-fx-background-color: " + getBgPrimary() + "; -fx-background-radius: 8;");
 
-            faviconContainer = new StackPane();
-            faviconContainer.setMinSize(40, 40);
-            faviconContainer.setMaxSize(40, 40);
-            faviconContainer.setStyle("-fx-background-color: " + getBgSecondary() + "; -fx-background-radius: 20;");
+            iconContainer = new StackPane();
+            iconContainer.setMinSize(40, 40);
+            iconContainer.setMaxSize(40, 40);
 
             faviconView = new ImageView();
             faviconView.setFitWidth(24);
@@ -456,156 +246,142 @@ public class HistoryPanel extends Stage {
 
             defaultIcon = new FontIcon("mdi2w-web");
             defaultIcon.setIconSize(20);
-            defaultIcon.setIconColor(Color.valueOf(getTextMuted()));
 
-            faviconContainer.getChildren().add(defaultIcon);
+            iconContainer.getChildren().add(defaultIcon);
 
-            textContainer = new VBox(4);
+            VBox textContainer = new VBox(4);
             HBox.setHgrow(textContainer, Priority.ALWAYS);
 
             titleLabel = new Label();
             titleLabel.setFont(Font.font("System", FontWeight.MEDIUM, 14));
-            titleLabel.setTextFill(Color.valueOf(getTextPrimary()));
-            titleLabel.setMaxWidth(400);
+            titleLabel.setMaxWidth(450);
 
             urlLabel = new Label();
             urlLabel.setFont(Font.font("System", 12));
-            urlLabel.setTextFill(Color.valueOf(getTextMuted()));
-            urlLabel.setMaxWidth(400);
+            urlLabel.setMaxWidth(450);
 
             textContainer.getChildren().addAll(titleLabel, urlLabel);
 
-            rightContainer = new VBox(4);
-            rightContainer.setAlignment(Pos.CENTER_RIGHT);
-            rightContainer.setMinWidth(100);
-
             timeLabel = new Label();
-            timeLabel.setFont(Font.font("System", 12));
-            timeLabel.setTextFill(Color.valueOf(getTextMuted()));
-
-            visitCountLabel = new Label();
-            visitCountLabel.setFont(Font.font("System", 11));
-            visitCountLabel.setTextFill(Color.valueOf(isDarkTheme ? "#606060" : "#adb5bd"));
-
-            rightContainer.getChildren().addAll(timeLabel, visitCountLabel);
+            timeLabel.setFont(Font.font("System", 11));
+            timeLabel.setMinWidth(100);
+            timeLabel.setAlignment(Pos.CENTER_RIGHT);
 
             deleteBtn = new Button();
-            FontIcon deleteIcon = new FontIcon("mdi2d-delete-outline");
+            FontIcon deleteIcon = new FontIcon("mdi2d-delete");
             deleteIcon.setIconSize(16);
-            deleteIcon.setIconColor(Color.valueOf(isDarkTheme ? "#b0b0b0" : "#6c757d"));
             deleteBtn.setGraphic(deleteIcon);
-            deleteBtn.setStyle("-fx-background-color: transparent; -fx-padding: 5;");
+            deleteBtn.getStyleClass().add("cell-delete-button");
+            deleteBtn.setStyle("-fx-background-color: transparent; -fx-padding: 5; -fx-cursor: hand;");
             deleteBtn.setVisible(false);
+            deleteBtn.setManaged(false); // Don't take up space when invisible
             deleteBtn.setOnAction(e -> {
-                e.consume();
-                HistoryEntry item = getItem();
-                if (item != null) {
-                    deleteHistoryEntry(item);
+                if (getItem() != null && onDeleteEntry != null) {
+                    onDeleteEntry.accept(getItem());
                 }
+                e.consume();
             });
 
-            container.getChildren().addAll(faviconContainer, textContainer, rightContainer, deleteBtn);
+            container.getChildren().addAll(iconContainer, textContainer, timeLabel, deleteBtn);
 
-            String bgNormal = getBgPrimary();
-            String bgHover = getBgSecondary();
-            container.setOnMouseEntered(e -> {
-                container.setStyle("-fx-background-color: " + bgHover + "; -fx-background-radius: 8;");
-                deleteBtn.setVisible(true);
-            });
-            container.setOnMouseExited(e -> {
-                container.setStyle("-fx-background-color: " + bgNormal + "; -fx-background-radius: 8;");
-                deleteBtn.setVisible(false);
+            String bgPrimary = isDarkTheme ? "#1e1e1e" : "#ffffff";
+            String bgSecondary = isDarkTheme ? "#252525" : "#f8f9fa";
+
+            // Update delete icon color based on theme
+            String iconColor = isDarkTheme ? "#b0b0b0" : "#495057";
+            deleteIcon.setIconColor(Color.valueOf(iconColor));
+
+
+            // Listen to hover state and update button visibility + background
+            hoverProperty().addListener((obs, wasHovered, isNowHovered) -> {
+                boolean shouldShow = isNowHovered && getItem() != null;
+                deleteBtn.setVisible(shouldShow);
+                deleteBtn.setManaged(shouldShow);
+                container.setStyle("-fx-background-color: " + (shouldShow ? bgSecondary : bgPrimary) + "; -fx-background-radius: 8;");
             });
         }
 
         @Override
-        protected void updateItem(HistoryEntry item, boolean empty) {
-            super.updateItem(item, empty);
+        protected void updateItem(HistoryEntry entry, boolean empty) {
+            super.updateItem(entry, empty);
 
-            if (empty || item == null) {
+            String bgPrimary = isDarkTheme ? "#1e1e1e" : "#ffffff";
+
+            if (empty || entry == null) {
+                deleteBtn.setVisible(false);
+                deleteBtn.setManaged(false);
+                container.setStyle("-fx-background-color: " + bgPrimary + "; -fx-background-radius: 8;");
                 setGraphic(null);
                 setText(null);
             } else {
+                titleLabel.setText(entry.getTitle() != null && !entry.getTitle().isEmpty()
+                    ? entry.getTitle()
+                    : entry.getUrl());
+                urlLabel.setText(extractDomain(entry.getUrl()));
 
-                titleLabel.setText(item.getDisplayTitle());
+                // Format time
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM dd, HH:mm");
+                timeLabel.setText(entry.getLastVisit().format(formatter));
 
-                urlLabel.setText(item.getDomain());
+                container.setStyle("-fx-background-color: " + bgPrimary + "; -fx-background-radius: 8;");
 
-                if (item.getLastVisit() != null) {
-                    LocalDate entryDate = item.getLastVisit().toLocalDate();
-                    LocalDate today = LocalDate.now();
+                String bgIcon = isDarkTheme ? "#252525" : "#f8f9fa";
+                iconContainer.setStyle("-fx-background-color: " + bgIcon + "; -fx-background-radius: 8;");
 
-                    if (entryDate.equals(today)) {
-                        timeLabel.setText(item.getFormattedTime());
-                    } else if (entryDate.equals(today.minusDays(1))) {
-                        timeLabel.setText("Yesterday");
-                    } else {
-                        timeLabel.setText(item.getFormattedDate());
-                    }
-                }
+                String textPrimary = isDarkTheme ? "#e0e0e0" : "#212529";
+                String textMuted = isDarkTheme ? "#808080" : "#6c757d";
 
-                int visits = item.getVisitCount();
-                visitCountLabel.setText(visits + " visit" + (visits != 1 ? "s" : ""));
+                titleLabel.setTextFill(Color.valueOf(textPrimary));
+                urlLabel.setTextFill(Color.valueOf(textMuted));
+                timeLabel.setTextFill(Color.valueOf(textMuted));
 
-                loadFavicon(item);
+                loadFavicon(entry);
 
                 setGraphic(container);
                 setText(null);
             }
         }
 
-        private void loadFavicon(HistoryEntry item) {
-            faviconContainer.getChildren().clear();
+        private void loadFavicon(HistoryEntry entry) {
+            iconContainer.getChildren().clear();
+            iconContainer.getChildren().add(defaultIcon);
 
-            if (item.getFaviconUrl() != null && !item.getFaviconUrl().isEmpty()) {
-                Image cached = faviconCache.get(item.getFaviconUrl());
-                if (cached != null) {
-                    faviconView.setImage(cached);
-                    faviconContainer.getChildren().add(faviconView);
-                } else {
-
-                    faviconContainer.getChildren().add(defaultIcon);
-                    new Thread(() -> {
-                        try {
-                            Image img = new Image(item.getFaviconUrl(), 24, 24, true, true);
-                            if (!img.isError()) {
-                                faviconCache.put(item.getFaviconUrl(), img);
-                                Platform.runLater(() -> {
-                                    if (getItem() == item) {
-                                        faviconView.setImage(img);
-                                        faviconContainer.getChildren().clear();
-                                        faviconContainer.getChildren().add(faviconView);
-                                    }
-                                });
+            String domain = extractDomain(entry.getUrl());
+            if (domain != null && !domain.isEmpty()) {
+                FaviconLoader.loadForDomain(domain, 24).thenAccept(img -> {
+                    if (img != null) {
+                        Platform.runLater(() -> {
+                            if (getItem() == entry) {
+                                faviconView.setImage(img);
+                                iconContainer.getChildren().clear();
+                                iconContainer.getChildren().add(faviconView);
                             }
-                        } catch (Exception ignored) {}
-                    }).start();
-                }
-            } else {
+                        });
+                    }
+                });
+            }
+        }
 
-                String domain = item.getDomain();
-                if (!domain.isEmpty()) {
-                    String faviconUrl = "https://www.google.com/s2/favicons?sz=64&domain=" + domain;
-                    faviconContainer.getChildren().add(defaultIcon);
-                    new Thread(() -> {
-                        try {
-                            Image img = new Image(faviconUrl, 24, 24, true, true);
-                            if (!img.isError()) {
-                                faviconCache.put(domain, img);
-                                Platform.runLater(() -> {
-                                    if (getItem() == item) {
-                                        faviconView.setImage(img);
-                                        faviconContainer.getChildren().clear();
-                                        faviconContainer.getChildren().add(faviconView);
-                                    }
-                                });
-                            }
-                        } catch (Exception ignored) {}
-                    }).start();
-                } else {
-                    faviconContainer.getChildren().add(defaultIcon);
+        private String extractDomain(String url) {
+            try {
+                if (url == null || url.isEmpty()) return "";
+
+                if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    url = "https://" + url;
                 }
+
+                java.net.URL uri = new java.net.URL(url);
+                String host = uri.getHost();
+
+                if (host != null && host.startsWith("www.")) {
+                    host = host.substring(4);
+                }
+
+                return host;
+            } catch (Exception e) {
+                return url;
             }
         }
     }
 }
+

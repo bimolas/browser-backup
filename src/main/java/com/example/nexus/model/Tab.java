@@ -2,6 +2,7 @@ package com.example.nexus.model;
 
 public class Tab {
     private int id;
+    private int profileId;
     private String title;
     private String url;
     private String faviconUrl;
@@ -22,6 +23,9 @@ public class Tab {
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
+
+    public int getProfileId() { return profileId; }
+    public void setProfileId(int profileId) { this.profileId = profileId; }
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
