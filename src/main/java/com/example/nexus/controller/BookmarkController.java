@@ -25,6 +25,7 @@ public class BookmarkController {
     private final BookmarkService bookmarkService;
     private final SettingsService settingsService;
     private final List<Runnable> bookmarkChangeListeners = new ArrayList<>();
+    private javafx.stage.Stage bookmarkStage; // Track open bookmark panel
 
     public BookmarkController(BookmarkService bookmarkService,SettingsService settingsService) {
         this.bookmarkService = bookmarkService;
@@ -35,6 +36,16 @@ public class BookmarkController {
     public void addBookmarkChangeListener(Runnable listener) {
         if (listener != null && !bookmarkChangeListeners.contains(listener)) {
             bookmarkChangeListeners.add(listener);
+        }
+    }
+
+    /**
+     * Close the bookmark panel if it's open
+     */
+    public void closePanel() {
+        if (bookmarkStage != null && bookmarkStage.isShowing()) {
+            bookmarkStage.close();
+            bookmarkStage = null;
         }
     }
 
@@ -236,6 +247,14 @@ public class BookmarkController {
 
     public void showBookmarkPanel(DIContainer container, Consumer<String> onOpenUrl, com.example.nexus.util.KeyboardShortcutManager shortcutManager) {
         try {
+            // If bookmark panel is already open, bring it to front
+            if (bookmarkStage != null && bookmarkStage.isShowing()) {
+                bookmarkStage.toFront();
+                bookmarkStage.requestFocus();
+                logger.info("Bookmark panel already open, bringing to front");
+                return;
+            }
+
             // Determine theme
             String theme = settingsService.getTheme();
             boolean isDarkTheme = "dark".equals(theme) || ("system".equals(theme) && isSystemDark());
@@ -288,13 +307,13 @@ public class BookmarkController {
             });
 
             // Create stage
-            javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.setTitle("Bookmarks");
-            stage.initModality(javafx.stage.Modality.NONE);
-            stage.setMinWidth(800);
-            stage.setMinHeight(550);
-            stage.setWidth(950);
-            stage.setHeight(700);
+            bookmarkStage = new javafx.stage.Stage();
+            bookmarkStage.setTitle("Bookmarks");
+            bookmarkStage.initModality(javafx.stage.Modality.NONE);
+            bookmarkStage.setMinWidth(800);
+            bookmarkStage.setMinHeight(550);
+            bookmarkStage.setWidth(950);
+            bookmarkStage.setHeight(700);
 
             javafx.scene.Scene scene = new javafx.scene.Scene(root);
 
@@ -305,8 +324,8 @@ public class BookmarkController {
                 scene.getStylesheets().add(cssResource.toExternalForm());
             }
 
-            stage.setScene(scene);
-            viewController.setOnClose(() -> stage.close());
+            bookmarkStage.setScene(scene);
+            viewController.setOnClose(() -> bookmarkStage.close());
 
             // Load initial data from services and push to view
             refreshPanelData(viewController);
@@ -315,15 +334,18 @@ public class BookmarkController {
             if (shortcutManager != null) {
                 try {
                     shortcutManager.pushScene(scene);
-                    stage.setOnHidden(ev -> {
+                    bookmarkStage.setOnHidden(ev -> {
                         try {
                             shortcutManager.popScene();
                         } catch (Exception ignored) {}
+                        bookmarkStage = null; // Clear reference when closed
                     });
                 } catch (Exception ignored) {}
+            } else {
+                bookmarkStage.setOnHidden(ev -> bookmarkStage = null);
             }
 
-            stage.show();
+            bookmarkStage.show();
 
         } catch (Exception e) {
             logger.error("Error opening bookmark panel", e);

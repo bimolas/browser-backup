@@ -18,10 +18,21 @@ public class DownloadController {
 
     private final DownloadService downloadService;
     private final SettingsService settingsService;
+    private DownloadManagerPanel downloadManagerPanel; // Track open download manager
 
     public DownloadController(DownloadService downloadService, SettingsService settingsService) {
         this.downloadService = downloadService;
         this.settingsService = settingsService;
+    }
+
+    /**
+     * Close the download manager panel if it's open
+     */
+    public void closePanel() {
+        if (downloadManagerPanel != null && downloadManagerPanel.isShowing()) {
+            downloadManagerPanel.close();
+            downloadManagerPanel = null;
+        }
     }
 
     public void startDownload(String url, String filename) {
@@ -199,16 +210,28 @@ public class DownloadController {
     }
 
     public void showDownloadManagerPanel(DIContainer container, SettingsService settingsService, com.example.nexus.controller.SettingsController settingsController, com.example.nexus.util.KeyboardShortcutManager shortcutManager) {
+        // If download manager is already open, bring it to front
+        if (downloadManagerPanel != null && downloadManagerPanel.isShowing()) {
+            downloadManagerPanel.toFront();
+            downloadManagerPanel.requestFocus();
+            logger.info("Download manager already open, bringing to front");
+            return;
+        }
+
         boolean isDarkTheme = false;
         if (settingsService != null && settingsController != null) {
             isDarkTheme = "dark".equals(settingsService.getTheme()) || ("system".equals(settingsService.getTheme()) && settingsController.isSystemDark());
         }
-        DownloadManagerPanel panel = new DownloadManagerPanel(container, this, isDarkTheme);
-        panel.show();
+        downloadManagerPanel = new DownloadManagerPanel(container, this, isDarkTheme);
 
-        if (shortcutManager != null && panel.getScene() != null) {
+        // Clear reference when closed
+        downloadManagerPanel.setOnHidden(e -> downloadManagerPanel = null);
+
+        downloadManagerPanel.show();
+
+        if (shortcutManager != null && downloadManagerPanel.getScene() != null) {
             try {
-                shortcutManager.setupForScene(panel.getScene());
+                shortcutManager.setupForScene(downloadManagerPanel.getScene());
             } catch (Exception ignored) {}
         }
     }

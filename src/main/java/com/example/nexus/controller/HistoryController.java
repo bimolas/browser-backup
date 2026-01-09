@@ -15,9 +15,20 @@ public class HistoryController {
     private static final Logger logger = LoggerFactory.getLogger(HistoryController.class);
 
     private final HistoryService historyService;
+    private javafx.stage.Stage historyStage; // Track open history panel
 
     public HistoryController(HistoryService historyService) {
         this.historyService = historyService;
+    }
+
+    /**
+     * Close the history panel if it's open
+     */
+    public void closePanel() {
+        if (historyStage != null && historyStage.isShowing()) {
+            historyStage.close();
+            historyStage = null;
+        }
     }
 
 
@@ -37,6 +48,14 @@ public class HistoryController {
 
     public void showHistoryPanel(DIContainer container, Consumer<String> onOpenUrl, com.example.nexus.util.KeyboardShortcutManager shortcutManager) {
         try {
+            // If history panel is already open, bring it to front
+            if (historyStage != null && historyStage.isShowing()) {
+                historyStage.toFront();
+                historyStage.requestFocus();
+                logger.info("History panel already open, bringing to front");
+                return;
+            }
+
             // Get settings service for theme
             SettingsService settingsService = container.getOrCreate(SettingsService.class);
             String theme = settingsService.getTheme();
@@ -66,13 +85,13 @@ public class HistoryController {
             });
 
             // Create stage
-            javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.setTitle("History");
-            stage.initModality(javafx.stage.Modality.NONE);
-            stage.setMinWidth(700);
-            stage.setMinHeight(500);
-            stage.setWidth(850);
-            stage.setHeight(650);
+            historyStage = new javafx.stage.Stage();
+            historyStage.setTitle("History");
+            historyStage.initModality(javafx.stage.Modality.NONE);
+            historyStage.setMinWidth(700);
+            historyStage.setMinHeight(500);
+            historyStage.setWidth(850);
+            historyStage.setHeight(650);
 
             javafx.scene.Scene scene = new javafx.scene.Scene(root);
 
@@ -83,8 +102,8 @@ public class HistoryController {
                 scene.getStylesheets().add(cssResource.toExternalForm());
             }
 
-            stage.setScene(scene);
-            viewController.setOnClose(() -> stage.close());
+            historyStage.setScene(scene);
+            viewController.setOnClose(() -> historyStage.close());
 
             // Load initial data from service and push to view
             loadHistoryData(viewController);
@@ -93,15 +112,18 @@ public class HistoryController {
             if (shortcutManager != null) {
                 try {
                     shortcutManager.pushScene(scene);
-                    stage.setOnHidden(ev -> {
+                    historyStage.setOnHidden(ev -> {
                         try {
                             shortcutManager.popScene();
                         } catch (Exception ignored) {}
+                        historyStage = null; // Clear reference when closed
                     });
                 } catch (Exception ignored) {}
+            } else {
+                historyStage.setOnHidden(ev -> historyStage = null);
             }
 
-            stage.show();
+            historyStage.show();
 
         } catch (Exception e) {
             logger.error("Error opening history panel", e);

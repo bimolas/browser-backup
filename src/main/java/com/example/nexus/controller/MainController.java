@@ -64,6 +64,13 @@ public class MainController {
     private DownloadDropdown downloadDropdown;
     private DownloadController downloadController;
 
+    // Track open panels to prevent duplicates and enable cleanup
+    private Stage settingsStage;
+    private Stage bookmarkStage;
+    private Stage historyStage;
+    private Stage downloadStage;
+    private Stage profileStage;
+
     public void setContainer(DIContainer container) {
         this.container = container;
     }
@@ -399,11 +406,17 @@ public class MainController {
     @FXML
     public void handleShowSettings() {
         try {
+            // If settings window is already open, bring it to front
+            if (settingsStage != null && settingsStage.isShowing()) {
+                settingsStage.toFront();
+                settingsStage.requestFocus();
+                logger.info("Settings window already open, bringing to front");
+                return;
+            }
 
-            SettingsPanel settingsPanel =
-                    new SettingsPanel(settingsService);
+            SettingsPanel settingsPanel = new SettingsPanel(settingsService);
 
-            javafx.stage.Stage settingsStage = new javafx.stage.Stage();
+            settingsStage = new javafx.stage.Stage();
             settingsStage.setTitle("Settings");
             settingsStage.initModality(javafx.stage.Modality.NONE);
 
@@ -429,12 +442,13 @@ public class MainController {
             settingsController.registerScene(settingsScene);
 
             settingsPanel.setOnThemeChange(theme -> {
-
                 settingsService.setTheme(theme);
-
             });
 
-            settingsStage.setOnHidden(e -> settingsController.unregisterScene(settingsScene));
+            settingsStage.setOnHidden(e -> {
+                settingsController.unregisterScene(settingsScene);
+                settingsStage = null; // Clear reference when closed
+            });
 
             settingsStage.show();
             settingsStage.toFront();
@@ -648,6 +662,14 @@ public class MainController {
     @FXML
     public void handleShowProfile() {
         try {
+            // If profile window is already open, bring it to front
+            if (profileStage != null && profileStage.isShowing()) {
+                profileStage.toFront();
+                profileStage.requestFocus();
+                logger.info("Profile window already open, bringing to front");
+                return;
+            }
+
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/example/nexus/fxml/dialogs/profile-panel.fxml"));
             loader.setControllerFactory(controllerClass -> {
                 if (controllerClass == ProfileController.class) {
@@ -661,7 +683,7 @@ public class MainController {
             });
 
             javafx.scene.layout.VBox profileRoot = loader.load();
-            javafx.stage.Stage profileStage = new javafx.stage.Stage();
+            profileStage = new javafx.stage.Stage();
             profileStage.setTitle("Profile");
             javafx.scene.Scene profileScene = new javafx.scene.Scene(profileRoot);
 
@@ -679,7 +701,10 @@ public class MainController {
             profileStage.setScene(profileScene);
             profileStage.setResizable(false);
             settingsController.registerScene(profileScene);
-            profileStage.setOnHidden(e -> settingsController.unregisterScene(profileScene));
+            profileStage.setOnHidden(e -> {
+                settingsController.unregisterScene(profileScene);
+                profileStage = null; // Clear reference when closed
+            });
 
             profileStage.show();
             profileStage.toFront();
@@ -756,8 +781,43 @@ public class MainController {
                 tabService.clearProfileTabs(currentProfile.getId());
             }
 
+            // Close all open panels
+            closeAllPanels();
+
         } catch (Exception e) {
             logger.error("Error saving session on exit", e);
+        }
+    }
+
+    /**
+     * Close all open panels (Settings, Bookmarks, History, Downloads, Profile)
+     */
+    private void closeAllPanels() {
+        logger.info("Closing all open panels");
+
+        if (settingsStage != null && settingsStage.isShowing()) {
+            settingsStage.close();
+            settingsStage = null;
+        }
+
+        if (profileStage != null && profileStage.isShowing()) {
+            profileStage.close();
+            profileStage = null;
+        }
+
+        // Close bookmark panel through controller
+        if (bookmarkController != null) {
+            bookmarkController.closePanel();
+        }
+
+        // Close history panel through controller
+        if (historyController != null) {
+            historyController.closePanel();
+        }
+
+        // Close download manager through controller
+        if (downloadController != null) {
+            downloadController.closePanel();
         }
     }
 }
